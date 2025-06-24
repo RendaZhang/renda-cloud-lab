@@ -3,22 +3,28 @@ variable "region" {
   type        = string
 }
 
-variable "vpc_id" {
-  description = "Existing VPC for EKS"
+variable "profile" {
+  description = "AWS CLI profile"
   type        = string
-}
-
-variable "public_subnet_ids" {
-  description = "List of public subnet IDs"
-  type        = list(string)
-}
-
-variable "private_subnet_ids" {
-  description = "List of private subnet IDs"
-  type        = list(string)
+  default     = "phase2-sso" # 本机使用的 profile
 }
 
 variable "eks_admin_role_arn" {
   description = "IAM role ARN with EKS admin permissions"
   type        = string
+}
+
+variable "create_nat" {
+  type    = bool
+  default = true
+}
+
+variable "create_alb" {
+  type    = bool
+  default = true
+}
+
+variable "create_eks" {
+  type    = bool
+  default = false # 先关掉
 }
