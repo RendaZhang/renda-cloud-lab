@@ -32,3 +32,42 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# ────────────────────────────────
+# Extra ignores for Renda Cloud Lab
+# ────────────────────────────────
+
+# 1) 操作系统 / IDE 杂项
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 2) Helm 打包产物
+*.tgz                      # helm package 生成的 chart 压缩包
+charts/**/charts/          # chart 依赖解压目录
+
+# 3) Kubernetes & kubeconfig
+.kube/
+*.kubeconfig
+*.yaml.backup              # kubectl edit 生成的临时备份
+
+# 4) 短期日志 / 终端记录
+*.log
+nohup.out
+
+# 5) Python / Node 虚拟环境（若脚本用到）
+.venv/
+node_modules/
+
+# 6) 生成的图表 / 二进制报告
+*.png
+*.svg
+*.pdf
+
+# 7) Terraform plan 文件（留给你按需启用）
+# *tfplan*
+
+# 8) Shell 脚本执行缓存
+*.swp
+*.swo
