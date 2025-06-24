@@ -22,7 +22,7 @@ module "alb" {
 
 resource "aws_route53_record" "lab_alias" {
   zone_id = module.network_base.hosted_zone_id
-  name    = "@" # lab.rendazhang.com
+  name    = "" # lab.rendazhang.com
   type    = "A"
   alias {
     name                   = module.alb.alb_dns     # 动态 ALB DNS
