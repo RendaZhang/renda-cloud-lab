@@ -19,3 +19,14 @@ module "alb" {
   vpc_id            = module.network_base.vpc_id
   depends_on        = [module.network_base]
 }
+
+resource "aws_route53_record" "lab_alias" {
+  zone_id = module.network_base.hosted_zone_id
+  name    = "@" # lab.rendazhang.com
+  type    = "A"
+  alias {
+    name                   = module.alb.alb_dns     # 动态 ALB DNS
+    zone_id                = module.alb.alb_zone_id # ALB 所属 Hosted-zone
+    evaluate_target_health = false
+  }
+}

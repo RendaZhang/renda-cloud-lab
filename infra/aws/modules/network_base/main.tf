@@ -28,10 +28,6 @@ resource "aws_subnet" "private" {
   }
 }
 
-data "aws_availability_zones" "available" {
-
-}
-
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.this.id
   tags = {
@@ -86,4 +82,12 @@ resource "aws_security_group" "alb" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+data "aws_availability_zones" "available" {
+
+}
+
+data "aws_route53_zone" "lab" {
+  name = "lab.rendazhang.com"
 }
