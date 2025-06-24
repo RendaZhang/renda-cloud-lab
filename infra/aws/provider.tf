@@ -1,6 +1,6 @@
 provider "aws" {
   region              = var.region
-  # profile           = "default"      # 若本机用 named profile 可解注
+  profile             = "phase2-sso"   # 本机使用的 profile
   default_tags = {
     project = "phase2-sprint"
   }
