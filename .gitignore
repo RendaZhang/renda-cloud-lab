@@ -72,4 +72,5 @@ node_modules/
 *.swo
 
 # 9) 其他常见忽略
-preflight.txt            # Preflight 检查日志
+## Preflight 检查日志
+preflight.txt
