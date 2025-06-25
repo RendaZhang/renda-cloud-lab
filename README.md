@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-- Last Updated: June 25, 2025, 18:00 (UTC+8)
+- Last Updated: June 25, 2025, 19:00 (UTC+8)
 - 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -60,6 +60,7 @@
 * **Terraform 后端**：提前创建用于 Terraform 状态存储的 S3 Bucket 及 DynamoDB Lock Table，并在 `infra/aws/backend.tf` 中相应配置名称。默认配置假定 S3 Bucket 名为 `phase2-tf-state-us-east-1` 且 DynamoDB 表名为 `tf-state-lock`（可根据需要修改）。
 * **DNS 域名**（可选）：若希望使用自定义域名访问集群服务，请在 Route 53 中预先创建相应 Hosted Zone（例如当前默认使用的 `lab.rendazhang.com` 域名）。将 Terraform 配置中的域名更新为你的域名，以映射 ALB 到固定域名。否则，可忽略 DNS 配置，直接使用自动分配的 ALB 域名访问。
 * **本地环境**：安装 Terraform (\~1.8+)、eksctl (\~0.180+)、kubectl，以及 Helm 等必要的命令行工具。同时确保安装 Git 和 Make 等基础工具。
+* **预检脚本**: 目前可以运行 preflight.sh 来检查关键 Service Quota 的数量，以后会加上对本地工具链 (AWS CLI / Terraform / eksctl / Helm 等)的健康检查 。
 
 ### 基础设施部署
 
@@ -123,6 +124,36 @@
 
 完成上述步骤后，你的 EKS 实验集群应已成功运行起应用工作负载和所需的支撑组件。
 
+## 日常工作流
+
+### 预检检查 Preflight
+
+在首次部署或每次更换终端 / 电脑时，可先执行：
+
+```bash
+# 一键预检
+make preflight # 等同于 bash scripts/preflight.sh
+# 输出示例：
+SG per ENI:     5.0
+Spot vCPU:      32.0
+Network ENI / Region:   5000.0
+OnDemand vCPU:  16.0
+```
+
+**该脚本将检查：**
+
+- 关键 Service Quota：ENI 数量、按需/Spot vCPU 上限、SecurityGroup per ENI
+生成 preflight.txt 供存档
+
+**备注**
+
+- TODO: 本地工具链版本 (AWS CLI / Terraform / eksctl / Helm)
+- TODO: AWS SSO 登录有效性
+- TODO: 如果某项配额低于需求，脚本会以显眼颜色标记，并附带下一步 URL (Console Quota Increase)。
+- TODO: 若检测到本地缺少 Terraform / eksctl 等工具，脚本会提示对应安装命令（brew / apt / choco）。
+- 若计划把脚本扩展为更完整的 “Doctor” 工具，可考虑单独新建 `scripts/doctor.sh`，并在 README 留链接。
+
+
 ## 💰 成本控制说明
 
 云资源按需高效利用是本项目的重要考量。**Renda Cloud Lab** 实践了一套“每日自动销毁 -> 重建”的基础设施生命周期策略，以最大化节约 AWS 费用：
@@ -145,6 +176,10 @@
 
 ## 常见问题 (FAQ)
 
+* **问：如何检查本地工具和 AWS 配额是否满足实验要求？**
+  
+  答：运行 make preflight，脚本会自动检查 CLI 工具版本、AWS SSO 登录状态、关键配额 (ENI / vCPU / Spot) 并生成报告。
+
 * **问：如何将本项目部署到我的 AWS 账户？需要修改哪些配置？**
   
   答：首先请确保满足文档中提到的所有前置条件，然后在 `infra/aws/terraform.tfvars` 中修改必要的变量以匹配你的环境。例如，将 `profile` 更改为你的 AWS CLI 配置文件名，提供你自有的 S3 Bucket 和 DynamoDB 表用于 Terraform 后端，以及替换 `eks_admin_role_arn` 为你账户中具有管理员权限的 IAM Role。若使用自定义域名，还需要在 Terraform 配置中替换默认的 `lab.rendazhang.com` 域名为你的域名并提供对应的 Hosted Zone。完成配置后，按照**安装部署指南**中的步骤执行 Terraform 和脚本即可。部署过程中请确保 AWS 凭证有效且有足够权限创建所需资源。
@@ -165,10 +200,18 @@
   
   答：本项目采用 Terraform 管理网络和周边资源（VPC、子网、网关等），而将 EKS 集群本身的创建交由 eksctl 脚本执行。这种混合方式主要出于便利和效率考虑：Terraform 保留底层网络状态，便于多次反复部署，而 eksctl 在创建和销毁 Kubernetes 控制面方面更为快捷。通过将 EKS 从 Terraform 状态中解耦，我们可以在不影响 VPC 等共享资源的情况下频繁重建集群。此外，eksctl 对 EKS 的配置更直观，如指定节点配置、IAM 集成等。在未来，我们计划评估 Terraform 官方的 EKS 模块，以可能实现 Terraform 对集群的直接管理。
 
+## 附录 / 脚本清单
+
+- 检查 terraform ≥ 1.7，eksctl ≥ 0.180
+- 验证 aws sso login token 不过期
+- 检测 Helm repo 是否就绪
+- 检查 kubectl kubeconfig 是否指向目标集群
+
 ## 未来计划
 
 Renda Cloud Lab 仍在持续演进中，未来规划包括但不限于：
 
+* **预检脚本持续扩展**： 增加本地依赖检查、配额趋势监控、结果上传至 Slack / Telegram 以便远程提醒。
 * **完善集群自动化部署**：将 EKS 集群创建纳入 Terraform 管理（启用 `create_eks` 开关）或提升 eksctl 脚本的可定制性，实现从 VPC 到集群的一站式部署。
 * **集成完整 CI/CD 流水线**：结合 AWS CodePipeline 等服务，实现从代码提交到容器镜像构建、安全扫描、部署到 EKS 的端到端流水线，并提供示例应用演示持续交付过程。
 * **增强 GitOps 与部署策略**：在集群中部署 Argo CD 等工具，支持多环境（Dev/Stage/Prod）下的 GitOps 工作流。探索应用分组部署、蓝绿发布/金丝雀发布策略，以提高部署弹性和可靠性。

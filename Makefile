@@ -2,7 +2,11 @@ AWS_PROFILE = phase2-sso
 TF_DIR      = infra/aws
 REGION      = us-east-1
 
-.PHONY:  start stop stop-hard plan
+.PHONY:  preflight start stop stop-hard plan
+
+## 🛠️ 预检脚本：关键 Service Quota、检查 AWS CLI、Terraform、EKSCTL
+preflight:
+	bash scripts/preflight.sh
 
 ## ▶ 显示当前计划
 plan:

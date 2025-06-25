@@ -1,0 +1,7 @@
+SG per ENI:	5.0
+Spot vCPU:	32.0
+EC2-VPC Elastic IPs:	5.0
+Network ENI / Region:	5000.0
+ALB per Region:	N/A
+OnDemand vCPU:	16.0
+VPCs per Region:	N/A
