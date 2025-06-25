@@ -21,6 +21,7 @@ module "alb" {
 }
 
 resource "aws_route53_record" "lab_alias" {
+  count   = var.create_alb ? 1 : 0
   zone_id = module.network_base.hosted_zone_id
   name    = "" # lab.rendazhang.com
   type    = "A"
