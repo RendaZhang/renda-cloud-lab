@@ -1,36 +1,57 @@
 #!/usr/bin/env bash
-set -eu
-# change PROFILE and REGION as needed
-PROFILE=phase2-sso
-REGION=us-east-1
+# ------------------------------------------------------------
+# Renda Cloud Lab · preflight.sh
+#
+# 功能：
+#   1. 校验本地 AWS CLI SSO 凭证有效性
+#   2. 读取关键 Service Quota 上限（Quota.Value）
+#   3. 将结果打印到终端并同步写入 preflight.txt
+#
+# 使用：
+#   bash scripts/preflight.sh
+#   或 make preflight   # 如果已在 Makefile 注册
+# ------------------------------------------------------------
 
-# QuotaCode : Human-Readable Name
+set -eu
+
+# -------- 基本参数（如需改 profile/region 在此改） --------
+PROFILE="phase2-sso"
+REGION="us-east-1"
+
+# -------- QuotaCode → 描述映射表 --------
+# 填写时务必确认对应 service-code, 见 CODES[] 映射
 declare -A QUOTAS=(
-  # The maximum number of network interfaces per Availability Zone in a Region.
-  [L-DF5E4CA3]="Network ENI / Region"
-  # The maximum number of security groups per network interface. The maximum is 16. This quota, multiplied by the quota for rules per security group, cannot exceed 1000.
-  [L-2AFB9258]="SG per ENI"
-  # Maximum number of vCPUs assigned to the Running On-Demand Standard (A, C, D, H, I, M, R, T, Z) instances.
-  [L-1216C47A]="OnDemand vCPU"
-  # The maximum number of vCPUs for all running or requested Standard (A, C, D, H, I, M, R, T, Z) Spot Instances per Region
-  [L-34B43A08]="Spot vCPU"
-  # The maximum number of VPCs per Region. This quota is directly tied to the maximum number of internet gateways per Region.
-  [L-F678F1CE]="VPCs per Region"
-  # The maximum number of Application Load Balancers per Region
-  [L-53DA6B97]="ALB per Region"
-  # The maximum number of Elastic IP addresses that you can allocate for EC2-VPC in this Region.
-  [L-0263D0A3]="EC2-VPC Elastic IPs"
+  [L-DF5E4CA3]="Network ENI / Region"              # VPC
+  [L-2AFB9258]="SG per ENI"                        # VPC
+  [L-1216C47A]="OnDemand vCPU (Std family)"        # EC2
+  [L-34B43A08]="Spot vCPU (Std family)"            # EC2
+  [L-F678F1CE]="VPCs per Region"                   # VPC
+  [L-53DA6B97]="ALB per Region"                    # Elastic Load Balancing
+  [L-0263D0A3]="EC2-VPC Elastic IPs"               # EC2
 )
 
-# This script checks the AWS service quotas for the PROFILE in REGION.
-# It retrieves the quotas for various resources and outputs them in a human-readable format.
+# QuotaCode → service-code （必须准确）
+declare -A CODES=(
+  [L-DF5E4CA3]="vpc"
+  [L-2AFB9258]="vpc"
+  [L-F678F1CE]="vpc"
+  [L-1216C47A]="ec2"
+  [L-34B43A08]="ec2"
+  [L-0263D0A3]="ec2"
+  [L-53DA6B97]="elasticloadbalancing"
+)
+
+echo -e "AWS_PROFILE=$PROFILE\nAWS_REGION=$REGION" | tee preflight.txt
+echo "---------------- Quota Check ----------------" | tee -a preflight.txt
+
 for code in "${!QUOTAS[@]}"; do
-  svc=$( [[ $code == L-D* || $code == L-2A* ]] && echo vpc || echo ec2 )
+  svc="${CODES[$code]}"
 
   value=$(aws --profile "$PROFILE" --region "$REGION" \
-          service-quotas get-service-quota \
-          --service-code "$svc" --quota-code "$code" \
-          --query 'Quota.Value' --output text 2>/dev/null || echo "N/A")
+              service-quotas get-service-quota \
+              --service-code "$svc" --quota-code "$code" \
+              --query 'Quota.Value' --output text \
+              2>/dev/null || echo "N/A")
 
-  echo -e "${QUOTAS[$code]}:\t${value}"
-done | tee preflight.txt
+  printf "%-30s\t%s\n" "${QUOTAS[$code]}" "${value}" | tee -a preflight.txt
+done
