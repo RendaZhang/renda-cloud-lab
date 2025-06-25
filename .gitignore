@@ -70,3 +70,6 @@ node_modules/
 # 8) Shell 脚本执行缓存
 *.swp
 *.swo
+
+# 9) 其他常见忽略
+preflight.log            # Preflight 检查日志
