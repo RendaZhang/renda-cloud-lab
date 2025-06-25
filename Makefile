@@ -2,6 +2,7 @@ AWS_PROFILE = phase2-sso
 TF_DIR      = infra/aws
 REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
+CLUSTER     = dev
 
 .PHONY:  preflight init start stop stop-hard plan
 
@@ -27,8 +28,9 @@ start:
 
 ## 🌄 放假回来：创建 EKS 集群（使用 eksctl）
 start-cluster:
-	@echo "Creating EKS cluster using eksctl..."
-	eksctl create cluster -f $(EKSCTL_YAML)
+	@echo "Creating EKS cluster..."
+	aws sso login --profile $(AWS_PROFILE)
+	eksctl create cluster -f $(EKSCTL_YAML) --profile $(AWS_PROFILE) --region $(REGION)
 
 ## 🌙 晚上：销毁 NAT + ALB（保留 VPC、锁表、State）
 stop:
@@ -38,4 +40,4 @@ stop:
 ## ☠️ 假期：连同 EKS 控制面 & 节点都删光
 stop-hard: stop
 	@echo "Destroying EKS resources..."
-	eksctl delete cluster --name dev --region $(REGION) || true
+	eksctl delete cluster --name $(CLUSTER) --region $(REGION) --profile $(AWS_PROFILE) || true
