@@ -1,6 +1,7 @@
 AWS_PROFILE = phase2-sso
 TF_DIR      = infra/aws
 REGION      = us-east-1
+EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 
 .PHONY:  preflight init start stop stop-hard plan
 
@@ -23,6 +24,11 @@ plan:
 start:
 	@echo "Applying Terraform changes to start NAT and ALB..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -var="region=$(REGION)" -var="create_nat=true" -var="create_alb=true" -var="create_eks=false"
+
+## 🌄 放假回来：创建 EKS 集群（使用 eksctl）
+start-cluster:
+	@echo "Creating EKS cluster using eksctl..."
+	eksctl create cluster -f $(EKSCTL_YAML)
 
 ## 🌙 晚上：销毁 NAT + ALB（保留 VPC、锁表、State）
 stop:

@@ -6,7 +6,7 @@
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
 
 <p align="center">
-  <img src="https://img.shields.io/badge/AWS-EKS%20%7C%20Terraform%20%7C%20Helm-232F3E?logo=amazonaws&logoColor=white" />
+  <img src="https://img.shields.io/badge/AWS-EKS%20%7C%20Terraform%20%7C%20eksctl%20%7C%20Helm-232F3E?logo=amazonaws&logoColor=white" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" />
   <img src="https://img.shields.io/badge/Status-Active-brightgreen" />
 </p>
@@ -32,7 +32,8 @@
 
 ```text
 ├─ infra/                  # IaC 模块与环境定义
-│  └─ aws/                 #   Terraform 配置（backend / providers / vars 等）
+│  ├─ aws/                 # Terraform 配置（backend / providers / vars 等）
+│  └─ eksctl/              # eksctl YAML (EKS cluster & nodegroups)
 ├─ charts/                 # Helm Charts（按功能拆分的应用和系统组件）
 ├─ scripts/                # 基础设施启停与自动化脚本（如一键部署、节点伸缩、清理等）
 ├─ diagrams/               # 架构图表（Mermaid / PlantUML / PNG 等）
@@ -40,13 +41,14 @@
 └─ README.md
 ```
 
-| 目录                     | 说明                                                                                              |
+| 目录                   | 说明                                                                                            |
 | ---------------------- | ----------------------------------------------------------------------------------------------- |
-| **infra/aws/**         | Terraform 模块（VPC, 子网, NAT, ALB 等）和环境配置，远端状态保存在 S3/DynamoDB（默认 Region=`us-east-1`）               |
-| **charts/**            | 应用和系统的 Helm Chart，遵循 OCI 制品规范，便于复用与扩展                                                           |
-| **scripts/**           | 运维脚本：如 `provision-cluster.sh`（创建 EKS 集群）、`scale-nodegroup-zero.sh`（节点归零休眠）、`clean-up.sh`（资源清理）等 |
-| **diagrams/**          | 系统架构和流量拓扑图，帮助理解基础设施与应用关系                                                                        |
-| **.github/workflows/** | GitHub Actions 配置，用于CI流水线（格式检查、Terraform Plan等）                                                 |
+| **infra/aws/**         | Terraform 模块（VPC, 子网, NAT, ALB 等）和环境配置，远端状态保存在 S3/DynamoDB（默认 Region=`us-east-1`）  |
+| **infra/eksctl/**      | eksctl 声明式配置文件。目前仅 `eksctl-cluster.yaml`，后续可放 nodegroup YAML 或 upgrade 配置 |
+| **charts/**            | 应用和系统的 Helm Chart，遵循 OCI 制品规范，便于复用与扩展    |
+| **scripts/**           | 脚本：如 `preflight.sh`（预检检查）等 |
+| **diagrams/**          | 系统架构和流量拓扑图，帮助理解基础设施与应用关系   |
+| **.github/workflows/** | GitHub Actions 配置，用于CI流水线（格式检查、Terraform Plan等）  |
 
 ## 安装部署指南
 
@@ -87,13 +89,14 @@
 
    *注意：Terraform 会根据 `terraform.tfvars` 中的配置在指定区域创建资源，并使用提供的 IAM Role ARN 设置 EKS Admin 权限。如未修改，本项目默认 Region 为 `us-east-1`。*
 
-3. **创建 EKS 集群**：运行提供的一键脚本使用 eksctl 创建 Kubernetes 控制平面和节点组。该脚本会将集群部署在前一步创建的 VPC 中，并绑定预先提供的 IAM Role 作为集群管理员。
+3. **创建 EKS 集群**：运行提供的一键脚本使用 eksctl 创建 Kubernetes 控制平面和节点组。该脚本会将集群部署在前一步创建的 VPC 中。
 
    ```bash
-   # 返回仓库根目录
-   cd ../../
-   bash scripts/provision-cluster.sh
+   # 创建 / 导入 EKS 控制面 + NodeGroup
+   eksctl create cluster -f infra/eksctl/eksctl-cluster.yaml
    ```
+
+   eksctl YAML 默认期望 Terraform 已创建 VPC / Subnet。若 VPC CIDR 变动，请同步修改 eksctl-cluster.yaml。
 
    初始集群创建完成后，可通过 `kubectl get nodes --watch` 观察节点启动情况。集群默认命名为 “dev”，如需自定义名称或参数请修改脚本或 Terraform 变量配置。
 
@@ -212,6 +215,7 @@ OnDemand vCPU:  16.0
 
 Renda Cloud Lab 仍在持续演进中，未来规划包括但不限于：
 
+* **eksctl 模块化**：将 NodeGroup/Addon 升级策略拆分成独立 YAML，统一放置在 infra/eksctl/，并结合 make start 自动引用。
 * **预检脚本持续扩展**： 增加本地依赖检查、配额趋势监控、结果上传至 Slack / Telegram 以便远程提醒。
 * **完善集群自动化部署**：将 EKS 集群创建纳入 Terraform 管理（启用 `create_eks` 开关）或提升 eksctl 脚本的可定制性，实现从 VPC 到集群的一站式部署。
 * **集成完整 CI/CD 流水线**：结合 AWS CodePipeline 等服务，实现从代码提交到容器镜像构建、安全扫描、部署到 EKS 的端到端流水线，并提供示例应用演示持续交付过程。
