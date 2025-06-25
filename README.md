@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-- Last Updated: June 25, 2025, 19:00 (UTC+8)
+- Last Updated: June 25, 2025, 19:50 (UTC+8)
 - 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -140,10 +140,10 @@ Network ENI / Region:   5000.0
 OnDemand vCPU:  16.0
 ```
 
-**该脚本将检查：**
+**该脚本将：**
 
-- 关键 Service Quota：ENI 数量、按需/Spot vCPU 上限、SecurityGroup per ENI
-生成 preflight.txt 供存档
+- 检查关键 Service Quota
+- 生成 preflight.txt 供存档
 
 **备注**
 
@@ -152,6 +152,7 @@ OnDemand vCPU:  16.0
 - TODO: 如果某项配额低于需求，脚本会以显眼颜色标记，并附带下一步 URL (Console Quota Increase)。
 - TODO: 若检测到本地缺少 Terraform / eksctl 等工具，脚本会提示对应安装命令（brew / apt / choco）。
 - 若计划把脚本扩展为更完整的 “Doctor” 工具，可考虑单独新建 `scripts/doctor.sh`，并在 README 留链接。
+- Quota Check 中出现 - used 表示该配额无易于统计的实时“已用量”；出现 N/A used 表示当前用量为 0。
 
 
 ## 💰 成本控制说明
