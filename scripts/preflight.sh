@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 set -eu
-# This script checks the AWS service quotas for the PROFILE in REGION.
-# It retrieves the quotas for various resources and outputs them in a human-readable format.
 # change PROFILE and REGION as needed
 PROFILE=phase2-sso
 REGION=us-east-1
@@ -24,6 +22,8 @@ declare -A QUOTAS=(
   [L-0263D0A3]="EC2-VPC Elastic IPs"
 )
 
+# This script checks the AWS service quotas for the PROFILE in REGION.
+# It retrieves the quotas for various resources and outputs them in a human-readable format.
 for code in "${!QUOTAS[@]}"; do
   svc=$( [[ $code == L-D* || $code == L-2A* ]] && echo vpc || echo ec2 )
 
