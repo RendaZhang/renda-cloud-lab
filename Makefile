@@ -37,6 +37,11 @@ stop:
 	@echo "Applying Terraform changes to stop NAT and ALB..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -var="region=$(REGION)" -var="create_nat=false" -var="create_alb=false" -var="create_eks=false"
 
+## 🌌 停止 EKS 集群（保留 VPC、锁表、State）
+stop-cluster:
+	@echo "Destroying EKS cluster..."
+	eksctl delete cluster -f $(EKSCTL_YAML) --profile $(AWS_PROFILE) --wait || true
+
 ## ☠️ 假期：销毁 NAT + ALB, 连同 EKS 控制面 & 节点都删光
 stop-hard: stop
 	@echo "Destroying EKS resources..."
