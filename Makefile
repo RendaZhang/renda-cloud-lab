@@ -4,7 +4,7 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY:  preflight init start stop stop-hard plan
+.PHONY:  preflight init plan start start-cluster stop stop-cluster stop-hard
 
 ## 🛠️ 预检脚本：关键 Service Quota、检查 AWS CLI、Terraform、EKSCTL
 preflight:
