@@ -30,7 +30,7 @@ start:
 start-cluster:
 	@echo "Creating EKS cluster..."
 	aws sso login --profile $(AWS_PROFILE)
-	eksctl create cluster -f $(EKSCTL_YAML) --profile $(AWS_PROFILE) --region $(REGION)
+	eksctl create cluster -f $(EKSCTL_YAML) --profile $(AWS_PROFILE) --region $(REGION) --kubeconfig ~/.kube/config
 
 ## 🌙 晚上：销毁 NAT + ALB（保留 VPC、锁表、State）
 stop:
