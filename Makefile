@@ -21,18 +21,18 @@ plan:
 	aws sso login --profile $(AWS_PROFILE)
 	terraform -chdir=$(TF_DIR) plan -var="region=$(REGION)" -var="create_nat=true" -var="create_alb=true" -var="create_eks=false"
 
-## ☀ 早上：重建 NAT + ALB（EKS 目前 false；等 Day 2 再打开）
+## ☀ 重建 NAT + ALB（EKS 目前 false；等 Day 2 再打开）
 start:
 	@echo "Applying Terraform changes to start NAT and ALB..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -var="region=$(REGION)" -var="create_nat=true" -var="create_alb=true" -var="create_eks=false"
 
-## 🌄 放假回来：创建 EKS 集群（使用 eksctl）
+## 🌄 创建 EKS 集群（使用 eksctl）
 start-cluster:
 	@echo "Creating EKS cluster..."
 	aws sso login --profile $(AWS_PROFILE)
-	eksctl create cluster -f $(EKSCTL_YAML) --profile $(AWS_PROFILE) --kubeconfig ~/.kube/config
+	eksctl create cluster -f $(EKSCTL_YAML) --profile $(AWS_PROFILE) --kubeconfig ~/.kube/config --verbose 3
 
-## 🌙 晚上：销毁 NAT + ALB（保留 VPC、锁表、State）
+## 🌙 销毁 NAT + ALB（保留 VPC、锁表、State）
 stop:
 	@echo "Applying Terraform changes to stop NAT and ALB..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -var="region=$(REGION)" -var="create_nat=false" -var="create_alb=false" -var="create_eks=false"
@@ -42,7 +42,7 @@ stop-cluster:
 	@echo "Destroying EKS cluster..."
 	eksctl delete cluster -f $(EKSCTL_YAML) --profile $(AWS_PROFILE) --wait || true
 
-## ☠️ 假期：销毁 NAT + ALB, 连同 EKS 控制面 & 节点都删光
+## ☠️ 销毁 NAT + ALB + EKS 控制面 & 节点都删光
 stop-hard: stop
 	@echo "Destroying EKS resources..."
 	eksctl delete cluster --name $(CLUSTER) --region $(REGION) --profile $(AWS_PROFILE) || true
