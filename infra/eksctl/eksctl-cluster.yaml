@@ -33,11 +33,8 @@ iam:
 managedNodeGroups:
   - name: ng-mixed
     minSize: 0
-    # Spot (t3.small×2) + OD (t3.medium×1)
     desiredCapacity: 3
     maxSize: 6
-    capacityType: SPOT
-    # 先抢 spot
     instanceTypes: ["t3.small", "t3.medium"]
     spot: true
     privateNetworking: true
@@ -54,6 +51,3 @@ managedNodeGroups:
       - "subnet-0422bec13e7eec9e6"
       - "subnet-00630bdad3664ee18"
 
-availabilityZones:
-  - us-east-1a
-  - us-east-1b
