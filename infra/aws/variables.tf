@@ -26,5 +26,5 @@ variable "create_alb" {
 
 variable "create_eks" {
   type    = bool
-  default = false # 先关掉
+  default = true
 }

@@ -20,6 +20,27 @@ module "alb" {
   depends_on        = [module.network_base]
 }
 
+module "eks" {
+  source             = "./modules/eks"
+  create             = var.create_eks
+  cluster_name       = "dev"
+  cluster_role_arn   = var.eks_admin_role_arn
+  private_subnet_ids = module.network_base.private_subnet_ids
+  node_role_arn      = var.eks_admin_role_arn
+  nodegroup_name     = "ng-mixed"
+  depends_on         = [module.network_base]
+}
+
+module "irsa" {
+  source                          = "./modules/irsa"
+  name                            = "eks-cluster-autoscaler"
+  namespace                       = "kube-system"
+  service_account_name            = "cluster-autoscaler"
+  oidc_provider_arn               = module.eks.oidc_provider_arn
+  oidc_provider_url_without_https = module.eks.oidc_provider_url_without_https
+  depends_on                      = [module.eks]
+}
+
 resource "aws_route53_record" "lab_alias" {
   count   = var.create_alb ? 1 : 0
   zone_id = module.network_base.hosted_zone_id

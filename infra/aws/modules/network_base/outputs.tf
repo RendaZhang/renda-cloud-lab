@@ -18,10 +18,6 @@ output "alb_sg_id" {
   value = aws_security_group.alb.id
 }
 
-output "alb_zone_id" { # 占位，alb 模块运行后再输出真实 Zone
-  value = aws_vpc.this.id
-}
-
 output "hosted_zone_id" {
   value = data.aws_route53_zone.lab.zone_id
 }

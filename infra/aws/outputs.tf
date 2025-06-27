@@ -14,3 +14,8 @@ output "public_subnet_ids" {
 output "private_subnet_ids" {
   value = module.network_base.private_subnet_ids
 }
+
+output "autoscaler_role_arn" {
+  description = "IAM Role ARN for the EKS Cluster Autoscaler"
+  value       = module.irsa.autoscaler_role_arn
+}
