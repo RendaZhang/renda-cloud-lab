@@ -2,7 +2,7 @@ variable "create" {
   type = bool
 }
 
-variable "cluster_name"{
+variable "cluster_name" {
   type = string
 }
 

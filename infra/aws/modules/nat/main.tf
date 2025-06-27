@@ -1,6 +1,6 @@
 resource "aws_eip" "nat" {
-  count      = var.create ? 1 : 0
-  domain     = "vpc"
+  count  = var.create ? 1 : 0
+  domain = "vpc"
   tags = {
     Name = "lab-nat-eip"
   }
