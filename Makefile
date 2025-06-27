@@ -19,12 +19,12 @@ init:
 plan:
 	@echo "Planning Terraform changes..."
 	aws sso login --profile $(AWS_PROFILE)
-	terraform -chdir=$(TF_DIR) plan -var="region=$(REGION)" -var="create_nat=true" -var="create_alb=true" -var="create_eks=false"
+	terraform -chdir=$(TF_DIR) plan -var="region=$(REGION)" -var="create_nat=true" -var="create_alb=true" -var="create_eks=true"
 
 ## ☀ 重建 NAT + ALB（EKS 目前 false；等 Day 2 再打开）
 start:
 	@echo "Applying Terraform changes to start NAT and ALB..."
-	terraform -chdir=$(TF_DIR) apply -auto-approve -var="region=$(REGION)" -var="create_nat=true" -var="create_alb=true" -var="create_eks=false"
+	terraform -chdir=$(TF_DIR) apply -auto-approve -var="region=$(REGION)" -var="create_nat=true" -var="create_alb=true" -var="create_eks=true"
 
 ## 🌄 创建 EKS 集群（使用 eksctl）
 start-cluster:
