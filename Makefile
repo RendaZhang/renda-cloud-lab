@@ -4,7 +4,7 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY: check preflight init plan start post-recreate stop all destroy-all logs clean
+.PHONY: check preflight init plan start post-recreate all stop stop-hard destroy-all logs clean
 
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
@@ -49,7 +49,10 @@ post-recreate:
 	@mkdir -p scripts/logs
 	bash scripts/post-recreate.sh | tee scripts/logs/post-recreate.log
 
-## 🌙 停用高成本资源
+## 🚀 一键全流程（重建集群 + 通知绑定）
+all: start post-recreate
+
+## 🌙 销毁 NAT 和 ALB，保留 EKS 集群
 stop:
 	@echo "Stopping NAT and ALB (retain EKS control plane)..."
 	aws sso login --profile $(AWS_PROFILE)
@@ -57,10 +60,17 @@ stop:
 		-var="region=$(REGION)" \
 		-var="create_nat=false" \
 		-var="create_alb=false" \
-		-var="create_eks=false"
+		-var="create_eks=true"
 
-## 🚀 一键全流程（重建集群 + 通知绑定）
-all: start post-recreate
+## 🛑 销毁 NAT 和 ALB 以及 EKS 集群
+stop-hard:
+	@echo "Stopping all resources (NAT, ALB, EKS control plane)..."
+	aws sso login --profile $(AWS_PROFILE)
+	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
+		-var="region=$(REGION)" \
+		-var="create_nat=false" \
+		-var="create_alb=false" \
+		-var="create_eks=false"
 
 ## 💣 一键彻底销毁所有资源
 destroy-all: stop-cluster
