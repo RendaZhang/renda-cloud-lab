@@ -4,7 +4,7 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY: check preflight init plan start post-recreate all scale-zero stop stop-hard destroy-all logs clean update-diagrams
+.PHONY: check preflight init plan start post-recreate all scale-zero stop stop-hard destroy-all logs clean update-diagrams lint
 
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
@@ -95,11 +95,17 @@ logs:
 	@echo "--------------------"
 	@tail -n 10 scripts/logs/preflight.txt || echo "Preflight ❌ 无日志"
 
-## 🧹 清理临时状态文件
+# 🧹 清理临时状态文件
 clean:
 	@rm -f scripts/.last-asg-bound
 	@echo "🧹 清理完成：临时文件已删除"
 
+# 📊 更新架构图
 update-diagrams:
 	@echo "📊 更新架构图..."
 	@bash scripts/update-diagrams.sh
+
+## 📦 运行 pre-commit 检查（terraform fmt / tflint / yamllint 等）
+lint:
+	@echo "🔍 Running pre-commit checks..."
+	pre-commit run --all-files

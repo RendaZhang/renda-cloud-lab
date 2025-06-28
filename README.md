@@ -38,7 +38,11 @@
 ├─ charts/                 # Helm Charts（按功能拆分的应用和系统组件）  
 ├─ scripts/                # 基础设施启停与自动化脚本（如一键部署、节点伸缩、清理等）  
 │  └─ logs/                # 执行日志输出目录（已在 .gitignore 中排除）  
-├─ diagrams/               # 架构图表（Mermaid / PlantUML / PNG 等）  
+├─ diagrams/               # 架构图表（Terraform graph 可视化图）
+│  ├─ terraform-architecture.dot  # Terraform graph 原始输出
+│  ├─ terraform-architecture.svg  # SVG 架构图（推荐）
+│  ├─ terraform-architecture.png  # PNG 快速预览图
+│  └─ terraform-architecture.md   # 图表生成与解读指南
 └─ README.md
 ```
 
@@ -168,12 +172,13 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * `make start` — **启动基础设施资源**：执行 Terraform 将 NAT 网关、ALB 等高成本资源启用，并确保 EKS 集群（控制平面及节点组）处于运行状态（集群资源现已由 Terraform 统一管理）。通常在每天实验开始时运行，恢复网络出口和对外服务能力。
 * `make stop` — **停止基础设施资源**：执行 Terraform 关闭 NAT 网关、ALB 等非必要资源，并将 EKS 集群的节点组 (NodeGroup) 实例数缩容至 0，保留 EKS 控制平面和基础设施状态，但暂停对外网络访问。适用于每日实验结束时销毁高成本资源，降低支出。
 * `make stop-hard` — **硬停用完整环境**：通过 Terraform 同时销毁 NAT 网关、ALB 以及 EKS 控制平面和节点组，实现完整环境的彻底停止。用于长时间暂停实验时的彻底关停，避免持续产生任何费用（除了保留的 VPC 和状态存储等）。
-* `make post-recreate` — 运行 Spot 通知自动绑定脚本，确保重建后的 ASG 已订阅 SNS
-* `make all`           — `start` → `post-recreate` 一键全流程
-* `make destroy-all`   — Terraform 销毁全部资源（含 NodeGroup）⚠️ 高危
-* `make check`         — 本地依赖工具链检测（aws / terraform / eksctl / helm）
-* `make logs`          — 快速查看最近日志目录
-* `make clean`         — 删除 Spot 绑定缓存文件、清理日志
+* `make post-recreate`   — 运行 Spot 通知自动绑定脚本，确保重建后的 ASG 已订阅 SNS
+* `make all`             — `start` → `post-recreate` 一键全流程
+* `make destroy-all`     — Terraform 销毁全部资源（含 NodeGroup）⚠️ 高危
+* `make check`           — 本地依赖工具链检测（aws / terraform / eksctl / helm）
+* `make logs`            — 快速查看最近日志目录
+* `make clean`           — 删除 Spot 绑定缓存文件、清理日志
+* `make update-diagrams` — 一键生成最新的 Terraform 架构图，输出到 `diagrams/` 目录中
 
 以上命令提供了一键式的集群生命周期管理方案。你可以根据需要将它们加入定时任务，实现自动启停（详见下方成本控制说明）。请注意，在重新启动集群资源后，可能需要等待几分钟以恢复所有服务（例如新建的 NAT 网关和 ALB 就绪），应用才能重新通过域名访问。
 
@@ -243,16 +248,16 @@ make stop         # 下班关大件
 
 ### 脚本清单
 
-| 脚本名                               | 功能                                                        | 典型用法                                  |
-| --------------------------------- | --------------------------------------------------------- | ------------------------------------- |
-| `scripts/preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas                            | `make preflight`                      |
-| `scripts/tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态                                 | 手动执行或 CI 步骤                           |
-| `scripts/post-recreate.sh`        | 自动为最新 NodeGroup 对应的 ASG 绑定 Spot Interruption SNS 通知；带幂等检查 | `make post-recreate`（集群重建后立即执行）       |
-| `scripts/scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本          | `make scale-zero`（已集成在 `make stop` 中） |
+| 脚本名                    | 功能                                                       |
+| ------------------------- | --------------------------------------------------------- |
+| `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas                         | 
+| `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态                          |
+| `post-recreate.sh`        | 自动为最新 NodeGroup 对应的 ASG 绑定 Spot Interruption SNS 通知；带幂等检查 |
+| `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本    |
+| `update-diagrams.sh`      | 图表生成脚本                                                              |
 
+* `update-diagrams.sh` 脚本依赖：需安装 Graphviz
 * 脚本的运行日志默认写入 `scripts/logs` 目录下；最近一次已绑定的 ASG 名缓存于 `scripts/.last-asg-bound`，两者均已在 `.gitignore` 排除。
-* `.gitkeep` 用于保留空日志目录结构，CI 可直接写日志而不需预先创建路径。
-* *所有 `Makefile` 命令均已添加 Emoji & `@echo` 提示，执行过程更清晰友好。*
 
 ## 未来计划
 
@@ -272,7 +277,7 @@ Renda Cloud Lab 仍在持续演进中，未来规划包括但不限于：
 ## 🤝 贡献指南
 
 1. **Fork 仓库**，新建功能分支，完成开发后提交 Pull Request。
-2. 提交前请运行 `pre-commit` 进行代码检查和格式化（已包含 `terraform fmt`、`tflint`、`yamllint` 等 Git 钩子）。确保所有检查通过，以提高代码合入效率。
+2. 在每次提交代码前，请运行 `make lint` 或直接执行 `pre-commit run --all-files`，自动完成：Terraform 代码格式化（terraform fmt -recursive）；Terraform 静态分析（tflint）；YAML 配置检查（yamllint）等。
 3. CI 流水线通过后，维护者会对 PR 进行审核和合并。如有任何问题会在 PR 下反馈。
 
 非常欢迎社区贡献新的**实验脚本、Terraform 模块、架构图**，或任何改进成本控制的创意！如果有大的想法需要讨论，请提前创建 Issue 并详细描述背景和设计思路。
