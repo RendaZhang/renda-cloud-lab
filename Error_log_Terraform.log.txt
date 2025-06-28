@@ -1,0 +1,494 @@
+renda@RendaZhangComputer:/mnt/d/renda-cloud-lab/infra/aws$      terraform apply -auto-approve \
+       -var="region=us-east-1" \
+       -var="create_nat=false" \
+       -var="create_alb=false" \
+       -var="create_eks=false"
+Acquiring state lock. This may take a few moments...
+module.network_base.data.aws_route53_zone.lab: Reading...
+module.network_base.data.aws_availability_zones.available: Reading...
+module.network_base.aws_vpc.this: Refreshing state... [id=vpc-0b06ba5bfab99498b]
+module.network_base.data.aws_availability_zones.available: Read complete after 2s [id=us-east-1]
+module.network_base.data.aws_route53_zone.lab: Read complete after 2s [id=Z046477619FBT01V20AQ4]
+module.network_base.aws_internet_gateway.igw: Refreshing state... [id=igw-076575a42d89e3bda]
+module.network_base.aws_subnet.private[0]: Refreshing state... [id=subnet-0422bec13e7eec9e6]
+module.network_base.aws_subnet.public[0]: Refreshing state... [id=subnet-066a65e68e06df5db]
+module.network_base.aws_subnet.public[1]: Refreshing state... [id=subnet-08ca22e6d15635564]
+module.network_base.aws_subnet.private[1]: Refreshing state... [id=subnet-00630bdad3664ee18]
+module.network_base.aws_route_table.private[0]: Refreshing state... [id=rtb-026a8fa8865c4474c]
+module.network_base.aws_security_group.alb: Refreshing state... [id=sg-0bbdd7f976dc2d5fa]
+module.network_base.aws_route_table.private[1]: Refreshing state... [id=rtb-00dc799eaa7b2ae78]
+module.network_base.aws_route_table_association.private[0]: Refreshing state... [id=rtbassoc-04d6bd75684d8a9a8]
+module.network_base.aws_route_table_association.private[1]: Refreshing state... [id=rtbassoc-0fc678caa568defb3]
+module.network_base.aws_route_table.public: Refreshing state... [id=rtb-00f75c504689ec88c]
+module.network_base.aws_route_table_association.public[1]: Refreshing state... [id=rtbassoc-0d2d81e2a11005d58]
+module.network_base.aws_route_table_association.public[0]: Refreshing state... [id=rtbassoc-0ecdd8b4f937ad769]
+module.nat.aws_eip.nat[0]: Refreshing state... [id=eipalloc-05898946e15cf641d]
+module.alb.aws_lb_target_group.demo[0]: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:targetgroup/tg-python-demo/c223aad8e6661de5]
+module.alb.aws_lb.demo[0]: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/57f5d9a8cd139e52]
+module.eks.aws_eks_cluster.this[0]: Refreshing state... [id=dev]
+module.eks.aws_eks_node_group.ng[0]: Refreshing state... [id=dev:ng-mixed]
+module.nat.aws_nat_gateway.this[0]: Refreshing state... [id=nat-0ad4117ff512e068b]
+module.nat.aws_route.private_default[0]: Refreshing state... [id=r-rtb-026a8fa8865c4474c1080289494]
+module.nat.aws_route.private_default[1]: Refreshing state... [id=r-rtb-00dc799eaa7b2ae781080289494]
+module.eks.aws_iam_openid_connect_provider.oidc[0]: Refreshing state... [id=arn:aws:iam::563149051155:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F]
+aws_route53_record.lab_alias[0]: Refreshing state... [id=Z046477619FBT01V20AQ4__A]
+module.alb.aws_lb_listener.http[0]: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:listener/app/alb-demo/57f5d9a8cd139e52/b949751b73e85733]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the
+following symbols:
+  - destroy
+
+Terraform planned the following actions, but then encountered a problem:
+
+  # aws_route53_record.lab_alias[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_route53_record" "lab_alias" {
+      - fqdn                             = "lab.rendazhang.com" -> null
+      - id                               = "Z046477619FBT01V20AQ4__A" -> null
+      - multivalue_answer_routing_policy = false -> null
+        name                             = null
+      - records                          = [] -> null
+      - ttl                              = 0 -> null
+      - type                             = "A" -> null
+      - zone_id                          = "Z046477619FBT01V20AQ4" -> null
+        # (2 unchanged attributes hidden)
+
+      - alias {
+          - evaluate_target_health = false -> null
+          - name                   = "alb-demo-445587055.us-east-1.elb.amazonaws.com" -> null
+          - zone_id                = "Z35SXDOTRQ7X7K" -> null
+        }
+    }
+
+  # module.alb.aws_lb.demo[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_lb" "demo" {
+      - arn                                                          = "arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/57f5d9a8cd139e52" -> null
+      - arn_suffix                                                   = "app/alb-demo/57f5d9a8cd139e52" -> null
+      - client_keep_alive                                            = 3600 -> null
+      - desync_mitigation_mode                                       = "defensive" -> null
+      - dns_name                                                     = "alb-demo-445587055.us-east-1.elb.amazonaws.com" -> null
+      - drop_invalid_header_fields                                   = false -> null
+      - enable_cross_zone_load_balancing                             = true -> null
+      - enable_deletion_protection                                   = false -> null
+      - enable_http2                                                 = true -> null
+      - enable_tls_version_and_cipher_suite_headers                  = false -> null
+      - enable_waf_fail_open                                         = false -> null
+      - enable_xff_client_port                                       = false -> null
+      - enable_zonal_shift                                           = false -> null
+      - id                                                           = "arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/57f5d9a8cd139e52" -> null
+      - idle_timeout                                                 = 60 -> null
+      - internal                                                     = false -> null
+      - ip_address_type                                              = "ipv4" -> null
+      - load_balancer_type                                           = "application" -> null
+      - name                                                         = "alb-demo" -> null
+      - preserve_host_header                                         = false -> null
+      - region                                                       = "us-east-1" -> null
+      - security_groups                                              = [
+          - "sg-0bbdd7f976dc2d5fa",
+        ] -> null
+      - subnets                                                      = [
+          - "subnet-066a65e68e06df5db",
+          - "subnet-08ca22e6d15635564",
+        ] -> null
+      - tags                                                         = {} -> null
+      - tags_all                                                     = {
+          - "project" = "phase2-sprint"
+        } -> null
+      - vpc_id                                                       = "vpc-0b06ba5bfab99498b" -> null
+      - xff_header_processing_mode                                   = "append" -> null
+      - zone_id                                                      = "Z35SXDOTRQ7X7K" -> null
+        # (3 unchanged attributes hidden)
+
+      - access_logs {
+          - enabled = false -> null
+            # (2 unchanged attributes hidden)
+        }
+
+      - connection_logs {
+          - enabled = false -> null
+            # (2 unchanged attributes hidden)
+        }
+
+      - subnet_mapping {
+          - subnet_id            = "subnet-066a65e68e06df5db" -> null
+            # (4 unchanged attributes hidden)
+        }
+      - subnet_mapping {
+          - subnet_id            = "subnet-08ca22e6d15635564" -> null
+            # (4 unchanged attributes hidden)
+        }
+    }
+
+  # module.alb.aws_lb_listener.http[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_lb_listener" "http" {
+      - arn                                                                 = "arn:aws:elasticloadbalancing:us-east-1:563149051155:listener/app/alb-demo/57f5d9a8cd139e52/b949751b73e85733" -> null
+      - id                                                                  = "arn:aws:elasticloadbalancing:us-east-1:563149051155:listener/app/alb-demo/57f5d9a8cd139e52/b949751b73e85733" -> null
+      - load_balancer_arn                                                   = "arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/57f5d9a8cd139e52" -> null
+      - port                                                                = 80 -> null
+      - protocol                                                            = "HTTP" -> null
+      - region                                                              = "us-east-1" -> null
+      - routing_http_response_server_enabled                                = true -> null
+      - tags                                                                = {} -> null
+      - tags_all                                                            = {
+          - "project" = "phase2-sprint"
+        } -> null
+        # (11 unchanged attributes hidden)
+
+      - default_action {
+          - order            = 1 -> null
+          - target_group_arn = "arn:aws:elasticloadbalancing:us-east-1:563149051155:targetgroup/tg-python-demo/c223aad8e6661de5" -> null
+          - type             = "forward" -> null
+        }
+    }
+
+  # module.alb.aws_lb_target_group.demo[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_lb_target_group" "demo" {
+      - arn                                = "arn:aws:elasticloadbalancing:us-east-1:563149051155:targetgroup/tg-python-demo/c223aad8e6661de5" -> null
+      - arn_suffix                         = "targetgroup/tg-python-demo/c223aad8e6661de5" -> null
+      - deregistration_delay               = "300" -> null
+      - id                                 = "arn:aws:elasticloadbalancing:us-east-1:563149051155:targetgroup/tg-python-demo/c223aad8e6661de5" -> null
+      - ip_address_type                    = "ipv4" -> null
+      - lambda_multi_value_headers_enabled = false -> null
+      - load_balancer_arns                 = [
+          - "arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/57f5d9a8cd139e52",
+        ] -> null
+      - load_balancing_algorithm_type      = "round_robin" -> null
+      - load_balancing_anomaly_mitigation  = "off" -> null
+      - load_balancing_cross_zone_enabled  = "use_load_balancer_configuration" -> null
+      - name                               = "tg-python-demo" -> null
+      - port                               = 80 -> null
+      - protocol                           = "HTTP" -> null
+      - protocol_version                   = "HTTP1" -> null
+      - proxy_protocol_v2                  = false -> null
+      - region                             = "us-east-1" -> null
+      - slow_start                         = 0 -> null
+      - tags                               = {} -> null
+      - tags_all                           = {
+          - "project" = "phase2-sprint"
+        } -> null
+      - target_type                        = "ip" -> null
+      - vpc_id                             = "vpc-0b06ba5bfab99498b" -> null
+        # (1 unchanged attribute hidden)
+
+      - health_check {
+          - enabled             = true -> null
+          - healthy_threshold   = 3 -> null
+          - interval            = 30 -> null
+          - matcher             = "200" -> null
+          - path                = "/" -> null
+          - port                = "traffic-port" -> null
+          - protocol            = "HTTP" -> null
+          - timeout             = 5 -> null
+          - unhealthy_threshold = 3 -> null
+        }
+
+      - stickiness {
+          - cookie_duration = 86400 -> null
+          - enabled         = false -> null
+          - type            = "lb_cookie" -> null
+            # (1 unchanged attribute hidden)
+        }
+
+      - target_failover {}
+
+      - target_group_health {
+          - dns_failover {
+              - minimum_healthy_targets_count      = "1" -> null
+              - minimum_healthy_targets_percentage = "off" -> null
+            }
+          - unhealthy_state_routing {
+              - minimum_healthy_targets_count      = 1 -> null
+              - minimum_healthy_targets_percentage = "off" -> null
+            }
+        }
+
+      - target_health_state {}
+    }
+
+  # module.eks.aws_eks_cluster.this[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_eks_cluster" "this" {
+      - arn                           = "arn:aws:eks:us-east-1:563149051155:cluster/dev" -> null
+      - bootstrap_self_managed_addons = false -> null
+      - certificate_authority         = [
+          - {
+              - data = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCVENDQWUyZ0F3SUJBZ0lJUndUb2hsSytCRzh3RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB5TlRBMk1qWXhNalF5TkROYUZ3MHpOVEEyTWpReE1qUTNORE5hTUJVeApFekFSQmdOVkJBTVRDbXQxWW1WeWJtVjBaWE13Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLCkFvSUJBUUN6Wk9OVUhLYTdhNktJSUY2bnJER041WWRkamR3c204VDBjWXFYN1BWdGxUTjFVRjhxMkF3RlRjVksKTC9tYWJqdEhtSWJZRmZWRUwrRWxBTzU3K2tNMUtlOXVOenJXTVIxYzJuaEZIRTdOZGZ3UmI2dUt5SFpiMWlNaApSSHJJNXRYOXhxcU1zeTRqbHk1TU9oZHBMUFZTeDhxUjF2MTJpZVNlaDluSHJCZ2d4T2JER0R1VjREazBIelhqCmIzYURoRjFHT211Tm82VC80dWNySG5iVHNoQkY2UStiT2FheFQ2NVF1UjA1aW5vTFJlVEE0MlZiM3FGYzVCWGIKWlgrRlV2Y0xXVXdOalhOSklrUHVWYmtHZy90ZDd4ZlpmYTBPWjF3bnhWV0x1RTAyc01NWk5hVHA1anc4c1RBUApNdFduczI5WnFISjQyTFBGOEVuSGRabEpOb0Y1QWdNQkFBR2pXVEJYTUE0R0ExVWREd0VCL3dRRUF3SUNwREFQCkJnTlZIUk1CQWY4RUJUQURBUUgvTUIwR0ExVWREZ1FXQkJSRGhDV1ZDblI5emNqaHB1Tk5Cb1lNaUwzTFhEQVYKQmdOVkhSRUVEakFNZ2dwcmRXSmxjbTVsZEdWek1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQWNmL1Y2MFh0QQpGOFIxN3VHSUFNUmhLN3oyYWJ4N0MwaDU2MUx4OFJPMDJDT2lyT3h0K1d6Y3lDVVl4UTZVeU1DZE9qQ0FITEJtCjE2TDQ0M3dpYzZkTHR2UGxoTkp2SzYwb24rNWhwTDF6ckdjMmdXdGpQTk1na0pBYlJqY01jWlEraW1seVRSeWsKcVArbVRINitTNlZlOHoyV09ISTJTVVBJclJKRTdrVzVUOVZFZHdsR0NTakRzbFBxL3NYanNSWmpDM2FFNGpRRApEWWNJbmVSS2F0TzZnK1B5SGVYQ1F1a0JRRCtxU044U0FUZEhYRjZVQTYrY1BSQW43VDA3NzVaRGVSellaaEdzCm8zRS8yUEFoOURwNHlub1M4ZHZlbFF0U3g4b1FhRGpPbVl5VU56S3FvMkdqYzVNeHVsdEdSaG1qNjVubmNqczcKVS81dkk2ZUg0aGppCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
+            },
+        ] -> null
+      - created_at                    = "2025-06-26T12:43:16Z" -> null
+      - enabled_cluster_log_types     = [
+          - "api",
+          - "authenticator",
+        ] -> null
+      - endpoint                      = "https://E0204AE78E971608F5B7BDCE0379F55F.gr7.us-east-1.eks.amazonaws.com" -> null
+      - id                            = "dev" -> null
+      - identity                      = [
+          - {
+              - oidc = [
+                  - {
+                      - issuer = "https://oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F"
+                    },
+                ]
+            },
+        ] -> null
+      - name                          = "dev" -> null
+      - platform_version              = "eks.37" -> null
+      - region                        = "us-east-1" -> null
+      - role_arn                      = "arn:aws:iam::563149051155:role/eks-admin-role" -> null
+      - status                        = "ACTIVE" -> null
+      - tags                          = {
+          - "Name"                                        = "eksctl-dev-cluster/ControlPlane"
+          - "alpha.eksctl.io/cluster-name"                = "dev"
+          - "alpha.eksctl.io/cluster-oidc-enabled"        = "true"
+          - "alpha.eksctl.io/eksctl-version"              = "0.210.0"
+          - "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+        } -> null
+      - tags_all                      = {
+          - "Name"                                        = "eksctl-dev-cluster/ControlPlane"
+          - "alpha.eksctl.io/cluster-name"                = "dev"
+          - "alpha.eksctl.io/cluster-oidc-enabled"        = "true"
+          - "alpha.eksctl.io/eksctl-version"              = "0.210.0"
+          - "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+          - "project"                                     = "phase2-sprint"
+        } -> null
+      - version                       = "1.30" -> null
+
+      - access_config {
+          - authentication_mode                         = "API_AND_CONFIG_MAP" -> null
+          - bootstrap_cluster_creator_admin_permissions = true -> null
+        }
+
+      - kubernetes_network_config {
+          - ip_family         = "ipv4" -> null
+          - service_ipv4_cidr = "172.20.0.0/16" -> null
+            # (1 unchanged attribute hidden)
+
+          - elastic_load_balancing {
+              - enabled = false -> null
+            }
+        }
+
+      - upgrade_policy {
+          - support_type = "EXTENDED" -> null
+        }
+
+      - vpc_config {
+          - cluster_security_group_id = "sg-0d2d49f8501114aa4" -> null
+          - endpoint_private_access   = false -> null
+          - endpoint_public_access    = true -> null
+          - public_access_cidrs       = [
+              - "0.0.0.0/0",
+            ] -> null
+          - security_group_ids        = [
+              - "sg-0e93d691d659c1eda",
+            ] -> null
+          - subnet_ids                = [
+              - "subnet-00630bdad3664ee18",
+              - "subnet-0422bec13e7eec9e6",
+              - "subnet-066a65e68e06df5db",
+              - "subnet-08ca22e6d15635564",
+            ] -> null
+          - vpc_id                    = "vpc-0b06ba5bfab99498b" -> null
+        }
+    }
+
+  # module.eks.aws_eks_node_group.ng[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_eks_node_group" "ng" {
+      - ami_type               = "AL2023_x86_64_STANDARD" -> null
+      - arn                    = "arn:aws:eks:us-east-1:563149051155:nodegroup/dev/ng-mixed/06cbd626-fb1e-1822-6cce-e64473f7c8ae" -> null
+      - capacity_type          = "SPOT" -> null
+      - cluster_name           = "dev" -> null
+      - disk_size              = 0 -> null
+      - id                     = "dev:ng-mixed" -> null
+      - instance_types         = [
+          - "t3.small",
+          - "t3.medium",
+        ] -> null
+      - labels                 = {
+          - "alpha.eksctl.io/cluster-name"   = "dev"
+          - "alpha.eksctl.io/nodegroup-name" = "ng-mixed"
+          - "role"                           = "worker"
+        } -> null
+      - node_group_name        = "ng-mixed" -> null
+      - node_role_arn          = "arn:aws:iam::563149051155:role/eksctl-dev-nodegroup-ng-mixed-NodeInstanceRole-6iVyvrDnxZQO" -> null
+      - region                 = "us-east-1" -> null
+      - release_version        = "1.30.11-20250620" -> null
+      - resources              = [
+          - {
+              - autoscaling_groups              = [
+                  - {
+                      - name = "eks-ng-mixed-06cbd626-fb1e-1822-6cce-e64473f7c8ae"
+                    },
+                ]
+                # (1 unchanged attribute hidden)
+            },
+        ] -> null
+      - status                 = "ACTIVE" -> null
+      - subnet_ids             = [
+          - "subnet-00630bdad3664ee18",
+          - "subnet-0422bec13e7eec9e6",
+        ] -> null
+      - tags                   = {
+          - "alpha.eksctl.io/cluster-name"                = "dev"
+          - "alpha.eksctl.io/eksctl-version"              = "0.210.0"
+          - "alpha.eksctl.io/nodegroup-name"              = "ng-mixed"
+          - "alpha.eksctl.io/nodegroup-type"              = "managed"
+          - "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+        } -> null
+      - tags_all               = {
+          - "alpha.eksctl.io/cluster-name"                = "dev"
+          - "alpha.eksctl.io/eksctl-version"              = "0.210.0"
+          - "alpha.eksctl.io/nodegroup-name"              = "ng-mixed"
+          - "alpha.eksctl.io/nodegroup-type"              = "managed"
+          - "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+          - "project"                                     = "phase2-sprint"
+        } -> null
+      - version                = "1.30" -> null
+        # (1 unchanged attribute hidden)
+
+      - launch_template {
+          - id      = "lt-0fcd1b589948c6a31" -> null
+          - name    = "eksctl-dev-nodegroup-ng-mixed" -> null
+          - version = "1" -> null
+        }
+
+      - scaling_config {
+          - desired_size = 1 -> null
+          - max_size     = 6 -> null
+          - min_size     = 0 -> null
+        }
+
+      - update_config {
+          - max_unavailable            = 1 -> null
+          - max_unavailable_percentage = 0 -> null
+        }
+    }
+
+  # module.eks.aws_iam_openid_connect_provider.oidc[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_iam_openid_connect_provider" "oidc" {
+      - arn             = "arn:aws:iam::563149051155:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F" -> null
+      - client_id_list  = [
+          - "sts.amazonaws.com",
+        ] -> null
+      - id              = "arn:aws:iam::563149051155:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F" -> null
+      - tags            = {
+          - "alpha.eksctl.io/cluster-name"   = "dev"
+          - "alpha.eksctl.io/eksctl-version" = "0.210.0"
+        } -> null
+      - tags_all        = {
+          - "alpha.eksctl.io/cluster-name"   = "dev"
+          - "alpha.eksctl.io/eksctl-version" = "0.210.0"
+          - "project"                        = "phase2-sprint"
+        } -> null
+      - thumbprint_list = [
+          - "9e99a48a9960b14926bb7f3b02e22da2b0ab7280",
+        ] -> null
+      - url             = "oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F" -> null
+    }
+
+  # module.nat.aws_eip.nat[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_eip" "nat" {
+      - allocation_id            = "eipalloc-05898946e15cf641d" -> null
+      - arn                      = "arn:aws:ec2:us-east-1:563149051155:elastic-ip/eipalloc-05898946e15cf641d" -> null
+      - association_id           = "eipassoc-04815fb67067313e5" -> null
+      - domain                   = "vpc" -> null
+      - id                       = "eipalloc-05898946e15cf641d" -> null
+      - network_border_group     = "us-east-1" -> null
+      - network_interface        = "eni-02dd7622935d5c5f8" -> null
+      - private_dns              = "ip-10-0-0-255.ec2.internal" -> null
+      - private_ip               = "10.0.0.255" -> null
+      - public_dns               = "ec2-52-205-25-237.compute-1.amazonaws.com" -> null
+      - public_ip                = "52.205.25.237" -> null
+      - public_ipv4_pool         = "amazon" -> null
+      - region                   = "us-east-1" -> null
+      - tags                     = {
+          - "Name" = "lab-nat-eip"
+        } -> null
+      - tags_all                 = {
+          - "Name"    = "lab-nat-eip"
+          - "project" = "phase2-sprint"
+        } -> null
+        # (5 unchanged attributes hidden)
+    }
+
+  # module.nat.aws_nat_gateway.this[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_nat_gateway" "this" {
+      - allocation_id                      = "eipalloc-05898946e15cf641d" -> null
+      - association_id                     = "eipassoc-04815fb67067313e5" -> null
+      - connectivity_type                  = "public" -> null
+      - id                                 = "nat-0ad4117ff512e068b" -> null
+      - network_interface_id               = "eni-02dd7622935d5c5f8" -> null
+      - private_ip                         = "10.0.0.255" -> null
+      - public_ip                          = "52.205.25.237" -> null
+      - region                             = "us-east-1" -> null
+      - secondary_allocation_ids           = [] -> null
+      - secondary_private_ip_address_count = 0 -> null
+      - secondary_private_ip_addresses     = [] -> null
+      - subnet_id                          = "subnet-066a65e68e06df5db" -> null
+      - tags                               = {
+          - "Name" = "lab-nat"
+        } -> null
+      - tags_all                           = {
+          - "Name"    = "lab-nat"
+          - "project" = "phase2-sprint"
+        } -> null
+    }
+
+  # module.nat.aws_route.private_default[0] will be destroyed
+  # (because index [0] is out of range for count)
+  - resource "aws_route" "private_default" {
+      - destination_cidr_block      = "0.0.0.0/0" -> null
+      - id                          = "r-rtb-026a8fa8865c4474c1080289494" -> null
+      - nat_gateway_id              = "nat-0ad4117ff512e068b" -> null
+      - origin                      = "CreateRoute" -> null
+      - region                      = "us-east-1" -> null
+      - route_table_id              = "rtb-026a8fa8865c4474c" -> null
+      - state                       = "active" -> null
+        # (13 unchanged attributes hidden)
+    }
+
+  # module.nat.aws_route.private_default[1] will be destroyed
+  # (because index [1] is out of range for count)
+  - resource "aws_route" "private_default" {
+      - destination_cidr_block      = "0.0.0.0/0" -> null
+      - id                          = "r-rtb-00dc799eaa7b2ae781080289494" -> null
+      - nat_gateway_id              = "nat-0ad4117ff512e068b" -> null
+      - origin                      = "CreateRoute" -> null
+      - region                      = "us-east-1" -> null
+      - route_table_id              = "rtb-00dc799eaa7b2ae78" -> null
+      - state                       = "active" -> null
+        # (13 unchanged attributes hidden)
+    }
+
+Plan: 0 to add, 0 to change, 11 to destroy.
+
+Changes to Outputs:
+  - alb_dns            = "alb-demo-445587055.us-east-1.elb.amazonaws.com" -> null
+╷
+│ Error: Invalid index
+│
+│   on modules/eks/outputs.tf line 3, in output "oidc_provider_arn":
+│    3:   value       = aws_iam_openid_connect_provider.oidc[0].arn
+│     ├────────────────
+│     │ aws_iam_openid_connect_provider.oidc is empty tuple
+│
+│ The given key does not identify an element in this collection value: the collection has no elements.
+╵
+╷
+│ Error: Invalid index
+│
+│   on modules/eks/outputs.tf line 8, in output "oidc_provider_url_without_https":
+│    8:   value       = replace(aws_eks_cluster.this[0].identity[0].oidc[0].issuer, "https://", "")
+│     ├────────────────
+│     │ aws_eks_cluster.this is empty tuple
+│
+│ The given key does not identify an element in this collection value: the collection has no elements.
+╵
+Releasing state lock. This may take a few moments...
