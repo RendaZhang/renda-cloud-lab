@@ -33,6 +33,7 @@ module "eks" {
 
 module "irsa" {
   source                          = "./modules/irsa"
+  count                           = var.create_eks ? 1 : 0
   name                            = "eks-cluster-autoscaler"
   namespace                       = "kube-system"
   service_account_name            = "cluster-autoscaler"
