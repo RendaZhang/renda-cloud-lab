@@ -31,13 +31,13 @@
 ## 🗂 目录结构
 
 ```text
-├─ infra/                  # IaC 模块与环境定义  
-│  ├─ aws/                 # Terraform 配置（backend / providers / vars 等）  
-│  └─ eksctl/              # eksctl YAML (EKS cluster & nodegroups)  
-├─ docs/                   # 设计与流程文档（如 lifecycle.md）  
-├─ charts/                 # Helm Charts（按功能拆分的应用和系统组件）  
-├─ scripts/                # 基础设施启停与自动化脚本（如一键部署、节点伸缩、清理等）  
-│  └─ logs/                # 执行日志输出目录（已在 .gitignore 中排除）  
+├─ infra/                  # IaC 模块与环境定义
+│  ├─ aws/                 # Terraform 配置（backend / providers / vars 等）
+│  └─ eksctl/              # eksctl YAML (EKS cluster & nodegroups)
+├─ docs/                   # 设计与流程文档（如 lifecycle.md）
+├─ charts/                 # Helm Charts（按功能拆分的应用和系统组件）
+├─ scripts/                # 基础设施启停与自动化脚本（如一键部署、节点伸缩、清理等）
+│  └─ logs/                # 执行日志输出目录（已在 .gitignore 中排除）
 ├─ diagrams/               # 架构图表（Terraform graph 可视化图）
 │  ├─ terraform-architecture.dot  # Terraform graph 原始输出
 │  ├─ terraform-architecture.svg  # SVG 架构图（推荐）
@@ -75,15 +75,15 @@
 1. **克隆仓库**：下载代码库到本地环境。
 
    ```bash
-   git clone https://github.com/RendaZhang/renda-cloud-lab.git  
+   git clone https://github.com/RendaZhang/renda-cloud-lab.git
    cd renda-cloud-lab
    ```
 
 2. **初始化 Terraform**：切换到基础设施目录并初始化 Terraform 后端。
 
    ```bash
-   cd infra/aws  
-   terraform init -reconfigure  
+   cd infra/aws
+   terraform init -reconfigure
    terraform plan  # 可选：查看将创建的资源计划
    ```
 
@@ -117,8 +117,8 @@
 5. **验证集群**：确保本地 `kubeconfig` 已更新并指向新创建的 EKS 集群。执行简单的 Kubernetes 命令确认集群正常运行，例如：
 
    ```bash
-   kubectl get svc  
-   kubectl get nodes  
+   kubectl get svc
+   kubectl get nodes
    kubectl get pods -A
    ```
 
@@ -250,7 +250,7 @@ make stop         # 下班关大件
 
 | 脚本名                    | 功能                                                       |
 | ------------------------- | --------------------------------------------------------- |
-| `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas                         | 
+| `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas                         |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态                          |
 | `post-recreate.sh`        | 自动为最新 NodeGroup 对应的 ASG 绑定 Spot Interruption SNS 通知；带幂等检查 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本    |

@@ -40,7 +40,7 @@ managedNodeGroups:
     spot: true
     privateNetworking: true
     labels: {
-      role: "worker" 
+      role: "worker"
     }
     tags:
       project: phase2-sprint
@@ -51,4 +51,3 @@ managedNodeGroups:
     subnets:
       - "subnet-0422bec13e7eec9e6"
       - "subnet-00630bdad3664ee18"
-

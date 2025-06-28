@@ -29,5 +29,5 @@ terraform import 'module.eks.aws_iam_openid_connect_provider.oidc[0]' "$OIDC_ARN
 # 导入 IAM Role 本体
 terraform import module.irsa.aws_iam_role.eks_cluster_autoscaler eks-cluster-autoscaler
 
-# 导入 IAM Role 上的 Policy 
+# 导入 IAM Role 上的 Policy
 terraform import module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach "eks-cluster-autoscaler/$POLICY_ARN"

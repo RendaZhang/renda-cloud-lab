@@ -18,21 +18,21 @@
    ```bash
    cd /mnt/d/renda-cloud-lab/infra/aws
    ```
-   
+
 2. 确保 Terraform 状态是最新的：
    ```bash
    terraform init -upgrade
    terraform refresh
    ```
-   
+
 3. 重新生成所有图表：
    ```bash
    # 生成 DOT 文件
    terraform graph > ../../../diagrams/terraform-architecture.dot
-   
+
    # 生成 SVG (矢量图)
    terraform graph | dot -Tsvg > ../../../diagrams/terraform-architecture.svg
-   
+
    # 生成 PNG (位图)
    terraform graph | dot -Tpng > ../../../diagrams/terraform-architecture.png
    ```
