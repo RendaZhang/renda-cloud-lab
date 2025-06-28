@@ -108,4 +108,4 @@ update-diagrams:
 ## 📦 运行 pre-commit 检查（terraform fmt / tflint / yamllint 等）
 lint:
 	@echo "🔍 Running pre-commit checks..."
-	pre-commit run --all-files
+	pre-commit run --all-files --verbose --show-diff-on-failure
