@@ -7,38 +7,39 @@ Acquiring state lock. This may take a few moments...
 module.network_base.data.aws_route53_zone.lab: Reading...
 module.network_base.data.aws_availability_zones.available: Reading...
 module.network_base.aws_vpc.this: Refreshing state... [id=vpc-0b06ba5bfab99498b]
-module.network_base.data.aws_availability_zones.available: Read complete after 2s [id=us-east-1]
+module.network_base.data.aws_availability_zones.available: Read complete after 1s [id=us-east-1]
 module.network_base.data.aws_route53_zone.lab: Read complete after 2s [id=Z046477619FBT01V20AQ4]
 module.network_base.aws_internet_gateway.igw: Refreshing state... [id=igw-076575a42d89e3bda]
 module.network_base.aws_subnet.private[0]: Refreshing state... [id=subnet-0422bec13e7eec9e6]
+module.network_base.aws_route_table.private[1]: Refreshing state... [id=rtb-00dc799eaa7b2ae78]
 module.network_base.aws_subnet.public[0]: Refreshing state... [id=subnet-066a65e68e06df5db]
 module.network_base.aws_subnet.public[1]: Refreshing state... [id=subnet-08ca22e6d15635564]
-module.network_base.aws_subnet.private[1]: Refreshing state... [id=subnet-00630bdad3664ee18]
 module.network_base.aws_route_table.private[0]: Refreshing state... [id=rtb-026a8fa8865c4474c]
+module.network_base.aws_subnet.private[1]: Refreshing state... [id=subnet-00630bdad3664ee18]
 module.network_base.aws_security_group.alb: Refreshing state... [id=sg-0bbdd7f976dc2d5fa]
-module.network_base.aws_route_table.private[1]: Refreshing state... [id=rtb-00dc799eaa7b2ae78]
 module.network_base.aws_route_table_association.private[0]: Refreshing state... [id=rtbassoc-04d6bd75684d8a9a8]
 module.network_base.aws_route_table_association.private[1]: Refreshing state... [id=rtbassoc-0fc678caa568defb3]
 module.network_base.aws_route_table.public: Refreshing state... [id=rtb-00f75c504689ec88c]
-module.network_base.aws_route_table_association.public[1]: Refreshing state... [id=rtbassoc-0d2d81e2a11005d58]
 module.network_base.aws_route_table_association.public[0]: Refreshing state... [id=rtbassoc-0ecdd8b4f937ad769]
+module.network_base.aws_route_table_association.public[1]: Refreshing state... [id=rtbassoc-0d2d81e2a11005d58]
 module.nat.aws_eip.nat[0]: Refreshing state... [id=eipalloc-05898946e15cf641d]
 module.alb.aws_lb_target_group.demo[0]: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:targetgroup/tg-python-demo/c223aad8e6661de5]
-module.alb.aws_lb.demo[0]: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/57f5d9a8cd139e52]
-module.eks.aws_eks_cluster.this[0]: Refreshing state... [id=dev]
 module.eks.aws_eks_node_group.ng[0]: Refreshing state... [id=dev:ng-mixed]
+module.eks.aws_eks_cluster.this[0]: Refreshing state... [id=dev]
+module.alb.aws_lb.demo[0]: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/57f5d9a8cd139e52]
 module.nat.aws_nat_gateway.this[0]: Refreshing state... [id=nat-0ad4117ff512e068b]
 module.nat.aws_route.private_default[0]: Refreshing state... [id=r-rtb-026a8fa8865c4474c1080289494]
 module.nat.aws_route.private_default[1]: Refreshing state... [id=r-rtb-00dc799eaa7b2ae781080289494]
 module.eks.aws_iam_openid_connect_provider.oidc[0]: Refreshing state... [id=arn:aws:iam::563149051155:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F]
 aws_route53_record.lab_alias[0]: Refreshing state... [id=Z046477619FBT01V20AQ4__A]
 module.alb.aws_lb_listener.http[0]: Refreshing state... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:listener/app/alb-demo/57f5d9a8cd139e52/b949751b73e85733]
+module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach: Refreshing state... [id=eks-cluster-autoscaler-arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy]
+module.irsa.aws_iam_role.eks_cluster_autoscaler: Refreshing state... [id=eks-cluster-autoscaler]
 
-Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the
-following symbols:
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
   - destroy
 
-Terraform planned the following actions, but then encountered a problem:
+Terraform will perform the following actions:
 
   # aws_route53_record.lab_alias[0] will be destroyed
   # (because index [0] is out of range for count)
@@ -391,6 +392,54 @@ Terraform planned the following actions, but then encountered a problem:
       - url             = "oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F" -> null
     }
 
+  # module.irsa.aws_iam_role.eks_cluster_autoscaler will be destroyed
+  # (because module.irsa is not in configuration)
+  - resource "aws_iam_role" "eks_cluster_autoscaler" {
+      - arn                   = "arn:aws:iam::563149051155:role/eks-cluster-autoscaler" -> null
+      - assume_role_policy    = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action    = "sts:AssumeRoleWithWebIdentity"
+                      - Condition = {
+                          - StringEquals = {
+                              - "oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F:sub" = "system:serviceaccount:kube-system:cluster-autoscaler"
+                            }
+                        }
+                      - Effect    = "Allow"
+                      - Principal = {
+                          - Federated = "arn:aws:iam::563149051155:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F"
+                        }
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> null
+      - create_date           = "2025-06-26T15:46:29Z" -> null
+      - force_detach_policies = false -> null
+      - id                    = "eks-cluster-autoscaler" -> null
+      - managed_policy_arns   = [
+          - "arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy",
+        ] -> null
+      - max_session_duration  = 3600 -> null
+      - name                  = "eks-cluster-autoscaler" -> null
+      - path                  = "/" -> null
+      - tags                  = {} -> null
+      - tags_all              = {
+          - "project" = "phase2-sprint"
+        } -> null
+      - unique_id             = "AROAYGHSMSUJQZSMWZQ2C" -> null
+        # (3 unchanged attributes hidden)
+    }
+
+  # module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach will be destroyed
+  # (because module.irsa is not in configuration)
+  - resource "aws_iam_role_policy_attachment" "cluster_autoscaler_attach" {
+      - id         = "eks-cluster-autoscaler-arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy" -> null
+      - policy_arn = "arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy" -> null
+      - role       = "eks-cluster-autoscaler" -> null
+    }
+
   # module.nat.aws_eip.nat[0] will be destroyed
   # (because index [0] is out of range for count)
   - resource "aws_eip" "nat" {
@@ -467,28 +516,86 @@ Terraform planned the following actions, but then encountered a problem:
         # (13 unchanged attributes hidden)
     }
 
-Plan: 0 to add, 0 to change, 11 to destroy.
+Plan: 0 to add, 0 to change, 13 to destroy.
 
 Changes to Outputs:
-  - alb_dns            = "alb-demo-445587055.us-east-1.elb.amazonaws.com" -> null
+  - alb_dns             = "alb-demo-445587055.us-east-1.elb.amazonaws.com" -> null
+  - autoscaler_role_arn = "arn:aws:iam::563149051155:role/eks-cluster-autoscaler" -> null
+module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach: Destroying... [id=eks-cluster-autoscaler-arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy]
+aws_route53_record.lab_alias[0]: Destroying... [id=Z046477619FBT01V20AQ4__A]
+module.nat.aws_route.private_default[0]: Destroying... [id=r-rtb-026a8fa8865c4474c1080289494]
+module.alb.aws_lb_listener.http[0]: Destroying... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:listener/app/alb-demo/57f5d9a8cd139e52/b949751b73e85733]
+module.irsa.aws_iam_role.eks_cluster_autoscaler: Destroying... [id=eks-cluster-autoscaler]
+module.nat.aws_route.private_default[1]: Destroying... [id=r-rtb-00dc799eaa7b2ae781080289494]
+module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach: Destruction complete after 1s
+module.alb.aws_lb_listener.http[0]: Destruction complete after 1s
+module.alb.aws_lb_target_group.demo[0]: Destroying... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:targetgroup/tg-python-demo/c223aad8e6661de5]
+module.alb.aws_lb_target_group.demo[0]: Destruction complete after 1s
+module.irsa.aws_iam_role.eks_cluster_autoscaler: Destruction complete after 2s
+module.eks.aws_iam_openid_connect_provider.oidc[0]: Destroying... [id=arn:aws:iam::563149051155:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/E0204AE78E971608F5B7BDCE0379F55F]
+module.eks.aws_eks_node_group.ng[0]: Destroying... [id=dev:ng-mixed]
+module.nat.aws_route.private_default[0]: Destruction complete after 2s
+module.nat.aws_route.private_default[1]: Destruction complete after 2s
+module.nat.aws_nat_gateway.this[0]: Destroying... [id=nat-0ad4117ff512e068b]
+module.eks.aws_iam_openid_connect_provider.oidc[0]: Destruction complete after 0s
+module.eks.aws_eks_cluster.this[0]: Destroying... [id=dev]
+aws_route53_record.lab_alias[0]: Still destroying... [id=Z046477619FBT01V20AQ4__A, 00m10s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 00m10s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still destroying... [id=nat-0ad4117ff512e068b, 00m10s elapsed]
+module.eks.aws_eks_cluster.this[0]: Still destroying... [id=dev, 00m10s elapsed]
+aws_route53_record.lab_alias[0]: Still destroying... [id=Z046477619FBT01V20AQ4__A, 00m22s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 00m22s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still destroying... [id=nat-0ad4117ff512e068b, 00m22s elapsed]
+module.eks.aws_eks_cluster.this[0]: Still destroying... [id=dev, 00m22s elapsed]
+aws_route53_record.lab_alias[0]: Still destroying... [id=Z046477619FBT01V20AQ4__A, 00m32s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 00m32s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still destroying... [id=nat-0ad4117ff512e068b, 00m32s elapsed]
+module.eks.aws_eks_cluster.this[0]: Still destroying... [id=dev, 00m32s elapsed]
+aws_route53_record.lab_alias[0]: Destruction complete after 37s
+module.alb.aws_lb.demo[0]: Destroying... [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/57f5d9a8cd139e52]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 00m42s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still destroying... [id=nat-0ad4117ff512e068b, 00m42s elapsed]
+module.eks.aws_eks_cluster.this[0]: Still destroying... [id=dev, 00m42s elapsed]
+module.nat.aws_nat_gateway.this[0]: Destruction complete after 44s
+module.nat.aws_eip.nat[0]: Destroying... [id=eipalloc-05898946e15cf641d]
+module.nat.aws_eip.nat[0]: Destruction complete after 1s
+module.alb.aws_lb.demo[0]: Still destroying... [id=arn:aws:elasticloadbalancing:us-east-1:...balancer/app/alb-demo/57f5d9a8cd139e52, 00m10s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 00m54s elapsed]
+module.eks.aws_eks_cluster.this[0]: Still destroying... [id=dev, 00m55s elapsed]
+module.alb.aws_lb.demo[0]: Destruction complete after 21s
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 01m04s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 01m14s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 01m24s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 01m36s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 01m46s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 01m56s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 02m08s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 02m18s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 02m28s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 02m40s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 02m50s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 03m00s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 03m12s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 03m22s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 03m32s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 03m42s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 03m54s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 04m04s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 04m14s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 04m26s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 04m36s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 04m46s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 04m58s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 05m08s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 05m18s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 05m30s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 05m40s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 05m50s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Still destroying... [id=dev:ng-mixed, 06m00s elapsed]
+module.eks.aws_eks_node_group.ng[0]: Destruction complete after 6m10s
 ╷
-│ Error: Invalid index
+│ Error: deleting EKS Cluster (dev): operation error EKS: DeleteCluster, https response error StatusCode: 409, RequestID: 96c5f53a-1e21-4ea5-a0d3-0240d24a8586, ResourceInUseException: Cluster has nodegroups attached
 │
-│   on modules/eks/outputs.tf line 3, in output "oidc_provider_arn":
-│    3:   value       = aws_iam_openid_connect_provider.oidc[0].arn
-│     ├────────────────
-│     │ aws_iam_openid_connect_provider.oidc is empty tuple
 │
-│ The given key does not identify an element in this collection value: the collection has no elements.
-╵
-╷
-│ Error: Invalid index
-│
-│   on modules/eks/outputs.tf line 8, in output "oidc_provider_url_without_https":
-│    8:   value       = replace(aws_eks_cluster.this[0].identity[0].oidc[0].issuer, "https://", "")
-│     ├────────────────
-│     │ aws_eks_cluster.this is empty tuple
-│
-│ The given key does not identify an element in this collection value: the collection has no elements.
 ╵
 Releasing state lock. This may take a few moments...
