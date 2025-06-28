@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: June 28, 2025, 14:50 (UTC+8)
+* Last Updated: June 28, 2025, 17:00 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -13,7 +13,7 @@
 
 ## 项目简介
 
-**Renda Cloud Lab** 项目涵盖 **AWS 云服务、EKS、GitOps、可观测性、SRE 以及 AI Sidecar** 等前沿主题。通过该实验室，开发者可以实践基础设施即代码、容器编排、持续交付、混沌工程和 AI 工作负载集成等技术场景。项目采用 **“代码优先”** 原则，仅存放可运行的脚本、模块和架构图（文字笔记与文章另行维护），随着实践不断演进更新。
+**Renda Cloud Lab** 项目涵盖 **AWS 云服务、EKS、GitOps、可观测性、SRE 以及 AI Sidecar** 等前沿主题。通过该实验室，开发者可以实践基础设施即代码、容器编排、持续交付、混沌工程和 AI 工作负载集成等技术场景。项目采用 **“代码优先”** 原则，仅存放可运行的脚本、模块和架构图，随着实践不断演进更新。
 
 ## 核心模块说明
 
@@ -34,8 +34,10 @@
 ├─ infra/                  # IaC 模块与环境定义
 │  ├─ aws/                 # Terraform 配置（backend / providers / vars 等）
 │  └─ eksctl/              # eksctl YAML (EKS cluster & nodegroups)
+├─ docs/                   # 设计与流程文档（如 lifecycle.md）
 ├─ charts/                 # Helm Charts（按功能拆分的应用和系统组件）
 ├─ scripts/                # 基础设施启停与自动化脚本（如一键部署、节点伸缩、清理等）
+│  └─ logs/                # 执行日志输出目录（已在 .gitignore 中排除）
 ├─ diagrams/               # 架构图表（Mermaid / PlantUML / PNG 等）
 └─ README.md
 ```
@@ -44,6 +46,7 @@
 | ---------------------- | ---------------------------------------------------------------------------------- |
 | **infra/aws/**         | Terraform 模块（VPC、子网、NAT、ALB、EKS 等）和环境配置，远端状态保存在 S3/DynamoDB（默认 Region=`us-east-1`） |
 | **infra/eksctl/**      | eksctl 声明式配置文件。目前仅 `eksctl-cluster.yaml`，后续可放置 NodeGroup 或集群升级的 YAML 配置            |
+| **docs/**              | 生命周期与流程说明文档，例如 docs/lifecycle.md（一键重建、Spot 绑定、清理指令等） |
 | **charts/**            | 应用和系统的 Helm Chart，遵循 OCI 制品规范，便于复用与扩展                                              |
 | **scripts/**           | 脚本：如 `preflight.sh`（预检检查）、`tf-import.sh`（Terraform 导入） 等                           |
 | **diagrams/**          | 系统架构和流量拓扑图，帮助理解基础设施与应用关系                                                           |
@@ -167,8 +170,22 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * `make start-cluster` — **创建 EKS 集群**：使用 eksctl 根据配置文件新建 EKS 控制平面和节点组。如果之前集群已删除，可运行此命令在既有 VPC 上重新创建集群。
 * `make stop-cluster` — **删除 EKS 集群**：使用 eksctl 按声明式配置删除当前 EKS 集群的控制平面和所有节点组。此操作不会影响底层 VPC 和 Terraform 状态，但会释放 EKS 本身的资源。
 * `make stop-hard` — **硬停用完整环境**：依次执行 `make stop` 和 `eksctl delete cluster`（根据集群名称强制删除）。即先销毁 NAT、ALB 等外围资源，然后移除 EKS 控制平面和节点。用于长时间暂停实验时的彻底关停，避免持续产生任何费用（除了保留的 VPC 和状态存储等）。
+* `make post-recreate` — 运行 Spot 通知自动绑定脚本，确保重建后的 ASG 已订阅 SNS
+* `make all`           — `start` → `start-cluster` → `post-recreate` 一键全流程
+* `make destroy-all`   — Terraform 销毁全部资源（含 NodeGroup）⚠️ 高危
+* `make check`         — 本地依赖工具链检测（aws / terraform / eksctl / helm）
+* `make logs`          — 快速查看最近日志目录
+* `make clean`         — 删除 Spot 绑定缓存文件、清理日志
 
 以上命令提供了一键式的集群生命周期管理方案。你可以根据需要将它们加入定时任务，实现自动启停（详见下方成本控制说明）。请注意，在重新启动集群资源后，可能需要等待几分钟以恢复所有服务（例如新建的 NAT 网关和 ALB 就绪），应用才能重新通过域名访问。
+
+### 推荐完整重建流程
+
+```bash
+make all          # 一键启用 NAT/ALB + 创建/导入集群 + 绑定 Spot 通知
+# ... coding ...
+make stop         # 下班关大件
+```
 
 ## 💰 成本控制说明
 
@@ -177,6 +194,7 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * **日间启用，夜间销毁**：通过 Makefile 脚本在每天早晨自动部署必要资源（如 NAT 网关、ALB），夜间自动销毁这些非必要资源。此策略确保在活跃实验时段集群具备完整的网络出口和访问能力，而在闲置时段释放高成本资源。基础设施的状态（如 VPC、数据存储和 Terraform 状态）会被保留，以便第二天快速重建。对于长假或暂停使用的情况，可以选择执行“硬停用”流程，销毁 EKS 控制平面及所有节点，以避免持续计费。
 * **固定域名**：借助 Route 53 的 Alias Record，将动态生成的负载均衡器 DNS 映射到固定域名（默认使用 `lab.rendazhang.com`）。即使每天重新创建 ALB，其对外访问地址保持不变，用户和系统集成无需每日更新配置。
 * **弹性扩缩容**：集群工作节点采用按需 **Spot 实例**（结合 Karpenter 或 Auto Scaling），根据负载自动伸缩。在无工作负载时可将节点数缩至 0 以节省开销（提供了 `scripts/scale-nodegroup-zero.sh` 脚本可一键将节点组缩容至 0）。恢复实验时，只需重新部署应用或产生新负载，节点便会按需启动。
+* **Spot 中断预警**：`post-recreate.sh` 会自动把最新 `NodeGroup` 的 ASG 订阅到 `spot-interruption-topic`，确保节点被回收前 2 min 触发 SNS → 邮件/ChatOps，方便移步应用疏散或触发自动化动作。
 
 通过以上措施，实验集群在确保功能完整的同时，将日常运行成本控制在低水平。下表为启用成本控制策略下的主要资源月度费用估算：
 
@@ -208,12 +226,30 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * **问：为什么同时使用 Terraform 和 eksctl 两种方式来创建集群？**
   **答**：本项目采用 Terraform 管理底层网络和周边资源（如 VPC、子网、NAT 网关、ALB、IAM 等），而将 EKS 集群本身的创建交由 eksctl 工具执行。这种协同方式主要出于便利和效率的考虑：Terraform 保留底层网络状态，便于多次反复部署，而 eksctl 在创建和删除 Kubernetes 控制平面方面更加快捷。通过先使用 eksctl 创建集群再导入 Terraform，我们既保持了对集群相关资源（如 OIDC 提供商、IRSA 角色）的基础设施即代码管理，又能够在不影响 VPC 等共享资源的情况下频繁重建集群。此外，eksctl 对 EKS 的配置更直观（如节点组规格、Spot 配置、IAM 集成等）。未来我们计划评估 Terraform 官方的 EKS 模块，以决定是否启用 Terraform 对集群的直接创建管理（即打开 Terraform 配置中的 `create_eks` 开关），或者进一步提升 eksctl 脚本的可定制性，实现从 VPC 到 EKS 集群的一站式部署。
 
-## 附录 / 脚本清单
+## 附录
+
+### 文档
+
+> **更多生命周期与一键操作细节，请参阅** [`docs/lifecycle.md`](docs/lifecycle.md)。
+
+### 检查清单
 
 * 检查 Terraform 版本 ≥ 1.8，eksctl 版本 ≥ 0.180
 * 验证 AWS SSO 登录 token 未过期
 * 检测 Helm 仓库是否就绪（如 Helm Repo 更新）
 * 检查 kubectl 的 kubeconfig 是否指向目标集群
+
+### 脚本清单
+
+| 脚本名 | 功能 | 典型用法 |
+|--------|------|----------|
+| `scripts/preflight.sh` | 预检 AWS CLI 凭证 + Service Quotas | `make preflight` |
+| `scripts/tf-import.sh` | 将 EKS 集群资源导入 Terraform 状态 | 手动执行或 CI 步骤 |
+| `scripts/post-recreate.sh` | 自动为最新 NodeGroup 对应的 ASG 绑定 Spot Interruption SNS 通知；带幂等检查 | `make post-recreate`（集群重建后立即执行） |
+
+* 脚本的运行日志默认写入 scripts/logs 目录下；最近一次已绑定的 ASG 名缓存于 `scripts/.last-asg-bound`，两者均已在 `.gitignore` 排除。
+* `.gitkeep` 用于保留空日志目录结构，CI 可直接写日志而不需预先创建路径。
+* *所有 `Makefile` 命令均已添加 Emoji & `@echo` 提示，执行过程更清晰友好。*  
 
 ## 未来计划
 
