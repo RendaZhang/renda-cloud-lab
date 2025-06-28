@@ -4,7 +4,7 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY: check preflight init plan start post-recreate all stop stop-hard destroy-all logs clean
+.PHONY: check preflight init plan start post-recreate all scale-zero stop stop-hard destroy-all logs clean
 
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
@@ -52,10 +52,15 @@ post-recreate:
 ## 🚀 一键全流程（重建集群 + 通知绑定）
 all: start post-recreate
 
-## 🌙 销毁 NAT 和 ALB，保留 EKS 集群
+## 🌙 缩容所有 EKS 节点组至 0
+scale-zero:
+	@echo "🌙 Scaling down all EKS node groups to zero..."
+	bash scripts/scale-nodegroup-zero.sh
+
+## 🌙 销毁 NAT 和 ALB，保留 EKS 集群，缩容 EKS 节点组至 0
 stop:
+	make scale-zero
 	@echo "Stopping NAT and ALB (retain EKS control plane)..."
-	aws sso login --profile $(AWS_PROFILE)
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
 		-var="region=$(REGION)" \
 		-var="create_nat=false" \
