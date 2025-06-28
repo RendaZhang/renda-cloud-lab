@@ -1,76 +1,86 @@
-# Local .terraform directories
-**/.terraform/*
-
-# .tfstate files
+# ────────────────────────────────
+# ☁️ Terraform 相关
+# ────────────────────────────────
 *.tfstate
-*.tfstate.*
-
-# Crash log files
+*.tfstate.backup
+*.tfvars
+.terraform/
+.terraform.lock.hcl
 crash.log
-
-# Exclude all .tfvars files, which are likely to contain sentitive data, such as
-# password, private keys, and other secrets. These should not be part of version 
-# control as they are data points which are potentially sensitive and subject 
-# to change depending on the environment.
-# secret.auto.tfvars
-
-# Ignore override files as they are usually used to override resources locally and so
-# are not checked in
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-
-# Include override files you do wish to add to version control using negated pattern
-#
-# !example_override.tf
-
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-# example: *tfplan*
-
-# Ignore CLI configuration files
-.terraformrc
-terraform.rc
+.terraform.tfstate.lock.info
 
 # ────────────────────────────────
-# Extra ignores for Renda Cloud Lab
+# 🛠 本地 CLI 工具 / AWS 凭证
 # ────────────────────────────────
-
-# 1) 操作系统 / IDE 杂项
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-
-# 2) Helm 打包产物
-*.tgz                      # helm package 生成的 chart 压缩包
-charts/**/charts/          # chart 依赖解压目录
-
-# 3) Kubernetes & kubeconfig
+.aws-sso/
 .kube/
-*.kubeconfig
-*.yaml.backup              # kubectl edit 生成的临时备份
+.kube/config
+.envrc
+.env
 
-# 4) 短期日志 / 终端记录
-*.log
-nohup.out
-
-# 5) Python / Node 虚拟环境（若脚本用到）
-.venv/
-node_modules/
-
-# 6) 生成的图表 / 二进制报告
-*.png
-*.svg
-*.pdf
-
-# 7) Terraform plan 文件（留给你按需启用）
-# *tfplan*
-
-# 8) Shell 脚本执行缓存
+# ────────────────────────────────
+# 🔧 VSCode & IDE
+# ────────────────────────────────
+.vscode/
+.idea/
 *.swp
 *.swo
+*.log
 
-# 9) 其他常见忽略
-## Preflight 检查日志
-preflight.txt
+# ────────────────────────────────
+# 🪄 Helm & Kubernetes
+# ────────────────────────────────
+charts/
+release.yaml
+*.tgz
+
+# ────────────────────────────────
+# 🧪 Terraform 计划输出
+# ────────────────────────────────
+plan.out
+*.tfplan
+
+# ────────────────────────────────
+# 🔄 Makefile & Post-Recreate 扩展支持
+# ────────────────────────────────
+
+# Spot 通知绑定状态文件
+scripts/.last-asg-bound
+
+# 日志目录：忽略日志文件但保留目录
+scripts/logs/*
+!scripts/logs/.gitkeep
+
+# 临时缓存 & 备份文件
+scripts/*.tmp
+scripts/*.bak
+*.retry
+
+# ────────────────────────────────
+# 🔬 Python/Jupyter（如后续用到）
+# ────────────────────────────────
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# ────────────────────────────────
+# 🚫 安全防御：不应提交的敏感数据
+# ────────────────────────────────
+secrets.*
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.der
+*.csr
+
+# ────────────────────────────────
+# 📝 文档工具
+# ────────────────────────────────
+.DS_Store
+Thumbs.db
