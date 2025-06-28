@@ -4,7 +4,7 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY: check preflight init plan start post-recreate all scale-zero stop stop-hard destroy-all logs clean
+.PHONY: check preflight init plan start post-recreate all scale-zero stop stop-hard destroy-all logs clean update-diagrams
 
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
@@ -99,3 +99,7 @@ logs:
 clean:
 	@rm -f scripts/.last-asg-bound
 	@echo "🧹 清理完成：临时文件已删除"
+
+update-diagrams:
+	@echo "📊 更新架构图..."
+	@bash scripts/update-diagrams.sh
