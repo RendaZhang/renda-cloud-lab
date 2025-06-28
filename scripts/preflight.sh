@@ -5,11 +5,11 @@
 # 功能：
 #   1. 校验本地 AWS CLI SSO 凭证有效性
 #   2. 读取关键 Service Quota 上限（Quota.Value）
-#   3. 将结果打印到终端并同步写入 preflight.txt
+#   3. 将结果打印到终端并同步写入 $LOG_FILE
 #
 # 使用：
 #   bash scripts/preflight.sh
-#   或 make preflight   # 如果已在 Makefile 注册
+#   或 make preflight
 # ------------------------------------------------------------
 
 set -eu
@@ -17,6 +17,7 @@ set -eu
 # -------- 基本参数（如需改 profile/region 在此改） --------
 PROFILE="phase2-sso"
 REGION="us-east-1"
+LOG_FILE="scripts/logs/preflight.txt"
 
 # -------- QuotaCode → 描述映射表 --------
 # 填写时务必确认对应 service-code, 见 CODES[] 映射
@@ -98,8 +99,8 @@ vcpu_spot_used() {
 # =========  计算函数结束 =========
 
 
-echo -e "AWS_PROFILE=$PROFILE\nAWS_REGION=$REGION" | tee preflight.txt
-echo "---------------- Quota Check ----------------" | tee -a preflight.txt
+echo -e "AWS_PROFILE=$PROFILE\nAWS_REGION=$REGION" | tee $LOG_FILE
+echo "---------------- Quota Check ----------------" | tee -a $LOG_FILE
 
 for code in "${!QUOTAS[@]}"; do
   svc="${CODES[$code]}"
@@ -128,5 +129,5 @@ for code in "${!QUOTAS[@]}"; do
   # ④ 打印 + 写文件
   printf "%-30s %8s (limit) | %6s used | %6s left\n" \
          "${QUOTAS[$code]}" "$limit" "$used" "$left"
-done | tee -a preflight.txt
-echo "---------------------------------------------" | tee -a preflight.txt
+done | tee -a $LOG_FILE
+echo "---------------------------------------------" | tee -a $LOG_FILE
