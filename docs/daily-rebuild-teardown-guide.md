@@ -21,7 +21,7 @@
 
 2. **启动基础设施 (Start Infrastructure)**：首先启动基础网络和必要组件，包括 NAT 网关和 ALB。此步骤会创建 VPC 下的网络出口 (NAT Gateway，需要 Elastic IP) 和集群入口 (Application Load Balancer) 等资源，为 EKS 集群提供所需的网络环境。
 
-   * **Makefile 命令**：执行 `**make start**` 一键应用 Terraform 模板来创建 NAT 网关和 ALB。该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb` 设置为 true，从而启用 NAT 和 ALB 相关资源（`create_eks` 亦为 true，以确保与 EKS 相关的IAM和子网配置就绪，但此步骤并不直接创建控制面）。
+   * **Makefile 命令**：执行 `make start` 一键应用 Terraform 模板来创建 NAT 网关和 ALB。该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb` 设置为 true，从而启用 NAT 和 ALB 相关资源（`create_eks` 亦为 true，以确保与 EKS 相关的IAM和子网配置就绪，但此步骤并不直接创建控制面）。
    * **手动 Terraform 命令**：等价操作是手动运行 Terraform 部署。在终端中切换到项目目录的 `infra/aws` 路径，然后执行以下命令：
 
      ```bash
@@ -46,7 +46,7 @@
 
 3. **创建 EKS 控制平面 (Create EKS Control Plane)**：基础网络就绪后，创建或导入 EKS 集群的控制平面和节点组。
 
-   * **Makefile 命令**：执行 `**make start-cluster**` 利用 **eksctl** 创建 EKS 集群。此命令会根据 `infra/eksctl/eksctl-cluster.yaml` 中的配置，在名称为 `dev` 的集群（Region 为 `us-east-1`）上创建控制平面和默认节点组，并将 kubeconfig 配置更新到本地文件以便后续使用。命令中使用了 `--profile phase2-sso` 指定 AWS 凭证配置，`--region us-east-1` 指定区域，`--kubeconfig ~/.kube/config` 指定更新的 kubeconfig 路径。Makefile 在执行该命令前会再次调用 AWS SSO 登录以确保权限有效。
+   * **Makefile 命令**：执行 `make start-cluster` 利用 **eksctl** 创建 EKS 集群。此命令会根据 `infra/eksctl/eksctl-cluster.yaml` 中的配置，在名称为 `dev` 的集群（Region 为 `us-east-1`）上创建控制平面和默认节点组，并将 kubeconfig 配置更新到本地文件以便后续使用。命令中使用了 `--profile phase2-sso` 指定 AWS 凭证配置，`--region us-east-1` 指定区域，`--kubeconfig ~/.kube/config` 指定更新的 kubeconfig 路径。Makefile 在执行该命令前会再次调用 AWS SSO 登录以确保权限有效。
    * **手动 eksctl 命令**：若不使用 Makefile，也可以直接运行 eksctl 命令创建集群：
 
      ```bash
@@ -69,7 +69,7 @@
 
 4. **绑定 Spot 实例通知 (Bind Spot Interruption Notification)**：为确保集群工作节点的 Spot 实例中断通知能够被及时捕获，需在集群重建后重新绑定 SNS 通知。
 
-   * **Makefile 命令**：执行 `**make post-recreate**` 调用脚本自动为当前 EKS 节点组的 Auto Scaling Group (ASG) 订阅 Spot Interruption SNS 主题。该脚本会自动检索名称以 `eks-ng-mixed` 开头的最新 ASG，并将其与预先创建的 SNS Topic (`spot-interruption-topic`) 进行绑定。脚本设计有幂等性，会记录上次绑定的 ASG 名称，防止重复操作。
+   * **Makefile 命令**：执行 `make post-recreate` 调用脚本自动为当前 EKS 节点组的 Auto Scaling Group (ASG) 订阅 Spot Interruption SNS 主题。该脚本会自动检索名称以 `eks-ng-mixed` 开头的最新 ASG，并将其与预先创建的 SNS Topic (`spot-interruption-topic`) 进行绑定。脚本设计有幂等性，会记录上次绑定的 ASG 名称，防止重复操作。
    * **手动 CLI 命令**：亦可手动执行脚本或使用 AWS CLI 完成相同操作。推荐直接运行仓库提供的脚本：
 
      ```bash
