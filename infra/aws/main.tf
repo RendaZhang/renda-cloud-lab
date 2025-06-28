@@ -1,6 +1,5 @@
 module "network_base" {
   source = "./modules/network_base"
-  region = var.region
 }
 
 module "nat" {
