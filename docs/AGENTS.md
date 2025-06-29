@@ -1,27 +1,110 @@
-# Renda Cloud Lab
+# Guidance for AI Agents
 
-## 项目简介
+> 📍 Purpose: This file describes how an AI agent (e.g. OpenAI Codex, DevAgent, etc.) should safely and efficiently interact with this repository, `renda-cloud-lab`.
+> 📅 Last Updated: 2025-06-29
+> 🧑‍💻 Maintainer: Renda Zhang (张人大)
+> 🌐 Environment: AWS Cloud, Terraform, EKS, Helm, GitOps
 
-**Renda Cloud Lab** 项目的目标是构建一个基于 AWS 的云原生实验平台。该平台采用 **Terraform** 管理整个基础设施生命周期，并通过每日夜间自动销毁、次日清晨重建关键资源的策略来降低云服务成本。这一策略保证白天实验时段拥有完整的网络和服务支撑，夜间闲置时释放高成本资源（如 NAT 网关、ALB），仅保留必要状态以便快速重建。主要技术栈包括 **Terraform**、**Amazon EKS**（托管 Kubernetes 集群）、**Helm**（Kubernetes 部署管理）、**AWS CLI** 等工具，实现基础设施即代码管理与集群应用部署的自动化。
+---
 
-## 资源管理现状
+## 1. 🔍 Project Overview
 
-目前，**NAT 网关**、**应用型负载均衡器（ALB）**、**EKS 控制平面**和 **EKS 节点组**等资源均已成功导入 Terraform 状态，后续改由 Terraform 统一管理。这意味着集群相关的一切资源变更都应通过 Terraform 进行，`eksctl` 工具仅在最初创建集群时使用过，现在被保留为历史参考，不再推荐日常操作使用。
+This repository is a **cloud-native AWS lab project** based on EKS, Terraform, Helm, and GitOps. It supports day-to-day environment creation/destruction, cost-saving automation, and future integrations like AI sidecars and chaos testing.
 
-## 目录结构概览
+AI agents may be asked to:
+- Modify Terraform modules (under `infra/aws/modules/`)
+- Update lifecycle scripts or Makefile
+- Respond to issues or questions based on `docs/*.md`
+- Refactor configuration (`*.tf`, `*.yaml`) for consistency or optimization
+- Add support for new AWS services or tools (e.g., Bedrock, Karpenter, etc.)
 
-项目代码仓库采用清晰的分层结构，主要目录及用途如下：
+---
 
-* **`infra/aws/`**：Terraform 的基础设施目录，作为根模块入口。包含环境配置（后端状态、Provider、变量等）及主要模块调用定义。运行 Terraform 命令时通常在此目录下执行。
-* **`infra/aws/modules/`**：Terraform 模块定义目录。包含各独立组件的 Terraform 配置，例如 **VPC** 网络、**NAT 网关**、**ALB** 负载均衡、**EKS** 集群、**IRSA** (IAM Roles for Service Accounts) 等模块。通过将基础设施按功能拆分为模块，便于复用和维护。
-* **`scripts/`**：自动化脚本目录。用于存放各种辅助运维脚本，例如 **`tf-import.sh`**（将现有资源导入 Terraform）和 **`scale-nodegroup-zero.sh`**（一键将所有 EKS 节点组实例数缩至 0）等。这些脚本简化了日常操作，如批量导入资源、快速缩容集群等。
-* **`docs/`**：文档目录，记录操作流程和设计说明。例如 *每日重建与销毁指南* **`daily-rebuild-teardown-guide.md`** 提供了集群每日重建/销毁的操作步骤和注意事项。可以查阅此处的文档了解项目的工作流程和最佳实践。
+## 2. 📁 Key Project Structure
 
-## Makefile 命令说明
+```text
+renda-cloud-lab/
+├── infra/                  # Infrastructure-as-Code
+│   ├── aws/                # Terraform-based IaC modules
+│   └── eksctl/             # Initial eksctl cluster config (legacy)
+├── charts/                 # Helm Charts for workloads & system components
+├── scripts/                # Shell automation: setup, import, teardown
+├── docs/                   # Lifecycle guides & operational procedures
+├── diagrams/               # Terraform graphviz architecture
+├── Makefile                # Declarative commands to orchestrate lab
+└── README.md               # README file for project
+````
 
-仓库提供了一系列 **Makefile** 命令，方便对基础设施进行一键式启停与管理。下面列出了常用命令及其功能：
+---
 
-* **`make start`**：启动关键基础设施资源。执行 Terraform 将 **NAT 网关**、**ALB** 等网络组件创建/启用，并确保 EKS 集群处于运行状态。通常在每天实验开始时运行。该命令会自动执行 AWS SSO 登录流程以获取临时凭证（确保 Terraform 有权访问 AWS）。
-* **`make stop`**：停止非必要的基础设施资源。执行 Terraform 关闭 **NAT 网关**、**ALB** 等高成本组件（在内部将 `create_nat`、`create_alb` 等变量置为 false），但保留 EKS 控制平面和 Terraform 状态不变。通常在每日实验结束时执行，以销毁当日不再需要的外部网络资源，降低云费用。
-* **`make stop-hard`**：硬停用完整环境。依次销毁 **NAT 网关**、**ALB** 等外围资源，并移除 **EKS 控制平面**（以及所有节点组），彻底停止整个集群。适用于长期不使用实验环境时进行彻底关停，以避免持续产生任何与集群相关的费用（VPC 等基础网络和状态存储会被保留）。
-* **`make scale-zero`**：将所有 EKS 节点组实例数缩容至 0。调用脚本 **`scripts/scale-nodegroup-zero.sh`** 将每个节点组的期望容量设置为0，从而在无工作负载时节约计算成本。当需要恢复时，只需重新部署应用或手动扩容节点组，自动伸缩组件会根据负载重启节点。
+## 3. 📌 Rules for Modification
+
+| Area             | Guidelines                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `infra/aws/`     | **Use Terraform best practices**. Do not directly edit `.terraform` or state. Modules follow `create_*` toggle flags (e.g., `create_nat`). |
+| `infra/eksctl/`  | Legacy use only — do **not** modify unless explicitly asked. Terraform has taken over cluster management.   |
+| `scripts/`       | Keep shell scripts POSIX-compliant and idempotent. Side-effects must be logged to `scripts/logs/` if applicable.  |
+| `Makefile`       | Use existing patterns. Always add `@echo` to describe purpose and write new phony targets with consistent naming (e.g., `start`, `stop-hard`). |
+| `docs/`          | All documentation must be bilingual (English+Chinese preferred). Follow `.md` formatting conventions.          |
+| `.gitignore`     | Do not track log/temp/cache/state files. Log outputs go to `scripts/logs/`.   |
+| Terraform `*.tf` | Variables defined in `variables.tf` must have default values unless required. Use modules inside `modules/` when possible.     |
+
+---
+
+## 4. 🧠 Context to Remember
+
+* Default AWS CLI profile: `phase2-sso`
+* Default region: `us-east-1`
+* Terraform backend:
+
+  * S3 Bucket: `phase2-tf-state-us-east-1`
+  * DynamoDB Lock Table: `tf-state-lock`
+* Default domain name (for ALB): `lab.rendazhang.com`
+* Rebuild lifecycle and autoscaling behavior controlled via `make stop`, `make stop-hard`, `make all`, and supporting scripts.
+* Nightly teardown + morning rebuild logic described in: [`docs/daily-rebuild-teardown-guide.md`](docs/daily-rebuild-teardown-guide.md)
+
+---
+
+## 5. ✅ Allowed Actions
+
+AI agents are allowed to:
+
+* Refactor Terraform modules and scripts
+* Add new Makefile tasks
+* Modify documentation files in `docs/`
+* Create new `.dot` diagrams (stored in `diagrams/`)
+* Add new Helm charts or update existing ones (under `charts/`)
+* Extend `scripts/` safely with CLI tools
+
+**Agents are not allowed to:**
+
+* Modify `eksctl-cluster.yaml` unless explicitly instructed
+* Change DNS zone or hosted zone configuration unless specifically asked
+
+---
+
+## 6. 📎 FAQs
+
+**Q: How should I update or destroy EKS resources?**
+A: Only via Terraform. Avoid `eksctl` unless creating from scratch and explicitly told to do so.
+
+**Q: Where should temporary logs or cache files go?**
+A: Use `scripts/logs/`. They are `.gitignore`d.
+
+**Q: Can I create a new module for AWS service X?**
+A: Yes — place it in `infra/aws/modules/` and add a wrapper call in `main.tf`.
+
+**Q: Can I modify AGENTS.md itself?**
+A: Yes — if additional capabilities are added or team conventions evolve.
+
+---
+
+## 7. 🧾 Last Notes
+
+This repository is optimized for iterative, AI-assisted cloud-native experimentation. Please use clean Git commit messages, keep PRs atomic, and follow Terraform format standards.
+
+If you're an agent helping improve this repo — welcome aboard! 🧠🚀
+
+```
+
+---

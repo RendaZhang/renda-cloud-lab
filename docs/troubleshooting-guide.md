@@ -176,7 +176,7 @@
     ```
 
 * **版本信息 (Version Info)**：
-  - Terraform AWS Provider v4.67+ 
+  - Terraform AWS Provider v4.67+
   - EKS 所有版本通用行为
 
 * **关键注意事项**：

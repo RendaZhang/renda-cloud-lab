@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: June 28, 2025, 19:30 (UTC+8)
+* Last Updated: June 29, 2025, 16:30 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -236,8 +236,11 @@ make stop         # 下班关大件
 
 ### 文档
 
-> 📘 [EKS 云原生集群生命周期流程](docs/lifecycle.md)
-> 📘 [每日 EKS 重建与销毁操作指南](docs/daily-rebuild-teardown-guide.md)
+* 📘 [EKS 云原生集群生命周期流程](docs/lifecycle.md)
+* 📘 [每日 EKS 重建与销毁操作指南](docs/daily-rebuild-teardown-guide.md)
+* 📕 [踩坑与排查手册](docs/troubleshooting-guide.md)
+* 🤖 [Codex 智能体操作指南（AGENTS.md）](docs/AGENTS.md)
+
 
 ### 检查清单
 
