@@ -269,11 +269,17 @@
 
 ## ✅ 销毁清单验证 (Evening Checklist)
 
-| 资源类型 | 是否销毁 | 验证命令 |
-|---|---|---|
-| NAT Gateway | ✅ | `aws ec2 describe-nat-gateways` |
-| ALB | ✅ | `aws elbv2 describe-load-balancers` |
-| EKS 集群 | ✅ | `aws eks list-clusters` |
-| VPC | ❌ | `aws ec2 describe-vpcs` |
-| 子网 | ❌ | `aws ec2 describe-subnets` |
-| S3 (状态存储) | ❌ | `aws s3 ls` |
+* ✅ **NAT 网关已删除 (NAT Gateway removed)**：
+  `aws ec2 describe-nat-gateways --region us-east-1 --profile phase2-sso` 应返回空列表或状态为 `deleted`。
+* ✅ **ALB 已删除 (ALB removed)**：
+  运行 `aws elbv2 describe-load-balancers --region us-east-1 --profile phase2-sso` 不再包含实验负载均衡。
+* ✅ **EKS 集群状态 (EKS cluster state)**：
+  如执行 `make stop-hard`，`aws eks list-clusters --region us-east-1 --profile phase2-sso` 中不应出现集群名称；若仅执行 `make stop`，集群依旧存在但工作节点应已缩容至 0。
+* ✅ **Spot 通知解绑 (Spot notification unsubscribed)**：
+  检查 `scripts/logs/stop.log` 或 SNS 控制台，确认 Auto Scaling Group 已无 Spot 中断订阅。
+* ❌ **VPC 与子网保留 (VPC & subnets retained)**：
+  `aws ec2 describe-vpcs --region us-east-1 --profile phase2-sso` 及 `aws ec2 describe-subnets` 仍会列出网络资源。
+* ❌ **Terraform 状态存储保留 (State bucket retained)**：
+  `aws s3 ls s3://phase2-tf-state-us-east-1 --profile phase2-sso` 可看到状态文件。
+
+若上述项目均符合预期，即表示夜间销毁流程顺利完成。若发现未删除的资源，可重新运行 Terraform 或检查日志排查原因。
