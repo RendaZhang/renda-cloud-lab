@@ -56,7 +56,6 @@ renda-cloud-lab/
 * Default AWS CLI profile: `phase2-sso`
 * Default region: `us-east-1`
 * Terraform backend:
-
   * S3 Bucket: `phase2-tf-state-us-east-1`
   * DynamoDB Lock Table: `tf-state-lock`
 * Default domain name (for ALB): `lab.rendazhang.com`
