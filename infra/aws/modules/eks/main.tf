@@ -27,7 +27,7 @@ resource "aws_eks_cluster" "this" {
   }
 
   vpc_config {
-    security_group_ids = ["sg-0e93d691d659c1eda"]
+    security_group_ids = var.cluster_security_group_id != "" ? [var.cluster_security_group_id] : []
     subnet_ids         = concat(var.private_subnet_ids, var.public_subnet_ids)
   }
 
@@ -44,7 +44,7 @@ resource "aws_eks_cluster" "this" {
 
 resource "aws_eks_node_group" "ng" {
   count           = var.create ? 1 : 0
-  node_role_arn   = "arn:aws:iam::563149051155:role/eksctl-dev-nodegroup-ng-mixed-NodeInstanceRole-6iVyvrDnxZQO"
+  node_role_arn   = var.node_role_arn
   cluster_name    = var.cluster_name
   node_group_name = var.nodegroup_name
   subnet_ids      = var.private_subnet_ids

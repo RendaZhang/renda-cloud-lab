@@ -14,6 +14,16 @@ variable "eks_admin_role_arn" {
   type        = string
 }
 
+variable "node_role_arn" {
+  description = "IAM role ARN for EKS worker nodes"
+  type        = string
+}
+
+variable "cluster_security_group_id" {
+  description = "Security group ID for the EKS cluster"
+  type        = string
+}
+
 variable "create_nat" {
   type    = bool
   default = true
