@@ -266,3 +266,14 @@
 * **EKS 集群删除缓慢 (Cluster Deletion Slowness)**：如果选择执行了包含 EKS 集群删除的销毁操作，有时集群的删除可能需要较长时间。尤其当集群内仍有自定义的附加组件（Add-ons）或 AWS 上残留的负载均衡、弹性网卡等资源时，删除过程可能卡顿。Terraform 在删除 EKS 集群时如果长时间无响应，可通过 AWS 控制台的 EKS 页面查看集群删除进度。如集群由 eksctl 创建过，亦可检查 CloudFormation 中对应的栈（例如 `eksctl-dev-cluster`）是否存在删除失败的事件；如果某些资源（如安全组或 ENI）阻碍了 CloudFormation 栈删除，可手动删除这些残留资源，然后再次执行 Terraform 销毁或直接删除 CloudFormation 栈。在必要情况下，也可以使用 AWS CLI（`aws eks delete-cluster` 等）或 eksctl 带 `--wait` 参数辅助监控删除进程。总之，确保所有相关资源都清理后，Terraform 销毁才能顺利完成。
 
 完成上述夜间关停流程后，环境便仅剩下不计费或低成本的基础部分（如 VPC 等）。第二天早晨即可按照前述步骤，通过 Terraform 一键重建所有资源，实现完整的**一键销毁与重建**循环，而无需额外手动干预 EKS 集群。本指南确保用户每日都能完全依赖 Terraform 管理基础设施，实现成本最优化和操作简便化。
+
+## ✅ 销毁清单验证 (Evening Checklist)
+
+| 资源类型 | 是否销毁 | 验证命令 |
+|---|---|---|
+| NAT Gateway | ✅ | `aws ec2 describe-nat-gateways` |
+| ALB | ✅ | `aws elbv2 describe-load-balancers` |
+| EKS 集群 | ✅ | `aws eks list-clusters` |
+| VPC | ❌ | `aws ec2 describe-vpcs` |
+| 子网 | ❌ | `aws ec2 describe-subnets` |
+| S3 (状态存储) | ❌ | `aws s3 ls` |
