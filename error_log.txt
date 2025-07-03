@@ -1,0 +1,520 @@
+renda@RendaZhangComputer:/mnt/d/renda-cloud-lab$ make start
+Applying Terraform changes to start NAT, ALB, and EKS...
+terraform -chdir=infra/aws apply -auto-approve -input=false \
+        -var="region=us-east-1" \
+        -var="create_nat=true" \
+        -var="create_alb=true" \
+        -var="create_eks=true"
+Acquiring state lock. This may take a few moments...
+module.network_base.data.aws_route53_zone.lab: Reading...
+module.network_base.data.aws_availability_zones.available: Reading...
+module.network_base.aws_vpc.this: Refreshing state... [id=vpc-0b06ba5bfab99498b]
+module.network_base.data.aws_availability_zones.available: Read complete after 1s [id=us-east-1]
+module.network_base.aws_security_group.alb: Refreshing state... [id=sg-0bbdd7f976dc2d5fa]
+module.network_base.aws_subnet.private[1]: Refreshing state... [id=subnet-00630bdad3664ee18]
+module.network_base.aws_route_table.private[1]: Refreshing state... [id=rtb-00dc799eaa7b2ae78]
+module.network_base.aws_internet_gateway.igw: Refreshing state... [id=igw-076575a42d89e3bda]
+module.network_base.aws_route_table.private[0]: Refreshing state... [id=rtb-026a8fa8865c4474c]
+module.network_base.aws_subnet.private[0]: Refreshing state... [id=subnet-0422bec13e7eec9e6]
+module.network_base.aws_subnet.public[0]: Refreshing state... [id=subnet-066a65e68e06df5db]
+module.network_base.aws_subnet.public[1]: Refreshing state... [id=subnet-08ca22e6d15635564]
+module.network_base.data.aws_route53_zone.lab: Read complete after 3s [id=Z046477619FBT01V20AQ4]
+module.network_base.aws_route_table.public: Refreshing state... [id=rtb-00f75c504689ec88c]
+module.network_base.aws_route_table_association.private[1]: Refreshing state... [id=rtbassoc-0fc678caa568defb3]
+module.network_base.aws_route_table_association.private[0]: Refreshing state... [id=rtbassoc-04d6bd75684d8a9a8]
+module.network_base.aws_route_table_association.public[1]: Refreshing state... [id=rtbassoc-0d2d81e2a11005d58]
+module.network_base.aws_route_table_association.public[0]: Refreshing state... [id=rtbassoc-0ecdd8b4f937ad769]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the
+following symbols:
+  + create
+ <= read (data resources)
+
+Terraform will perform the following actions:
+
+  # aws_route53_record.lab_alias[0] will be created
+  + resource "aws_route53_record" "lab_alias" {
+      + allow_overwrite = (known after apply)
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+        name            = null
+      + type            = "A"
+      + zone_id         = "Z046477619FBT01V20AQ4"
+
+      + alias {
+          + evaluate_target_health = false
+          + name                   = (known after apply)
+          + zone_id                = (known after apply)
+        }
+    }
+
+  # module.alb.aws_lb.demo[0] will be created
+  + resource "aws_lb" "demo" {
+      + arn                                                          = (known after apply)
+      + arn_suffix                                                   = (known after apply)
+      + client_keep_alive                                            = 3600
+      + desync_mitigation_mode                                       = "defensive"
+      + dns_name                                                     = (known after apply)
+      + drop_invalid_header_fields                                   = false
+      + enable_deletion_protection                                   = false
+      + enable_http2                                                 = true
+      + enable_tls_version_and_cipher_suite_headers                  = false
+      + enable_waf_fail_open                                         = false
+      + enable_xff_client_port                                       = false
+      + enable_zonal_shift                                           = false
+      + enforce_security_group_inbound_rules_on_private_link_traffic = (known after apply)
+      + id                                                           = (known after apply)
+      + idle_timeout                                                 = 60
+      + internal                                                     = (known after apply)
+      + ip_address_type                                              = (known after apply)
+      + load_balancer_type                                           = "application"
+      + name                                                         = "alb-demo"
+      + name_prefix                                                  = (known after apply)
+      + preserve_host_header                                         = false
+      + region                                                       = "us-east-1"
+      + security_groups                                              = [
+          + "sg-0bbdd7f976dc2d5fa",
+        ]
+      + subnets                                                      = [
+          + "subnet-066a65e68e06df5db",
+          + "subnet-08ca22e6d15635564",
+        ]
+      + tags_all                                                     = {
+          + "project" = "phase2-sprint"
+        }
+      + vpc_id                                                       = (known after apply)
+      + xff_header_processing_mode                                   = "append"
+      + zone_id                                                      = (known after apply)
+
+      + subnet_mapping (known after apply)
+    }
+
+  # module.alb.aws_lb_listener.http[0] will be created
+  + resource "aws_lb_listener" "http" {
+      + arn                                                                   = (known after apply)
+      + id                                                                    = (known after apply)
+      + load_balancer_arn                                                     = (known after apply)
+      + port                                                                  = 80
+      + protocol                                                              = "HTTP"
+      + region                                                                = "us-east-1"
+      + routing_http_request_x_amzn_mtls_clientcert_header_name               = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_issuer_header_name        = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_leaf_header_name          = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_serial_number_header_name = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_subject_header_name       = (known after apply)
+      + routing_http_request_x_amzn_mtls_clientcert_validity_header_name      = (known after apply)
+      + routing_http_request_x_amzn_tls_cipher_suite_header_name              = (known after apply)
+      + routing_http_request_x_amzn_tls_version_header_name                   = (known after apply)
+      + routing_http_response_access_control_allow_credentials_header_value   = (known after apply)
+      + routing_http_response_access_control_allow_headers_header_value       = (known after apply)
+      + routing_http_response_access_control_allow_methods_header_value       = (known after apply)
+      + routing_http_response_access_control_allow_origin_header_value        = (known after apply)
+      + routing_http_response_access_control_expose_headers_header_value      = (known after apply)
+      + routing_http_response_access_control_max_age_header_value             = (known after apply)
+      + routing_http_response_content_security_policy_header_value            = (known after apply)
+      + routing_http_response_server_enabled                                  = (known after apply)
+      + routing_http_response_strict_transport_security_header_value          = (known after apply)
+      + routing_http_response_x_content_type_options_header_value             = (known after apply)
+      + routing_http_response_x_frame_options_header_value                    = (known after apply)
+      + ssl_policy                                                            = (known after apply)
+      + tags_all                                                              = {
+          + "project" = "phase2-sprint"
+        }
+      + tcp_idle_timeout_seconds                                              = (known after apply)
+
+      + default_action {
+          + order            = (known after apply)
+          + target_group_arn = (known after apply)
+          + type             = "forward"
+        }
+
+      + mutual_authentication (known after apply)
+    }
+
+  # module.alb.aws_lb_target_group.demo[0] will be created
+  + resource "aws_lb_target_group" "demo" {
+      + arn                                = (known after apply)
+      + arn_suffix                         = (known after apply)
+      + connection_termination             = (known after apply)
+      + deregistration_delay               = "300"
+      + id                                 = (known after apply)
+      + ip_address_type                    = (known after apply)
+      + lambda_multi_value_headers_enabled = false
+      + load_balancer_arns                 = (known after apply)
+      + load_balancing_algorithm_type      = (known after apply)
+      + load_balancing_anomaly_mitigation  = (known after apply)
+      + load_balancing_cross_zone_enabled  = (known after apply)
+      + name                               = "tg-python-demo"
+      + name_prefix                        = (known after apply)
+      + port                               = 80
+      + preserve_client_ip                 = (known after apply)
+      + protocol                           = "HTTP"
+      + protocol_version                   = (known after apply)
+      + proxy_protocol_v2                  = false
+      + region                             = "us-east-1"
+      + slow_start                         = 0
+      + tags_all                           = {
+          + "project" = "phase2-sprint"
+        }
+      + target_type                        = "ip"
+      + vpc_id                             = "vpc-0b06ba5bfab99498b"
+
+      + health_check {
+          + enabled             = true
+          + healthy_threshold   = 3
+          + interval            = 30
+          + matcher             = (known after apply)
+          + path                = "/"
+          + port                = "traffic-port"
+          + protocol            = "HTTP"
+          + timeout             = (known after apply)
+          + unhealthy_threshold = 3
+        }
+
+      + stickiness (known after apply)
+
+      + target_failover (known after apply)
+
+      + target_group_health (known after apply)
+
+      + target_health_state (known after apply)
+    }
+
+  # module.eks.data.tls_certificate.cluster[0] will be read during apply
+  # (config refers to values not yet known)
+ <= data "tls_certificate" "cluster" {
+      + certificates = (known after apply)
+      + id           = (known after apply)
+      + url          = (known after apply)
+    }
+
+  # module.eks.aws_eks_cluster.this[0] will be created
+  + resource "aws_eks_cluster" "this" {
+      + arn                           = (known after apply)
+      + bootstrap_self_managed_addons = false
+      + certificate_authority         = (known after apply)
+      + cluster_id                    = (known after apply)
+      + created_at                    = (known after apply)
+      + enabled_cluster_log_types     = [
+          + "api",
+          + "authenticator",
+        ]
+      + endpoint                      = (known after apply)
+      + id                            = (known after apply)
+      + identity                      = (known after apply)
+      + name                          = "dev"
+      + platform_version              = (known after apply)
+      + region                        = "us-east-1"
+      + role_arn                      = "arn:aws:iam::563149051155:role/eks-admin-role"
+      + status                        = (known after apply)
+      + tags                          = {
+          + "Name"                                        = "eksctl-dev-cluster/ControlPlane"
+          + "alpha.eksctl.io/cluster-name"                = "dev"
+          + "alpha.eksctl.io/cluster-oidc-enabled"        = "true"
+          + "alpha.eksctl.io/eksctl-version"              = "0.210.0"
+          + "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+        }
+      + tags_all                      = {
+          + "Name"                                        = "eksctl-dev-cluster/ControlPlane"
+          + "alpha.eksctl.io/cluster-name"                = "dev"
+          + "alpha.eksctl.io/cluster-oidc-enabled"        = "true"
+          + "alpha.eksctl.io/eksctl-version"              = "0.210.0"
+          + "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+          + "project"                                     = "phase2-sprint"
+        }
+      + version                       = (known after apply)
+
+      + access_config {
+          + authentication_mode                         = "API_AND_CONFIG_MAP"
+          + bootstrap_cluster_creator_admin_permissions = true
+        }
+
+      + kubernetes_network_config {
+          + ip_family         = "ipv4"
+          + service_ipv4_cidr = "172.20.0.0/16"
+          + service_ipv6_cidr = (known after apply)
+
+          + elastic_load_balancing {
+              + enabled = false
+            }
+        }
+
+      + upgrade_policy {
+          + support_type = "EXTENDED"
+        }
+
+      + vpc_config {
+          + cluster_security_group_id = (known after apply)
+          + endpoint_private_access   = false
+          + endpoint_public_access    = true
+          + public_access_cidrs       = (known after apply)
+          + security_group_ids        = [
+              + "sg-0e93d691d659c1eda",
+            ]
+          + subnet_ids                = [
+              + "subnet-00630bdad3664ee18",
+              + "subnet-0422bec13e7eec9e6",
+              + "subnet-066a65e68e06df5db",
+              + "subnet-08ca22e6d15635564",
+            ]
+          + vpc_id                    = (known after apply)
+        }
+    }
+
+  # module.eks.aws_eks_node_group.ng[0] will be created
+  + resource "aws_eks_node_group" "ng" {
+      + ami_type               = (known after apply)
+      + arn                    = (known after apply)
+      + capacity_type          = (known after apply)
+      + cluster_name           = "dev"
+      + disk_size              = (known after apply)
+      + id                     = (known after apply)
+      + instance_types         = [
+          + "t3.small",
+          + "t3.medium",
+        ]
+      + labels                 = {
+          + "alpha.eksctl.io/cluster-name"   = "dev"
+          + "alpha.eksctl.io/nodegroup-name" = "ng-mixed"
+          + "role"                           = "worker"
+        }
+      + node_group_name        = "ng-mixed"
+      + node_group_name_prefix = (known after apply)
+      + node_role_arn          = "arn:aws:iam::563149051155:role/eksctl-dev-nodegroup-ng-mixed-NodeInstanceRole-6iVyvrDnxZQO"
+      + region                 = "us-east-1"
+      + release_version        = (known after apply)
+      + resources              = (known after apply)
+      + status                 = (known after apply)
+      + subnet_ids             = [
+          + "subnet-00630bdad3664ee18",
+          + "subnet-0422bec13e7eec9e6",
+        ]
+      + tags                   = {
+          + "alpha.eksctl.io/cluster-name"                = "dev"
+          + "alpha.eksctl.io/eksctl-version"              = "0.210.0"
+          + "alpha.eksctl.io/nodegroup-name"              = "ng-mixed"
+          + "alpha.eksctl.io/nodegroup-type"              = "managed"
+          + "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+        }
+      + tags_all               = {
+          + "alpha.eksctl.io/cluster-name"                = "dev"
+          + "alpha.eksctl.io/eksctl-version"              = "0.210.0"
+          + "alpha.eksctl.io/nodegroup-name"              = "ng-mixed"
+          + "alpha.eksctl.io/nodegroup-type"              = "managed"
+          + "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+          + "project"                                     = "phase2-sprint"
+        }
+      + version                = (known after apply)
+
+      + launch_template {
+          + id      = "lt-0fcd1b589948c6a31"
+          + name    = (known after apply)
+          + version = "1"
+        }
+
+      + node_repair_config (known after apply)
+
+      + scaling_config {
+          + desired_size = 1
+          + max_size     = 6
+          + min_size     = 0
+        }
+
+      + update_config (known after apply)
+    }
+
+  # module.eks.aws_iam_openid_connect_provider.oidc[0] will be created
+  + resource "aws_iam_openid_connect_provider" "oidc" {
+      + arn             = (known after apply)
+      + client_id_list  = [
+          + "sts.amazonaws.com",
+        ]
+      + id              = (known after apply)
+      + tags            = {
+          + "alpha.eksctl.io/cluster-name"   = "dev"
+          + "alpha.eksctl.io/eksctl-version" = "0.210.0"
+        }
+      + tags_all        = {
+          + "alpha.eksctl.io/cluster-name"   = "dev"
+          + "alpha.eksctl.io/eksctl-version" = "0.210.0"
+          + "project"                        = "phase2-sprint"
+        }
+      + thumbprint_list = (known after apply)
+      + url             = (known after apply)
+    }
+
+  # module.eks.time_sleep.wait_for_cluster[0] will be created
+  + resource "time_sleep" "wait_for_cluster" {
+      + create_duration = "2m"
+      + id              = (known after apply)
+      + triggers        = {
+          + "cluster_arn" = (known after apply)
+        }
+    }
+
+  # module.irsa[0].aws_iam_role.eks_cluster_autoscaler will be created
+  + resource "aws_iam_role" "eks_cluster_autoscaler" {
+      + arn                   = (known after apply)
+      + assume_role_policy    = (known after apply)
+      + create_date           = (known after apply)
+      + force_detach_policies = false
+      + id                    = (known after apply)
+      + managed_policy_arns   = (known after apply)
+      + max_session_duration  = 3600
+      + name                  = "eks-cluster-autoscaler"
+      + name_prefix           = (known after apply)
+      + path                  = "/"
+      + tags_all              = {
+          + "project" = "phase2-sprint"
+        }
+      + unique_id             = (known after apply)
+
+      + inline_policy (known after apply)
+    }
+
+  # module.irsa[0].aws_iam_role_policy_attachment.cluster_autoscaler_attach will be created
+  + resource "aws_iam_role_policy_attachment" "cluster_autoscaler_attach" {
+      + id         = (known after apply)
+      + policy_arn = "arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy"
+      + role       = "eks-cluster-autoscaler"
+    }
+
+  # module.nat.aws_eip.nat[0] will be created
+  + resource "aws_eip" "nat" {
+      + allocation_id        = (known after apply)
+      + arn                  = (known after apply)
+      + association_id       = (known after apply)
+      + carrier_ip           = (known after apply)
+      + customer_owned_ip    = (known after apply)
+      + domain               = "vpc"
+      + id                   = (known after apply)
+      + instance             = (known after apply)
+      + ipam_pool_id         = (known after apply)
+      + network_border_group = (known after apply)
+      + network_interface    = (known after apply)
+      + private_dns          = (known after apply)
+      + private_ip           = (known after apply)
+      + ptr_record           = (known after apply)
+      + public_dns           = (known after apply)
+      + public_ip            = (known after apply)
+      + public_ipv4_pool     = (known after apply)
+      + region               = "us-east-1"
+      + tags                 = {
+          + "Name" = "lab-nat-eip"
+        }
+      + tags_all             = {
+          + "Name"    = "lab-nat-eip"
+          + "project" = "phase2-sprint"
+        }
+    }
+
+  # module.nat.aws_nat_gateway.this[0] will be created
+  + resource "aws_nat_gateway" "this" {
+      + allocation_id                      = (known after apply)
+      + association_id                     = (known after apply)
+      + connectivity_type                  = "public"
+      + id                                 = (known after apply)
+      + network_interface_id               = (known after apply)
+      + private_ip                         = (known after apply)
+      + public_ip                          = (known after apply)
+      + region                             = "us-east-1"
+      + secondary_private_ip_address_count = (known after apply)
+      + secondary_private_ip_addresses     = (known after apply)
+      + subnet_id                          = "subnet-066a65e68e06df5db"
+      + tags                               = {
+          + "Name" = "lab-nat"
+        }
+      + tags_all                           = {
+          + "Name"    = "lab-nat"
+          + "project" = "phase2-sprint"
+        }
+    }
+
+  # module.nat.aws_route.private_default[0] will be created
+  + resource "aws_route" "private_default" {
+      + destination_cidr_block = "0.0.0.0/0"
+      + id                     = (known after apply)
+      + instance_id            = (known after apply)
+      + instance_owner_id      = (known after apply)
+      + nat_gateway_id         = (known after apply)
+      + network_interface_id   = (known after apply)
+      + origin                 = (known after apply)
+      + region                 = "us-east-1"
+      + route_table_id         = "rtb-026a8fa8865c4474c"
+      + state                  = (known after apply)
+    }
+
+  # module.nat.aws_route.private_default[1] will be created
+  + resource "aws_route" "private_default" {
+      + destination_cidr_block = "0.0.0.0/0"
+      + id                     = (known after apply)
+      + instance_id            = (known after apply)
+      + instance_owner_id      = (known after apply)
+      + nat_gateway_id         = (known after apply)
+      + network_interface_id   = (known after apply)
+      + origin                 = (known after apply)
+      + region                 = "us-east-1"
+      + route_table_id         = "rtb-00dc799eaa7b2ae78"
+      + state                  = (known after apply)
+    }
+
+Plan: 14 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + alb_dns             = (known after apply)
+  + autoscaler_role_arn = (known after apply)
+module.nat.aws_eip.nat[0]: Creating...
+module.eks.aws_eks_node_group.ng[0]: Creating...
+module.alb.aws_lb.demo[0]: Creating...
+module.alb.aws_lb_target_group.demo[0]: Creating...
+module.nat.aws_eip.nat[0]: Creation complete after 3s [id=eipalloc-0a7a093ded49e1223]
+module.nat.aws_nat_gateway.this[0]: Creating...
+module.alb.aws_lb_target_group.demo[0]: Creation complete after 4s [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:targetgroup/tg-python-demo/c8d9eebf88a6cc0a]
+module.alb.aws_lb.demo[0]: Still creating... [00m10s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [00m10s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [00m20s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [00m20s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [00m33s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [00m33s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [00m43s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [00m43s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [00m53s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [00m53s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [01m03s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [01m06s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [01m16s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [01m16s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [01m26s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [01m26s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [01m36s elapsed]
+module.nat.aws_nat_gateway.this[0]: Still creating... [01m39s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [01m49s elapsed]
+module.nat.aws_nat_gateway.this[0]: Creation complete after 1m47s [id=nat-09690a990e827cbcc]
+module.alb.aws_lb.demo[0]: Still creating... [01m59s elapsed]
+module.nat.aws_route.private_default[0]: Creating...
+module.nat.aws_route.private_default[1]: Creating...
+module.nat.aws_route.private_default[1]: Creation complete after 2s [id=r-rtb-00dc799eaa7b2ae781080289494]
+module.nat.aws_route.private_default[0]: Creation complete after 3s [id=r-rtb-026a8fa8865c4474c1080289494]
+module.alb.aws_lb.demo[0]: Still creating... [02m09s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [02m22s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [02m32s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [02m42s elapsed]
+module.alb.aws_lb.demo[0]: Still creating... [02m55s elapsed]
+module.alb.aws_lb.demo[0]: Creation complete after 3m3s [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:loadbalancer/app/alb-demo/bb9d957b369b5fbf]
+module.alb.aws_lb_listener.http[0]: Creating...
+module.alb.aws_lb_listener.http[0]: Creation complete after 2s [id=arn:aws:elasticloadbalancing:us-east-1:563149051155:listener/app/alb-demo/bb9d957b369b5fbf/c7b7bd7847bec411]
+aws_route53_record.lab_alias[0]: Creating...
+aws_route53_record.lab_alias[0]: Still creating... [00m10s elapsed]
+aws_route53_record.lab_alias[0]: Still creating... [00m23s elapsed]
+aws_route53_record.lab_alias[0]: Still creating... [00m33s elapsed]
+aws_route53_record.lab_alias[0]: Creation complete after 39s [id=Z046477619FBT01V20AQ4__A]
+╷
+│ Error: creating EKS Node Group (dev:ng-mixed): operation error EKS: CreateNodegroup, https response error StatusCode: 404, RequestID: ad46de43-83b0-4b04-8e38-07b3259bce91, api error ResourceNotFoundException: No cluster found for name: dev.
+│
+│   with module.eks.aws_eks_node_group.ng[0],
+│   on modules/eks/main.tf line 45, in resource "aws_eks_node_group" "ng":
+│   45: resource "aws_eks_node_group" "ng" {
+│
+╵
+Releasing state lock. This may take a few moments...
+make: *** [Makefile:40: start] Error 1
