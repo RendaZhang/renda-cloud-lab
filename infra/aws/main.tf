@@ -53,4 +53,5 @@ resource "aws_route53_record" "lab_alias" {
     zone_id                = module.alb.alb_zone_id # ALB 所属 Hosted-zone
     evaluate_target_health = false
   }
+  depends_on = [module.alb]
 }
