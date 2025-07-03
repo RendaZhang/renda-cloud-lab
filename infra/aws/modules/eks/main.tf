@@ -38,8 +38,6 @@ resource "aws_eks_cluster" "this" {
     "alpha.eksctl.io/eksctl-version"              = "0.210.0"
     "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
   }
-
-  depends_on = [aws_eks_node_group.ng]
 }
 
 resource "aws_eks_node_group" "ng" {
@@ -77,6 +75,8 @@ resource "aws_eks_node_group" "ng" {
     "alpha.eksctl.io/nodegroup-type"              = "managed"
     "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
   }
+
+  depends_on = [aws_eks_cluster.this[0]]
 }
 
 # 添加集群就绪等待
