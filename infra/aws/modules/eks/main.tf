@@ -4,10 +4,7 @@ resource "aws_eks_cluster" "this" {
   bootstrap_self_managed_addons = false
   role_arn                      = var.cluster_role_arn
 
-  enabled_cluster_log_types = [
-    "api",
-    "authenticator"
-  ]
+  enabled_cluster_log_types = var.cluster_log_types
 
   access_config {
     authentication_mode                         = "API_AND_CONFIG_MAP"
@@ -47,7 +44,7 @@ resource "aws_eks_node_group" "ng" {
   node_group_name = var.nodegroup_name
   subnet_ids      = var.private_subnet_ids
   capacity_type   = "SPOT"
-  instance_types  = [
+  instance_types = [
     "t3.small",
     "t3.medium"
   ]

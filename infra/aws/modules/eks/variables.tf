@@ -29,3 +29,9 @@ variable "nodegroup_name" {
 variable "cluster_security_group_id" {
   type = string
 }
+
+variable "cluster_log_types" {
+  description = "Control plane log types to enable"
+  type        = list(string)
+  default     = ["api", "authenticator"]
+}

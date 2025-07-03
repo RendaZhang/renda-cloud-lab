@@ -52,7 +52,10 @@ make all
 make start
 ```
 
-2. 使用 `eksctl` 创建控制面（仅首次）
+> Terraform 模块 `eks` 会自动启用控制面日志（`api`、`authenticator`），不再需要
+> 手动执行 `eksctl utils update-cluster-logging`。
+
+1. 使用 `eksctl` 创建控制面（仅首次）
 
 ```bash
 make start-cluster

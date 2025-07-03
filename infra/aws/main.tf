@@ -26,6 +26,7 @@ module "eks" {
   cluster_role_arn          = var.eks_admin_role_arn
   node_role_arn             = var.node_role_arn
   cluster_security_group_id = var.cluster_security_group_id
+  cluster_log_types         = var.cluster_log_types
   public_subnet_ids         = module.network_base.public_subnet_ids
   private_subnet_ids        = module.network_base.private_subnet_ids
   nodegroup_name            = "ng-mixed"
