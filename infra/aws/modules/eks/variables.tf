@@ -26,6 +26,12 @@ variable "nodegroup_name" {
   type = string
 }
 
+variable "instance_types" {
+  description = "EC2 instance types for the EKS node group"
+  type        = list(string)
+  default     = ["t3.small", "t3.medium"]
+}
+
 variable "cluster_log_types" {
   description = "Control plane log types to enable"
   type        = list(string)

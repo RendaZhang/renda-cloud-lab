@@ -14,5 +14,9 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.1"
     }
+    template = {
+      source  = "hashicorp/template"
+      version = "~> 2.2"
+    }
   }
 }

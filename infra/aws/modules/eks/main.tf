@@ -190,10 +190,7 @@ resource "aws_eks_node_group" "ng" {
   node_group_name = var.nodegroup_name
   subnet_ids      = var.private_subnet_ids
   capacity_type   = "SPOT"
-  instance_types = [
-    "t3.small",
-    "t3.medium"
-  ]
+  instance_types  = var.instance_types
 
   launch_template {
     id      = aws_launch_template.eks_node[0].id
@@ -237,7 +234,7 @@ resource "aws_eks_node_group" "ng" {
 resource "time_sleep" "wait_for_cluster" {
   count = var.create ? 1 : 0
 
-  create_duration = "2m"
+  # create_duration = "2m"
   triggers = {
     cluster_arn = aws_eks_cluster.this[0].arn
   }

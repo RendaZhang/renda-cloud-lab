@@ -39,3 +39,9 @@ variable "create_eks" {
   type    = bool
   default = true
 }
+
+variable "instance_types" {
+  description = "EC2 instance types for the EKS node group"
+  type        = list(string)
+  default     = ["t3.small", "t3.medium"]
+}

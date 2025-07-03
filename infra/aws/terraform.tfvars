@@ -8,3 +8,6 @@ node_role_arn = "arn:aws:iam::563149051155:role/eksctl-dev-nodegroup-ng-mixed-No
 
 # Enable control plane logs for API server and authenticator
 cluster_log_types = ["api", "authenticator"]
+
+# Instance types for EKS node group
+instance_types = ["t3.small", "t3.medium"]

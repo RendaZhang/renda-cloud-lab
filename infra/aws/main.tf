@@ -30,6 +30,7 @@ module "eks" {
   public_subnet_ids  = module.network_base.public_subnet_ids
   private_subnet_ids = module.network_base.private_subnet_ids
   nodegroup_name     = "ng-mixed"
+  instance_types     = var.instance_types
   depends_on         = [module.network_base]
 }
 
