@@ -26,12 +26,13 @@ variable "nodegroup_name" {
   type = string
 }
 
-variable "cluster_security_group_id" {
-  type = string
-}
-
 variable "cluster_log_types" {
   description = "Control plane log types to enable"
   type        = list(string)
   default     = ["api", "authenticator"]
+}
+
+variable "vpc_id" {
+  description = "VPC ID where the cluster will be deployed"
+  type        = string
 }

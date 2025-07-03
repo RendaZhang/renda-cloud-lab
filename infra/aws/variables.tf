@@ -19,11 +19,6 @@ variable "node_role_arn" {
   type        = string
 }
 
-variable "cluster_security_group_id" {
-  description = "Security group ID for the EKS cluster"
-  type        = string
-}
-
 variable "cluster_log_types" {
   description = "Control plane log types to enable"
   type        = list(string)
