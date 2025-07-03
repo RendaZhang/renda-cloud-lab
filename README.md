@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: June 29, 2025, 16:30 (UTC+8)
+* Last Updated: July 4, 2025, 3:00 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -111,8 +111,18 @@
    bash scripts/tf-import.sh
    ```
 
-   上述脚本会使用 AWS CLI 获取当前集群名称和节点组名称，并依次执行 `terraform import` 命令，将 **EKS 集群（控制平面）**、**托管节点组**、**OIDC 提供商**以及预定义的 **IRSA (IAM Roles for Service Accounts) 角色** 等资源映射到 Terraform 状态中。导入完成后，这些资源便纳入 Terraform 管理（例如后续可以通过 Terraform 管理 OIDC Provider 及 IRSA 绑定策略等），实现基础设施状态的一致性。
-   *注意：此混合流程结合了 Terraform 与 eksctl 的优势——Terraform 管理底层网络和 IAM 等共享资源，eksctl 负责快速创建/销毁 EKS 控制平面和节点。在集群创建后导入 Terraform 可以保持对关键集群资源的可见性和控制权，同时又不影响底层 VPC 等资源，每次重建集群时无需重复创建网络。*
+  上述脚本会使用 AWS CLI 获取当前集群名称和节点组名称，并依次执行 `terraform import` 命令，将 **EKS 集群（控制平面）**、**托管节点组**、**OIDC 提供商**以及预定义的 **IRSA (IAM Roles for Service Accounts) 角色** 等资源映射到 Terraform 状态中。导入完成后，这些资源便纳入 Terraform 管理（例如后续可以通过 Terraform 管理 OIDC Provider 及 IRSA 绑定策略等），实现基础设施状态的一致性。
+  *注意：此混合流程结合了 Terraform 与 eksctl 的优势——Terraform 管理底层网络和 IAM 等共享资源，eksctl 负责快速创建/销毁 EKS 控制平面和节点。在集群创建后导入 Terraform 可以保持对关键集群资源的可见性和控制权，同时又不影响底层 VPC 等资源，每次重建集群时无需重复创建网络。*
+
+### 节点角色所需 IAM 策略 (Mandatory Node Role Policies)
+
+在 `infra/aws/variables.tf` 中的 `node_role_arn` 变量指定了托管节点组使用的 IAM Role。创建该 Role 时请至少绑定以下 AWS 托管策略 (AWS Managed Policies)：
+
+* `AmazonEKSWorkerNodePolicy` — 允许工作节点加入集群并与控制平面通信。
+* `AmazonEKS_CNI_Policy` — 授权 CNI 插件在 VPC 中创建和管理 ENI。
+* `AmazonEC2ContainerRegistryReadOnly` — 使节点能够从 ECR 拉取镜像。
+
+这些策略缺一不可，否则节点启动时可能无法正常注册到集群。
 
 5. **验证集群**：确保本地 `kubeconfig` 已更新并指向新创建的 EKS 集群。执行简单的 Kubernetes 命令确认集群正常运行，例如：
 
