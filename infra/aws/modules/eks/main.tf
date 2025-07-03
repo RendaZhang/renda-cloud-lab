@@ -284,12 +284,12 @@ data "template_cloudinit_config" "node_bootstrap" {
 # 获取最新 EKS 优化 AMI
 data "aws_ami" "eks_optimized" {
   count       = var.create ? 1 : 0
-  owners      = ["602401143452"]  # Amazon EKS AMI account
+  owners      = ["amazon"]
   most_recent = true
 
   filter {
     name   = "name"
-    values = ["amazon-eks-node-${aws_eks_cluster.this[0].version}-*"]
+    values = ["amazon-eks-node-*-${aws_eks_cluster.this[0].version}-*"]
   }
 
   depends_on = [aws_eks_cluster.this[0]]
