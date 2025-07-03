@@ -46,7 +46,8 @@ resource "aws_eks_node_group" "ng" {
   cluster_name    = var.cluster_name
   node_group_name = var.nodegroup_name
   subnet_ids      = var.private_subnet_ids
-  instance_types = [
+  capacity_type   = "SPOT"
+  instance_types  = [
     "t3.small",
     "t3.medium"
   ]
@@ -55,11 +56,6 @@ resource "aws_eks_node_group" "ng" {
     "alpha.eksctl.io/cluster-name"   = "dev"
     "alpha.eksctl.io/nodegroup-name" = "ng-mixed"
     "role"                           = "worker"
-  }
-
-  launch_template {
-    id      = "lt-0fcd1b589948c6a31"
-    version = "1"
   }
 
   scaling_config {
