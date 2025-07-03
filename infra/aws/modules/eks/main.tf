@@ -100,6 +100,44 @@ resource "aws_security_group_rule" "cluster_to_node" {
   ]
 }
 
+# 允许控制平面对节点端口 443 的访问
+resource "aws_security_group_rule" "cluster_to_node_https" {
+  count       = var.create ? 1 : 0
+  description = "Allow control plane to access node on HTTPS port"
+
+  security_group_id        = aws_security_group.node[0].id
+  source_security_group_id = aws_eks_cluster.this[0].vpc_config[0].cluster_security_group_id
+
+  type      = "ingress"
+  from_port = 443
+  to_port   = 443
+  protocol  = "tcp"
+
+  depends_on = [
+    aws_security_group.node,
+    time_sleep.wait_for_cluster,
+    aws_eks_cluster.this[0]
+  ]
+}
+
+# 允许节点安全组内所有流量（节点间通信）
+resource "aws_security_group_rule" "node_self_all" {
+  count       = var.create ? 1 : 0
+  description = "Allow node-to-node communication"
+
+  security_group_id = aws_security_group.node[0].id
+
+  type      = "ingress"
+  from_port = 0
+  to_port   = 0
+  protocol  = "-1"
+  self      = true
+
+  depends_on = [
+    aws_security_group.node
+  ]
+}
+
 # 创建启动模板
 resource "aws_launch_template" "eks_node" {
   count       = var.create ? 1 : 0
