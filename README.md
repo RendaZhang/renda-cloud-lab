@@ -182,7 +182,7 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * `make start` — **启动基础设施资源**：执行 Terraform 将 NAT 网关、ALB 等高成本资源启用，并确保 EKS 集群（控制平面及节点组）处于运行状态（集群资源现已由 Terraform 统一管理）。通常在每天实验开始时运行，恢复网络出口和对外服务能力。
 * `make stop` — **停止基础设施资源**：执行 Terraform 关闭 NAT 网关、ALB 等非必要资源，并将 EKS 集群的节点组 (NodeGroup) 实例数缩容至 0，保留 EKS 控制平面和基础设施状态，但暂停对外网络访问。适用于每日实验结束时销毁高成本资源，降低支出。
 * `make stop-hard` — **硬停用完整环境**：通过 Terraform 同时销毁 NAT 网关、ALB 以及 EKS 控制平面和节点组，实现完整环境的彻底停止。用于长时间暂停实验时的彻底关停，避免持续产生任何费用（除了保留的 VPC 和状态存储等）。
-* `make post-recreate`   — 运行 Spot 通知自动绑定脚本，确保重建后的 ASG 已订阅 SNS
+* `make post-recreate`   — 运行 Spot 通知自动绑定脚本并刷新本地 kubeconfig (bind Spot notification & refresh kubeconfig)
 * `make all`             — `start` → `post-recreate` 一键全流程
 * `make destroy-all`     — Terraform 销毁全部资源（含 NodeGroup）⚠️ 高危
 * `make check`           — 本地依赖工具链检测（aws / terraform / eksctl / helm）
@@ -210,7 +210,7 @@ make stop         # 下班关大件
 
 * **弹性扩缩容**：集群工作节点采用按需 **Spot 实例**（结合 Karpenter 或 Auto Scaling），根据负载自动伸缩。在无工作负载时可将节点数缩至 0 以节省开销（提供了 `scripts/scale-nodegroup-zero.sh` 脚本可一键将节点组缩容至 0）。恢复实验时，只需重新部署应用或产生新负载，节点便会按需启动。
 
-* **Spot 中断预警**：`post-recreate.sh` 会自动把最新 NodeGroup 的 ASG 订阅到 `spot-interruption-topic`，确保节点被回收前 2 分钟触发 SNS → 邮件/ChatOps，方便预留时间将应用流量疏散或触发自动化操作。
+* **Spot 中断预警**：`post-recreate.sh` 会自动把最新 NodeGroup 的 ASG 订阅到 `spot-interruption-topic`，并在绑定后刷新本地 kubeconfig，确保节点被回收前 2 分钟触发 SNS → 邮件/ChatOps，方便预留时间将应用流量疏散或触发自动化操作。
 
 通过以上措施，实验集群在确保功能完整的同时，将日常运行成本控制在低水平。如需了解每天晚上关机、早上重建的具体操作步骤及故障排查，请参阅 [每日 EKS 重建与销毁操作指南](docs/daily-rebuild-teardown-guide.md)。下表为启用成本控制策略下的主要资源月度费用估算：
 
@@ -265,7 +265,7 @@ make stop         # 下班关大件
 | ------------------------- | --------------------------------------------------------- |
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas                         |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态                          |
-| `post-recreate.sh`        | 自动为最新 NodeGroup 对应的 ASG 绑定 Spot Interruption SNS 通知；带幂等检查 |
+| `post-recreate.sh`        | 自动为最新 NodeGroup 绑定 Spot Interruption SNS，并刷新 kubeconfig |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本    |
 | `update-diagrams.sh`      | 图表生成脚本                                                              |
 
