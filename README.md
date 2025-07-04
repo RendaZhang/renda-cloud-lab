@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: July 4, 2025, 3:00 (UTC+8)
+* Last Updated: July 5, 2025, 4:00 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -25,6 +25,7 @@
 * **可观测性 & SRE** — 引入 OpenTelemetry、Prometheus、Grafana 构建可观测体系，并通过 Chaos Mesh 落实 Chaos Engineering（混沌工程）实践
 * **生成式 AI Sidecar** — 基于 Spring Boot + Spring AI 框架，集成 AWS Bedrock (如 Titan 大模型) / GCP Vertex AI 等生成式 AI 服务，实现应用智能化
 * **成本 & 安全护栏** — 利用 Spot 实例、IRSA、AWS Budgets 控制成本，并通过 Trivy 镜像扫描、OPA Gatekeeper 策略等保障集群安全
+* **自动扩缩容 (Cluster Autoscaler)** — 通过 Terraform 调用 Helm 自动部署 cluster-autoscaler，实现节点数量根据负载弹性伸缩
 
 上述模块相互协作，构成了一个完整的云原生实验环境。
 

@@ -1,6 +1,6 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: June 28, 2025, 21:20 (UTC+8)
+* Last Updated: July 5, 2025, 4:00 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
@@ -165,6 +165,7 @@
 * ✅ **ALB 负载均衡**：已创建并处于 *active* 状态，监听相应端口。若配置了自定义域名 (`lab.rendazhang.com`)，可验证该域名已解析到新的 ALB DNS 地址。
 * ✅ **EKS 控制平面**：集群状态为 *ACTIVE*。可以通过 `eksctl get cluster --name dev --region us-east-1` （或 `aws eks describe-cluster --name dev`）检查集群存在且状态正常。kubectl 配置已更新，执行 `kubectl get nodes` 可以看到节点状态为 Ready（如果有节点运行）。
 * ✅ **节点组及自动伸缩**：默认节点组正常运行。如当前无工作负载且启用了自动扩缩容，节点数可能已自动缩减至 0。这种情况下，`kubectl get nodes` 可能暂时无节点列表，这是预期行为——后续有新工作负载调度时，节点会自动启动。
+* ✅ **Cluster Autoscaler**：运行 `kubectl --namespace=kube-system get pods -l "app.kubernetes.io/name=aws-cluster-autoscaler,app.kubernetes.io/instance=cluster-autoscaler"`，Pod 应处于 `Running` 且其 ServiceAccount 注解含有 `role-arn`
 * ✅ **Spot 中断通知**：确认 Spot 通知订阅成功。可登录 AWS 控制台查看 SNS 主题 *spot-interruption-topic* 的订阅列表，应包含最新的 Auto Scaling Group（名称以 *eks-ng-mixed* 开头）。或者检查脚本日志 `scripts/logs/post-recreate.log`，最后一行应显示“已绑定最新 ASG”且名称匹配当前集群节点组。
 
 ---

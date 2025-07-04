@@ -47,6 +47,22 @@ module "irsa" {
   depends_on                      = [module.eks]
 }
 
+module "autoscaler" {
+  source               = "./modules/autoscaler"
+  count                = var.create_eks ? 1 : 0
+  cluster_name         = "dev"
+  service_account_name = "cluster-autoscaler"
+  release_name         = "cluster-autoscaler"
+  chart_name           = "cluster-autoscaler"
+  namespace            = "kube-system"
+  repository           = "https://kubernetes.github.io/autoscaler"
+  aws_region           = var.region
+  role_arn             = module.irsa[0].autoscaler_role_arn
+  image_tag            = "v1.33.1" # Note: Ensure the image_tag matches the Kubernetes version you are using.
+  chart_version        = "9.10.7"  # Helm chart version
+  depends_on           = [module.irsa]
+}
+
 resource "aws_route53_record" "lab_alias" {
   count   = var.create_alb ? 1 : 0
   zone_id = module.network_base.hosted_zone_id
