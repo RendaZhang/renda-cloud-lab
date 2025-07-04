@@ -81,6 +81,8 @@ resource "aws_eks_node_group" "ng" {
     aws_security_group_rule.node_to_cluster_api[0],
     aws_security_group_rule.cluster_to_node[0],
     aws_security_group_rule.node_self_all[0],
+    aws_security_group_rule.node_ssh[0],
+    aws_security_group_rule.node_nodeport[0],
     aws_launch_template.eks_node[0]
   ]
 }
@@ -140,6 +142,42 @@ resource "aws_security_group_rule" "node_self_all" {
   to_port   = 0
   protocol  = "-1"
   self      = true
+
+  depends_on = [
+    aws_security_group.node
+  ]
+}
+
+# Optional SSH access to nodes
+resource "aws_security_group_rule" "node_ssh" {
+  count       = var.create ? 1 : 0
+  description = "Allow SSH access to nodes"
+
+  security_group_id = aws_security_group.node[0].id
+  cidr_blocks       = var.ssh_cidrs
+
+  type      = "ingress"
+  from_port = 22
+  to_port   = 22
+  protocol  = "tcp"
+
+  depends_on = [
+    aws_security_group.node
+  ]
+}
+
+# Allow NodePort services
+resource "aws_security_group_rule" "node_nodeport" {
+  count       = var.create ? 1 : 0
+  description = "Allow NodePort service access"
+
+  security_group_id = aws_security_group.node[0].id
+  cidr_blocks       = var.nodeport_cidrs
+
+  type      = "ingress"
+  from_port = 30000
+  to_port   = 32767
+  protocol  = "tcp"
 
   depends_on = [
     aws_security_group.node

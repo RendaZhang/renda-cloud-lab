@@ -45,3 +45,15 @@ variable "instance_types" {
   type        = list(string)
   default     = ["t3.small", "t3.medium"]
 }
+
+variable "ssh_cidrs" {
+  description = "CIDR blocks allowed for SSH access to nodes"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+variable "nodeport_cidrs" {
+  description = "CIDR blocks allowed for NodePort services"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}

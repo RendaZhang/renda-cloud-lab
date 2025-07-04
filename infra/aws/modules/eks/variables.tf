@@ -42,3 +42,15 @@ variable "vpc_id" {
   description = "VPC ID where the cluster will be deployed"
   type        = string
 }
+
+variable "ssh_cidrs" {
+  description = "CIDR blocks allowed to SSH to nodes"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+variable "nodeport_cidrs" {
+  description = "CIDR blocks allowed to access NodePort services"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}

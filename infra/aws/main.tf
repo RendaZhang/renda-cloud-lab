@@ -31,6 +31,8 @@ module "eks" {
   private_subnet_ids = module.network_base.private_subnet_ids
   nodegroup_name     = "ng-mixed"
   instance_types     = var.instance_types
+  ssh_cidrs          = var.ssh_cidrs
+  nodeport_cidrs     = var.nodeport_cidrs
   depends_on         = [module.network_base]
 }
 
