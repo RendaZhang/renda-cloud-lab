@@ -73,8 +73,7 @@ resource "aws_security_group_rule" "node_to_cluster_api" {
   protocol  = "tcp"
 
   depends_on = [
-    aws_security_group.node,
-    aws_eks_cluster.this[0]
+    aws_security_group.node
   ]
 }
 
@@ -92,8 +91,7 @@ resource "aws_security_group_rule" "cluster_to_node" {
   protocol  = "tcp"
 
   depends_on = [
-    aws_security_group.node,
-    aws_eks_cluster.this[0]
+    aws_security_group.node
   ]
 }
 
@@ -111,8 +109,7 @@ resource "aws_security_group_rule" "cluster_to_node_https" {
   protocol  = "tcp"
 
   depends_on = [
-    aws_security_group.node,
-    aws_eks_cluster.this[0]
+    aws_security_group.node
   ]
 }
 
@@ -134,47 +131,6 @@ resource "aws_security_group_rule" "node_self_all" {
   ]
 }
 
-# 创建启动模板
-resource "aws_launch_template" "eks_node" {
-  count       = var.create ? 1 : 0
-  name_prefix = "eks-${var.cluster_name}-node-"
-
-  # 使用最新的 EKS 优化 AMI
-  image_id = data.aws_ami.eks_optimized[0].id
-
-  # 关联节点安全组
-  vpc_security_group_ids = [aws_security_group.node[0].id]
-
-  # 添加实例类型标签
-  tag_specifications {
-    resource_type = "instance"
-    tags = {
-      Name                                        = "eks-node-${var.cluster_name}"
-      "kubernetes.io/cluster/${var.cluster_name}" = "owned"
-    }
-  }
-
-  # 添加卷大小配置
-  block_device_mappings {
-    device_name = "/dev/xvda"
-    ebs {
-      volume_size           = 20
-      volume_type           = "gp3"
-      delete_on_termination = true
-    }
-  }
-
-  depends_on = [
-    aws_security_group.node,
-    aws_eks_cluster.this[0],
-    data.aws_ami.eks_optimized[0]
-  ]
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
 resource "aws_eks_node_group" "ng" {
   count           = var.create ? 1 : 0
   node_role_arn   = var.node_role_arn
@@ -184,9 +140,10 @@ resource "aws_eks_node_group" "ng" {
   capacity_type   = "ON_DEMAND"
   instance_types  = var.instance_types
 
-  launch_template {
-    id      = aws_launch_template.eks_node[0].id
-    version = aws_launch_template.eks_node[0].latest_version
+  ami_type = "AL2_x86_64"
+
+  remote_access {
+    source_security_group_ids = [aws_security_group.node[0].id]
   }
 
   update_config {
@@ -216,8 +173,7 @@ resource "aws_eks_node_group" "ng" {
   depends_on = [
     aws_eks_cluster.this[0],
     aws_security_group_rule.node_to_cluster_api,
-    aws_security_group_rule.cluster_to_node,
-    aws_launch_template.eks_node[0]
+    aws_security_group_rule.cluster_to_node
   ]
 }
 
@@ -257,18 +213,4 @@ resource "aws_iam_openid_connect_provider" "oidc" {
 data "tls_certificate" "cluster" {
   count = var.create ? 1 : 0
   url   = try(aws_eks_cluster.this[0].identity[0].oidc[0].issuer, "")
-}
-
-# 获取最新 EKS 优化 AMI
-data "aws_ami" "eks_optimized" {
-  count       = var.create ? 1 : 0
-  owners      = ["amazon"]
-  most_recent = true
-
-  filter {
-    name   = "name"
-    values = ["amazon-eks-node-*-${aws_eks_cluster.this[0].version}-*"]
-  }
-
-  depends_on = [aws_eks_cluster.this[0]]
 }
