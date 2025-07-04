@@ -9,6 +9,11 @@ digraph G {
     "module.alb.aws_lb_listener.http" [label="aws_lb_listener.http"];
     "module.alb.aws_lb_target_group.demo" [label="aws_lb_target_group.demo"];
   }
+  subgraph "cluster_module.autoscaler" {
+    label = "module.autoscaler"
+    fontname = "sans-serif"
+    "module.autoscaler.helm_release.this" [label="helm_release.this"];
+  }
   subgraph "cluster_module.eks" {
     label = "module.eks"
     fontname = "sans-serif"
@@ -16,7 +21,13 @@ digraph G {
     "module.eks.aws_eks_cluster.this" [label="aws_eks_cluster.this"];
     "module.eks.aws_eks_node_group.ng" [label="aws_eks_node_group.ng"];
     "module.eks.aws_iam_openid_connect_provider.oidc" [label="aws_iam_openid_connect_provider.oidc"];
-    "module.eks.time_sleep.wait_for_cluster" [label="time_sleep.wait_for_cluster"];
+    "module.eks.aws_launch_template.eks_node" [label="aws_launch_template.eks_node"];
+    "module.eks.aws_security_group.node" [label="aws_security_group.node"];
+    "module.eks.aws_security_group_rule.cluster_to_node" [label="aws_security_group_rule.cluster_to_node"];
+    "module.eks.aws_security_group_rule.node_nodeport" [label="aws_security_group_rule.node_nodeport"];
+    "module.eks.aws_security_group_rule.node_self_all" [label="aws_security_group_rule.node_self_all"];
+    "module.eks.aws_security_group_rule.node_ssh" [label="aws_security_group_rule.node_ssh"];
+    "module.eks.aws_security_group_rule.node_to_cluster_api" [label="aws_security_group_rule.node_to_cluster_api"];
   }
   subgraph "cluster_module.irsa" {
     label = "module.irsa"
@@ -46,7 +57,7 @@ digraph G {
     "module.network_base.aws_subnet.public" [label="aws_subnet.public"];
     "module.network_base.aws_vpc.this" [label="aws_vpc.this"];
   }
-  "aws_route53_record.lab_alias" -> "module.alb.aws_lb.demo";
+  "aws_route53_record.lab_alias" -> "module.alb.aws_lb_listener.http";
   "module.alb.aws_lb.demo" -> "module.network_base.data.aws_route53_zone.lab";
   "module.alb.aws_lb.demo" -> "module.network_base.aws_route_table_association.private";
   "module.alb.aws_lb.demo" -> "module.network_base.aws_route_table_association.public";
@@ -57,16 +68,30 @@ digraph G {
   "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_route_table_association.private";
   "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_route_table_association.public";
   "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_security_group.alb";
+  "module.autoscaler.helm_release.this" -> "module.irsa.aws_iam_role.eks_cluster_autoscaler";
+  "module.autoscaler.helm_release.this" -> "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach";
   "module.eks.data.tls_certificate.cluster" -> "module.eks.aws_eks_cluster.this";
-  "module.eks.aws_eks_cluster.this" -> "module.eks.aws_eks_node_group.ng";
-  "module.eks.aws_eks_node_group.ng" -> "module.network_base.data.aws_route53_zone.lab";
-  "module.eks.aws_eks_node_group.ng" -> "module.network_base.aws_route_table_association.private";
-  "module.eks.aws_eks_node_group.ng" -> "module.network_base.aws_route_table_association.public";
-  "module.eks.aws_eks_node_group.ng" -> "module.network_base.aws_security_group.alb";
+  "module.eks.aws_eks_cluster.this" -> "module.network_base.data.aws_route53_zone.lab";
+  "module.eks.aws_eks_cluster.this" -> "module.network_base.aws_route_table_association.private";
+  "module.eks.aws_eks_cluster.this" -> "module.network_base.aws_route_table_association.public";
+  "module.eks.aws_eks_cluster.this" -> "module.network_base.aws_security_group.alb";
+  "module.eks.aws_eks_node_group.ng" -> "module.eks.aws_launch_template.eks_node";
+  "module.eks.aws_eks_node_group.ng" -> "module.eks.aws_security_group_rule.cluster_to_node";
+  "module.eks.aws_eks_node_group.ng" -> "module.eks.aws_security_group_rule.node_nodeport";
+  "module.eks.aws_eks_node_group.ng" -> "module.eks.aws_security_group_rule.node_self_all";
+  "module.eks.aws_eks_node_group.ng" -> "module.eks.aws_security_group_rule.node_ssh";
+  "module.eks.aws_eks_node_group.ng" -> "module.eks.aws_security_group_rule.node_to_cluster_api";
   "module.eks.aws_iam_openid_connect_provider.oidc" -> "module.eks.data.tls_certificate.cluster";
-  "module.eks.aws_iam_openid_connect_provider.oidc" -> "module.eks.time_sleep.wait_for_cluster";
-  "module.eks.time_sleep.wait_for_cluster" -> "module.eks.aws_eks_cluster.this";
+  "module.eks.aws_launch_template.eks_node" -> "module.eks.aws_security_group.node";
+  "module.eks.aws_security_group.node" -> "module.eks.aws_eks_cluster.this";
+  "module.eks.aws_security_group_rule.cluster_to_node" -> "module.eks.aws_security_group.node";
+  "module.eks.aws_security_group_rule.node_nodeport" -> "module.eks.aws_security_group.node";
+  "module.eks.aws_security_group_rule.node_self_all" -> "module.eks.aws_security_group.node";
+  "module.eks.aws_security_group_rule.node_ssh" -> "module.eks.aws_security_group.node";
+  "module.eks.aws_security_group_rule.node_to_cluster_api" -> "module.eks.aws_security_group.node";
+  "module.irsa.aws_iam_role.eks_cluster_autoscaler" -> "module.eks.aws_eks_node_group.ng";
   "module.irsa.aws_iam_role.eks_cluster_autoscaler" -> "module.eks.aws_iam_openid_connect_provider.oidc";
+  "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach" -> "module.eks.aws_eks_node_group.ng";
   "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach" -> "module.eks.aws_iam_openid_connect_provider.oidc";
   "module.nat.aws_eip.nat" -> "module.network_base.data.aws_route53_zone.lab";
   "module.nat.aws_eip.nat" -> "module.network_base.aws_route_table_association.private";
