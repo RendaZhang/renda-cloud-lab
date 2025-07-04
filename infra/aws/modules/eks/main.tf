@@ -28,11 +28,11 @@ resource "aws_eks_cluster" "this" {
   }
 
   tags = {
-    "Name"                                        = "eksctl-dev-cluster/ControlPlane"
-    "alpha.eksctl.io/cluster-name"                = "dev"
+    "Name"                                        = "eksctl-${var.cluster_name}-cluster/ControlPlane"
+    "alpha.eksctl.io/cluster-name"                = var.cluster_name
     "alpha.eksctl.io/cluster-oidc-enabled"        = "true"
     "alpha.eksctl.io/eksctl-version"              = "0.210.0"
-    "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+    "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = var.cluster_name
   }
 }
 
@@ -198,7 +198,7 @@ resource "aws_eks_node_group" "ng" {
   }
 
   labels = {
-    "alpha.eksctl.io/cluster-name"   = "dev"
+    "alpha.eksctl.io/cluster-name"   = var.cluster_name
     "alpha.eksctl.io/nodegroup-name" = "ng-mixed"
     "role"                           = "worker"
   }
@@ -210,11 +210,11 @@ resource "aws_eks_node_group" "ng" {
   }
 
   tags = {
-    "alpha.eksctl.io/cluster-name"                = "dev"
+    "alpha.eksctl.io/cluster-name"                = var.cluster_name
     "alpha.eksctl.io/eksctl-version"              = "0.210.0"
-    "alpha.eksctl.io/nodegroup-name"              = "ng-mixed"
+    "alpha.eksctl.io/nodegroup-name"              = var.nodegroup_name
     "alpha.eksctl.io/nodegroup-type"              = "managed"
-    "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = "dev"
+    "eksctl.cluster.k8s.io/v1alpha1/cluster-name" = var.cluster_name
   }
 
   depends_on = [
