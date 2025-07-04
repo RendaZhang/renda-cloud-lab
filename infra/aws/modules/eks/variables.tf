@@ -38,7 +38,3 @@ variable "cluster_log_types" {
   default     = ["api", "authenticator"]
 }
 
-variable "vpc_id" {
-  description = "VPC ID where the cluster will be deployed"
-  type        = string
-}

@@ -23,7 +23,6 @@ module "eks" {
   source             = "./modules/eks"
   create             = var.create_eks
   cluster_name       = "dev"
-  vpc_id             = module.network_base.vpc_id
   cluster_role_arn   = var.eks_admin_role_arn
   node_role_arn      = var.node_role_arn
   cluster_log_types  = var.cluster_log_types

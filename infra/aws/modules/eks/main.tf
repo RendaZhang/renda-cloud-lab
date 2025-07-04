@@ -36,100 +36,6 @@ resource "aws_eks_cluster" "this" {
   }
 }
 
-# 添加节点安全组
-resource "aws_security_group" "node" {
-  count       = var.create ? 1 : 0
-  name_prefix = "eks-node-${var.cluster_name}-"
-  vpc_id      = var.vpc_id # 需要新增 vpc_id 变量
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    "Name"                                      = "eks-node-${var.cluster_name}"
-    "kubernetes.io/cluster/${var.cluster_name}" = "owned"
-  }
-
-  depends_on = [
-    aws_eks_cluster.this[0]
-  ]
-}
-
-# 允许节点访问集群 API
-resource "aws_security_group_rule" "node_to_cluster_api" {
-  count       = var.create ? 1 : 0
-  description = "Allow node to communicate with control plane"
-
-  security_group_id        = aws_eks_cluster.this[0].vpc_config[0].cluster_security_group_id
-  source_security_group_id = aws_security_group.node[0].id
-
-  type      = "ingress"
-  from_port = 443
-  to_port   = 443
-  protocol  = "tcp"
-
-  depends_on = [
-    aws_security_group.node
-  ]
-}
-
-# 允许控制平面与节点通信
-resource "aws_security_group_rule" "cluster_to_node" {
-  count       = var.create ? 1 : 0
-  description = "Allow control plane to communicate with node"
-
-  security_group_id        = aws_security_group.node[0].id
-  source_security_group_id = aws_eks_cluster.this[0].vpc_config[0].cluster_security_group_id
-
-  type      = "ingress"
-  from_port = 1025
-  to_port   = 65535
-  protocol  = "tcp"
-
-  depends_on = [
-    aws_security_group.node
-  ]
-}
-
-# 允许控制平面对节点端口 443 的访问
-resource "aws_security_group_rule" "cluster_to_node_https" {
-  count       = var.create ? 1 : 0
-  description = "Allow control plane to access node on HTTPS port"
-
-  security_group_id        = aws_security_group.node[0].id
-  source_security_group_id = aws_eks_cluster.this[0].vpc_config[0].cluster_security_group_id
-
-  type      = "ingress"
-  from_port = 443
-  to_port   = 443
-  protocol  = "tcp"
-
-  depends_on = [
-    aws_security_group.node
-  ]
-}
-
-# 允许节点安全组内所有流量（节点间通信）
-resource "aws_security_group_rule" "node_self_all" {
-  count       = var.create ? 1 : 0
-  description = "Allow node-to-node communication"
-
-  security_group_id = aws_security_group.node[0].id
-
-  type      = "ingress"
-  from_port = 0
-  to_port   = 0
-  protocol  = "-1"
-  self      = true
-
-  depends_on = [
-    aws_security_group.node
-  ]
-}
 
 resource "aws_eks_node_group" "ng" {
   count           = var.create ? 1 : 0
@@ -142,9 +48,6 @@ resource "aws_eks_node_group" "ng" {
 
   ami_type = "AL2_x86_64"
 
-  remote_access {
-    source_security_group_ids = [aws_security_group.node[0].id]
-  }
 
   update_config {
     max_unavailable = 1
@@ -171,9 +74,7 @@ resource "aws_eks_node_group" "ng" {
   }
 
   depends_on = [
-    aws_eks_cluster.this[0],
-    aws_security_group_rule.node_to_cluster_api,
-    aws_security_group_rule.cluster_to_node
+    aws_eks_cluster.this[0]
   ]
 }
 
