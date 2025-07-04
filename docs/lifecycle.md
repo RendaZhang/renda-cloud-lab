@@ -1,15 +1,17 @@
-# ☁️ EKS 云原生集群生命周期流程文档
+# ☁️ EKS 云原生集群生命周期流程文档 (EKS Cluster Lifecycle Guide)
 
 * Last Updated: June 28, 2025, 19:30 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 本项目支持使用 Terraform + eksctl + Bash 脚本统一管理 EKS 集群的每日销毁与重建流程，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。本文件记录从初始化到销毁的全生命周期操作流程，适用于开发、测试和生产演练场景。
 
+This guide documents the entire lifecycle of an EKS cluster, including daily teardown and rebuild automation via Terraform, eksctl and Bash scripts. It explains how to restore critical runtime configuration such as Spot Interruption SNS bindings. The workflow is suitable for development, testing and production experiments.
+
 ---
 
-## 🛠 准备工作
+## 🛠 准备工作 (Preparation)
 
-### ✅ 本地依赖要求
+### ✅ 本地依赖要求 (Local Requirements)
 
 请先确保本地已安装如下工具：
 
@@ -26,7 +28,7 @@
 make check
 ```
 
-### ✅ AWS SSO 登录
+### ✅ AWS SSO 登录 (AWS SSO Login)
 
 使用以下命令登录 AWS：
 
@@ -36,7 +38,7 @@ aws sso login --profile phase2-sso
 
 ---
 
-## ☀ 集群每日重建流程
+## ☀ 集群每日重建流程 (Daily Rebuild Steps)
 
 > 可通过 `make all` 一键执行
 
@@ -75,7 +77,7 @@ make post-recreate
 
 ---
 
-## 🌙 日常关闭资源以节省成本
+## 🌙 日常关闭资源以节省成本 (Stopping Resources for Cost Saving)
 
 若你只需暂时关闭资源：
 
@@ -87,7 +89,7 @@ make stop
 
 ---
 
-## 💣 一键彻底销毁所有资源
+## 💣 一键彻底销毁所有资源 (Full Teardown)
 
 适用于彻底重建或环境迁移：
 
@@ -99,15 +101,15 @@ make destroy-all
 
 ---
 
-## 📜 查看日志与清理状态
+## 📜 查看日志与清理状态 (Logs and Cleanup)
 
-### 查看最近执行日志：
+### 查看最近执行日志 (Recent Logs)
 
 ```bash
 make logs
 ```
 
-### 清理状态缓存文件（可选）：
+### 清理状态缓存文件（可选） (Clean Cached State)
 
 ```bash
 make clean
@@ -115,7 +117,7 @@ make clean
 
 ---
 
-## 🔁 脚本自动化逻辑说明（post-recreate.sh）
+## 🔁 脚本自动化逻辑说明（post-recreate.sh） (Automation Logic)
 
 核心路径：`scripts/post-recreate.sh`
 
@@ -129,7 +131,7 @@ make clean
 
 ---
 
-## ✅ 推荐 gitignore 配置
+## ✅ 推荐 gitignore 配置 (Recommended gitignore)
 
 ```gitignore
 scripts/.last-asg-bound
@@ -139,7 +141,7 @@ scripts/logs/*
 
 ---
 
-## 📦 后续规划（可选）
+## 📦 后续规划（可选） (Future Work)
 
 * 将 SNS Topic 与 Budget 也纳入 Terraform 管理
 * 支持通知绑定覆盖多个 NodeGroup

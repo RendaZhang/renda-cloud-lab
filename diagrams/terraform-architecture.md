@@ -1,8 +1,9 @@
-# Terraform 基础设施架构图
+# Terraform 基础设施架构图 (Terraform Infrastructure Diagram)
 
 本目录包含 Terraform 基础设施的可视化依赖图，帮助理解资源之间的关系和依赖。
+This directory stores visual dependency graphs for Terraform, making it easier to understand resource relationships.
 
-## 文件说明
+## 文件说明 (File Overview)
 
 | 文件名 | 格式 | 用途 | 更新命令 |
 |--------|------|------|----------|
@@ -10,9 +11,9 @@
 | `terraform-architecture.svg` | SVG 矢量图 | 高清晰度架构图（推荐） | `terraform graph \| dot -Tsvg > terraform-architecture.svg` |
 | `terraform-architecture.png` | PNG 位图 | 快速预览图 | `terraform graph \| dot -Tpng > terraform-architecture.png` |
 
-## 如何重新生成图表
+## 如何重新生成图表 (How to Regenerate)
 
-### 基本步骤
+### 基本步骤 (Basic Steps)
 
 1. 导航到 Terraform 目录：
    ```bash
@@ -37,7 +38,7 @@
    terraform graph | dot -Tpng > ../../../diagrams/terraform-architecture.png
    ```
 
-### 一键更新脚本
+### 一键更新脚本 (Update Script)
 
 项目根目录提供了便捷脚本 (`scripts/update-diagrams.sh`)。
 
@@ -50,20 +51,20 @@ chmod +x scripts/update-diagrams.sh
 ./scripts/update-diagrams.sh
 ```
 
-### 高级选项
+### 高级选项 (Advanced Options)
 
-#### 1. 生成简化视图
+#### 1. 生成简化视图 (Simplified View)
 ```bash
 terraform graph -draw-cycles -module-depth=1 | \
   dot -Tsvg -Granksep=1.5 -Nfontsize=10 > ../../../diagrams/simplified-architecture.svg
 ```
 
-#### 2. 生成交互式 HTML
+#### 2. 生成交互式 HTML (Interactive HTML)
 ```bash
 terraform graph | dot -Thtml > ../../../diagrams/interactive-architecture.html
 ```
 
-#### 3. 使用 Rover 生成高级图
+#### 3. 使用 Rover 生成高级图 (Using Rover)
 ```bash
 # 安装 Rover (https://github.com/im2nguyen/rover)
 brew install im2nguyen/tap/rover
@@ -72,7 +73,7 @@ brew install im2nguyen/tap/rover
 rover -tfPath terraform -generateImage -imagePath ../../../diagrams/rover-architecture.png
 ```
 
-## 图表解读指南
+## 图表解读指南 (Interpreting the Graph)
 
 1. **元素含义**：
    - 矩形框：Terraform 资源
@@ -97,7 +98,7 @@ rover -tfPath terraform -generateImage -imagePath ../../../diagrams/rover-archit
      alb --> dns[DNS记录]
    ```
 
-## 最佳实践
+## 最佳实践 (Best Practices)
 
 1. **何时更新**：
    - Terraform 配置有重大变更后
