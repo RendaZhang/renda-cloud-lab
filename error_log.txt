@@ -1,0 +1,94 @@
+sh-5.2$ sudo ls -l /etc/cni/net.d/
+total 0
+sh-5.2$ sudo cat /var/log/aws-routed-eni/plugin.log | tail -n 50
+cat: /var/log/aws-routed-eni/plugin.log: No such file or directory
+sh-5.2$ sudo cat /var/log/aws-routed-eni/ipamd.log    | tail -n 50
+cat: /var/log/aws-routed-eni/ipamd.log: No such file or directory
+sh-5.2$ sudo journalctl -u kubelet -n 50 --no-pager
+Jul 04 17:45:13 ip-10-0-147-105.ec2.internal kubelet[1565]: E0704 17:45:13.694199    1565 kubelet.go:3126] "Container runtime network not ready" networkReady="NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: cni plugin not initialized"
+...
+sh-5.2$ sudo journalctl -xe | head -n 100
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.815755    1565 kuberuntime_manager.go:283] "Container runtime initialized" containerRuntime="containerd" version="1.7.27" apiVersion="v1"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal systemd[1]: nodeadm-run.service: Deactivated successfully.░░ Subject: Unit succeeded
+░░ Defined-By: systemd░░ Support: https://lists.freedesktop.org/mailman/listinfo/systemd-devel
+░░░░ The unit nodeadm-run.service has successfully entered the 'dead' state.
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816305    1565 kubelet.go:938] "Not starting ClusterTrustBundle informer because we are in static kubelet mode or the ClusterTrustBundleProjection featuregate is disabled"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: W0704 17:26:31.816357    1565 probe.go:272] Flexvolume plugin directory at /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ does not exist. Recreating.
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816615    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/portworx-volume"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816632    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/empty-dir"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816639    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/git-repo"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816644    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/host-path"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816650    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/nfs"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816656    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/secret"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816665    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/iscsi"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816672    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/downward-api"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816681    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/fc"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816687    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/configmap"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816696    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/projected"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816702    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/local-volume"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.816728    1565 plugins.go:616] "Loaded volume plugin" pluginName="kubernetes.io/csi"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.817289    1565 watchdog_linux.go:99] "Systemd watchdog is not enabled"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.817329    1565 server.go:1289] "Started kubelet"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.818415    1565 fs_resource_analyzer.go:67] "Starting FS ResourceAnalyzer"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.819744    1565 server.go:180] "Starting to listen" address="0.0.0.0" port=10250Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.820919    1565 server.go:317] "Adding debug handlers to kubelet server"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.821493    1565 volume_manager.go:295] "The desired_state_of_world populator starts"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.821509    1565 volume_manager.go:297] "Starting Kubelet Volume Manager"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: E0704 17:26:31.821736    1565 kubelet_node_status.go:466] "Error getting the current node from lister" err="node \"ip-10-0-147-105.ec2.internal\" not found"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.821938    1565 desired_state_of_world_populator.go:150] "Desired state populator starts to run"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.821979    1565 reconstruct.go:97] "Volume reconstruction finished"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.821985    1565 reconciler.go:26] "Reconciler: start to sync state"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.822544    1565 ratelimit.go:55] "Setting rate limiting for endpoint" service="podresources" qps=100 burstTokens=10
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.822765    1565 server.go:255] "Starting to serve the podresources API" endpoint="unix:/var/lib/kubelet/pod-resources/kubelet.sock"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.823461    1565 certificate_manager.go:422] "Certificate rotation is enabled" logger="kubernetes.io/kubelet-serving"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.824894    1565 cri_stats_provider.go:466] "Failed to get the info of the filesystem with mountpoint" mountpoint="/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs" err="unable to find data in memory cache"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: E0704 17:26:31.825015    1565 kubelet.go:1609] "Image garbage collection failed once. Stats initialization may not have completed yet" err="invalid capacity 0 on image filesystem"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal audit[1582]: NETFILTER_CFG table=mangle:3 family=2 entries=2 op=nft_register_chain pid=1582 subj=system_u:system_r:iptables_t:s0 comm="iptables"Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.833329    1565 factory.go:55] Registering systemd factory
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.833547    1565 factory.go:223] Registration of the systemd container factory successfully
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.834032    1565 factory.go:221] Registration of the crio container factory failed: Get "http://%2Fvar%2Frun%2Fcrio%2Fcrio.sock/info": dial unix /var/run/crio/crio.sock: connect: no such file or directory
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal audit[1583]: NETFILTER_CFG table=filter:4 family=2 entries=1 op=nft_register_chain pid=1583 subj=system_u:system_r:iptables_t:s0 comm="iptables"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.836664    1565 factory.go:145] Registering containerd factory
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.836690    1565 factory.go:223] Registration of the containerd container factory successfully
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.836709    1565 factory.go:103] Registering Raw factory
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.836723    1565 manager.go:1196] Started watching for new ooms in manager
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.837150    1565 manager.go:319] Starting recovery of all containers
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.839624    1565 manager.go:324] Recovery completed
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal audit[1586]: NETFILTER_CFG table=filter:5 family=2 entries=2 op=nft_register_chain pid=1586 subj=system_u:system_r:iptables_t:s0 comm="iptables"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.848425    1565 kubelet_node_status.go:368] "Setting node annotation to enable volume controller attach/detach"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal systemd[1]: Finished nodeadm-run.service - EKS Nodeadm Run.
+░░ Subject: A start job for unit nodeadm-run.service has finished successfully
+░░ Defined-By: systemd
+░░ Support: https://lists.freedesktop.org/mailman/listinfo/systemd-devel
+░░
+░░ A start job for unit nodeadm-run.service has finished successfully.
+░░
+░░ The job identifier is 251.
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal audit[1]: SERVICE_START pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=nodeadm-run comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal audit[1]: SERVICE_STOP pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=nodeadm-run comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.851755    1565 kubelet_node_status.go:693] "Recording event message for node" node="ip-10-0-147-105.ec2.internal" event="NodeHasSufficientMemory"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.851937    1565 kubelet_node_status.go:693] "Recording event message for node" node="ip-10-0-147-105.ec2.internal" event="NodeHasNoDiskPressure"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.852058    1565 kubelet_node_status.go:693] "Recording event message for node" node="ip-10-0-147-105.ec2.internal" event="NodeHasSufficientPID"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.853496    1565 cpu_manager.go:221] "Starting CPU manager" policy="none"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.853643    1565 cpu_manager.go:222] "Reconciling" reconcilePeriod="10s"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.853759    1565 state_mem.go:36] "Initialized new in-memory state store"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal audit[1588]: NETFILTER_CFG table=filter:6 family=2 entries=2 op=nft_register_chain pid=1588 subj=system_u:system_r:iptables_t:s0 comm="iptables"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.856633    1565 policy_none.go:49] "None policy: Start"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.856657    1565 memory_manager.go:186] "Starting memorymanager" policy="None"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.856683    1565 state_mem.go:35] "Initializing new in-memory state store"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal systemd[1]: Created slice kubepods.slice - libcontainer container kubepods.slice.
+░░ Subject: A start job for unit kubepods.slice has finished successfully
+░░ Defined-By: systemd
+░░ Support: https://lists.freedesktop.org/mailman/listinfo/systemd-devel
+░░
+░░ A start job for unit kubepods.slice has finished successfully.
+░░
+░░ The job identifier is 663.
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal systemd[1]: Created slice kubepods-burstable.slice - libcontainer container kubepods-burstable.slice.
+░░ Subject: A start job for unit kubepods-burstable.slice has finished successfully
+░░ Defined-By: systemd
+░░ Support: https://lists.freedesktop.org/mailman/listinfo/systemd-devel
+░░
+░░ A start job for unit kubepods-burstable.slice has finished successfully.
+░░
+░░ The job identifier is 666.
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal systemd[1]: Created slice kubepods-besteffort.slice - libcontainer container kubepods-besteffort.slice.
+░░ Subject: A start job for unit kubepods-besteffort.slice has finished successfully
+░░ Defined-By: systemd
+░░ Support: https://lists.freedesktop.org/mailman/listinfo/systemd-devel
+░░
+░░ A start job for unit kubepods-besteffort.slice has finished successfully.
+░░
+░░ The job identifier is 670.
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal amazon-ssm-agent[1470]: 2025-07-04 17:26:31.9194 INFO [amazon-ssm-agent] [LongRunningWorkerContainer] [WorkerProvider] Worker ssm-agent-worker is not running, starting worker process
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: E0704 17:26:31.922051    1565 kubelet_node_status.go:466] "Error getting the current node from lister" err="node \"ip-10-0-147-105.ec2.internal\" not found"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal audit[1608]: NETFILTER_CFG table=filter:7 family=2 entries=1 op=nft_register_rule pid=1608 subj=system_u:system_r:iptables_t:s0 comm="iptables"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal kubelet[1565]: I0704 17:26:31.925170    1565 kubelet_network_linux.go:49] "Initialized iptables rules." protocol="IPv4"
+Jul 04 17:26:31 ip-10-0-147-105.ec2.internal audit[1610]: NETFILTER_CFG table=mangle:8 family=2 entries=1 op=nft_register_chain pid=1610 subj=system_u:system_r:iptables_t:s0 comm="iptables"
+sh-5.2$
