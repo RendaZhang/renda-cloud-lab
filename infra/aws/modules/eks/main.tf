@@ -36,7 +36,6 @@ resource "aws_eks_cluster" "this" {
   }
 }
 
-
 resource "aws_eks_node_group" "ng" {
   count           = var.create ? 1 : 0
   node_role_arn   = var.node_role_arn
@@ -47,7 +46,6 @@ resource "aws_eks_node_group" "ng" {
   instance_types  = var.instance_types
 
   ami_type = "AL2_x86_64"
-
 
   update_config {
     max_unavailable = 1

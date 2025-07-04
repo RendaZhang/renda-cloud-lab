@@ -37,4 +37,3 @@ variable "cluster_log_types" {
   type        = list(string)
   default     = ["api", "authenticator"]
 }
-
