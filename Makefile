@@ -78,7 +78,7 @@ stop-hard:
 		-var="create_eks=false"
 
 ## 💣 一键彻底销毁所有资源
-destroy-all: stop-cluster
+destroy-all: stop-hard
 	@echo "🔥 Destroying all Terraform-managed resources..."
 	aws sso login --profile $(AWS_PROFILE)
 	terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
