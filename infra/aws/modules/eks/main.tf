@@ -55,7 +55,6 @@ resource "aws_security_group" "node" {
   }
 
   depends_on = [
-    time_sleep.wait_for_cluster,
     aws_eks_cluster.this[0]
   ]
 }
@@ -75,7 +74,6 @@ resource "aws_security_group_rule" "node_to_cluster_api" {
 
   depends_on = [
     aws_security_group.node,
-    time_sleep.wait_for_cluster,
     aws_eks_cluster.this[0]
   ]
 }
@@ -95,7 +93,6 @@ resource "aws_security_group_rule" "cluster_to_node" {
 
   depends_on = [
     aws_security_group.node,
-    time_sleep.wait_for_cluster,
     aws_eks_cluster.this[0]
   ]
 }
@@ -115,7 +112,6 @@ resource "aws_security_group_rule" "cluster_to_node_https" {
 
   depends_on = [
     aws_security_group.node,
-    time_sleep.wait_for_cluster,
     aws_eks_cluster.this[0]
   ]
 }
@@ -189,7 +185,7 @@ resource "aws_eks_node_group" "ng" {
   cluster_name    = var.cluster_name
   node_group_name = var.nodegroup_name
   subnet_ids      = var.private_subnet_ids
-  capacity_type   = "SPOT"
+  capacity_type   = "ON_DEMAND"
   instance_types  = var.instance_types
 
   launch_template {
@@ -223,23 +219,10 @@ resource "aws_eks_node_group" "ng" {
 
   depends_on = [
     aws_eks_cluster.this[0],
-    time_sleep.wait_for_cluster,
     aws_security_group_rule.node_to_cluster_api,
     aws_security_group_rule.cluster_to_node,
     aws_launch_template.eks_node[0]
   ]
-}
-
-# 添加集群就绪等待
-resource "time_sleep" "wait_for_cluster" {
-  count = var.create ? 1 : 0
-
-  # create_duration = "2m"
-  triggers = {
-    cluster_arn = aws_eks_cluster.this[0].arn
-  }
-
-  depends_on = [aws_eks_cluster.this[0]]
 }
 
 resource "aws_iam_openid_connect_provider" "oidc" {
@@ -257,7 +240,6 @@ resource "aws_iam_openid_connect_provider" "oidc" {
 
   depends_on = [
     aws_eks_cluster.this[0],
-    time_sleep.wait_for_cluster,
     data.tls_certificate.cluster[0]
   ]
 
