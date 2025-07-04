@@ -45,7 +45,7 @@ resource "aws_eks_node_group" "ng" {
   capacity_type   = "ON_DEMAND"
   instance_types  = var.instance_types
 
-  ami_type = "AL2_x86_64"
+  ami_type = "AL2023_x86_64_STANDARD"
 
   update_config {
     max_unavailable = 1
