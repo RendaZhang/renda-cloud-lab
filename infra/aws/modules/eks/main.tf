@@ -142,8 +142,6 @@ resource "aws_launch_template" "eks_node" {
   # 使用最新的 EKS 优化 AMI
   image_id = data.aws_ami.eks_optimized[0].id
 
-  # 注入引导脚本
-  user_data = data.template_cloudinit_config.node_bootstrap[0].rendered
 
   # 关联节点安全组
   vpc_security_group_ids = [aws_security_group.node[0].id]
@@ -170,8 +168,7 @@ resource "aws_launch_template" "eks_node" {
   depends_on = [
     aws_security_group.node,
     aws_eks_cluster.this[0],
-    data.aws_ami.eks_optimized[0],
-    data.template_cloudinit_config.node_bootstrap[0]
+    data.aws_ami.eks_optimized[0]
   ]
 
   lifecycle {
@@ -261,41 +258,6 @@ resource "aws_iam_openid_connect_provider" "oidc" {
 data "tls_certificate" "cluster" {
   count = var.create ? 1 : 0
   url   = try(aws_eks_cluster.this[0].identity[0].oidc[0].issuer, "")
-}
-
-# 用户数据
-data "template_cloudinit_config" "node_bootstrap" {
-  count = var.create ? 1 : 0
-
-  gzip          = true
-  base64_encode = true
-
-  part {
-    content_type = "text/x-shellscript"
-    content      = <<-EOT
-      #!/bin/bash
-      set -e
-
-      # 验证必要文件存在
-      if [ ! -f /etc/eks/bootstrap.sh ]; then
-        echo "FATAL: bootstrap.sh missing!" >&2
-        exit 1
-      fi
-
-      # 使用环境变量避免命令注入
-      CLUSTER_NAME="${var.cluster_name}"
-
-      # 执行引导并捕获日志
-      /etc/eks/bootstrap.sh "$CLUSTER_NAME" \
-        --kubelet-extra-args '--node-labels=role=worker' \
-        2>&1 | tee /var/log/eks-bootstrap.log
-
-      # 添加成功标记
-      touch /var/run/eks-bootstrap.success
-    EOT
-  }
-
-  depends_on = [aws_eks_cluster.this[0]]
 }
 
 # 获取最新 EKS 优化 AMI

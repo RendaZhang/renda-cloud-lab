@@ -177,6 +177,17 @@
 
 ---
 
+## NodeCreationFailure：实例未能加入集群（AL2023 nodeadm 变更）
+
+* **问题现象 (What Happened)**：创建 Node Group 时提示 `NodeCreationFailure: Instances failed to join the kubernetes cluster`，节点日志 `/var/log/eks-bootstrap.log` 显示 `bootstrap.sh has been removed`。
+* **背景场景 (Context)**：自定义启动模板的 `user_data` 仍调用 `/etc/eks/bootstrap.sh`，但在 AL2023 版本的 EKS AMI 中，该脚本已被 `nodeadm` 取代。
+* **复现方式 (How to Reproduce)**：在 Launch Template 中保留旧版 bootstrap 脚本并选择 AL2023 EKS AMI，节点启动后即会失败。
+* **根因分析 (Root Cause)**：AL2023 EKS AMI 不再提供 `bootstrap.sh`，导致脚本找不到文件而退出。
+* **修复方法 (Fix / Resolution)**：删除自定义 `user_data`，或改用 `nodeadm` 配置方式；默认情况下，让 EKS 托管节点组自动生成 `user_data` 即可。
+* **相关命令 (Commands Used)**：`journalctl -u nodeadm.service` 或查看 `/var/log/nodeadm.log` 了解初始化过程。
+* **适用版本 (Version Info)**：EKS Optimized AL2023 AMI 及以上版本。
+
+
 ## 附录 (Appendix)
 
 * **常用 AWS CLI 命令模板**：
