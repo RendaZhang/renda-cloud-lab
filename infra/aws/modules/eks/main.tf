@@ -1,7 +1,7 @@
 resource "aws_eks_cluster" "this" {
   count                         = var.create ? 1 : 0
   name                          = var.cluster_name
-  bootstrap_self_managed_addons = false
+  bootstrap_self_managed_addons = true
   role_arn                      = var.cluster_role_arn
 
   enabled_cluster_log_types = var.cluster_log_types
