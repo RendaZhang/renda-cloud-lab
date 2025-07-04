@@ -1,5 +1,8 @@
 # 集群故障排查指南 (Troubleshooting Guide)
 
+* Last Updated: July 5, 2025, 3:00 (UTC+8)
+* 作者: 张人大（Renda Zhang）
+
 ## 简介 (Purpose)
 
 本文档汇总了 **renda-cloud-lab** 项目在集群搭建与运维过程中常见的问题和解决方案，采用中英文混排（中文说明+英文术语）形式进行说明。每个问题包括：问题现象、背景场景、复现方式、根因分析、修复方法、相关命令和适用版本等条目，以便快速定位和解决类似故障。
@@ -189,6 +192,67 @@
 
 ---
 
+## NodeCreationFailure：CNI 插件未初始化导致节点无法加入集群
+
+* **问题现象 (What Happened)**：Node Group 创建失败并出现健康检查告警：
+
+  ```
+  container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: cni plugin not initialized
+  ```
+
+  实例启动后状态显示 `Create failed`，登录节点发现 `aws-node` DaemonSet 未部署，相关日志目录（如 `/var/log/aws-routed-eni/plugin.log`）为空。
+
+* **背景场景 (Context)**：使用 Terraform 管理 EKS 集群，在重建 Node Group 时即便确认 IAM 权限、ENI 配额、SG 入站规则等均正确，仍然出现节点无法加入集群的情况。
+
+* **复现方式 (How to Reproduce)**：
+
+  1. 通过 Terraform 配置 Node Group，但未启用 `bootstrap_self_managed_addons`。
+  2. 节点实例启动后，Node Group 状态为失败。
+  3. 登录 EC2 实例，执行如下命令可以看到 CNI 配置缺失：
+
+     ```bash
+     sudo ls /etc/cni/net.d/            # 目录为空
+     sudo ctr --namespace k8s.io containers list | grep aws-node  # 无输出
+     ```
+
+* **根因分析 (Root Cause)**：Terraform 默认不会为新建集群自动安装 VPC CNI 等核心插件。未显式设置 `bootstrap_self_managed_addons = true` 时，`aws-node` DaemonSet 不会部署到节点，导致 CNI 初始化失败。
+
+* **修复方法 (Fix / Resolution)**：在 EKS Terraform 模块中加入：
+
+  ```hcl
+  bootstrap_self_managed_addons = true
+  ```
+
+  重新执行 `terraform apply` 后，Terraform 会自动安装默认的 EKS 托管 Addon（包括 VPC CNI），节点即可成功加入集群。
+
+* **相关命令 (Commands Used)**：
+
+  * 查看节点列表：
+
+    ```bash
+    kubectl get nodes
+    ```
+
+  * 检查 aws-node DaemonSet：
+
+    ```bash
+    kubectl -n kube-system get daemonset aws-node -o wide
+    ```
+
+  * 登录节点查看日志：
+
+    ```bash
+    sudo journalctl -u nodeadm
+    sudo ls /var/log/aws-routed-eni/
+    ```
+
+* **适用版本 (Version Info)**：
+
+  * Terraform AWS EKS 模块 ≥ v19.x
+  * EKS Kubernetes 版本 ≥ v1.29
+  * Amazon Linux 2023（AL2023）AMI
+
+---
 ## 附录 (Appendix)
 
 * **常用 AWS CLI 命令模板**：
