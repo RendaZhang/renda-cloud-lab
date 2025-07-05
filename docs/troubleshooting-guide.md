@@ -39,6 +39,30 @@
 * **适用版本 (Version Info)**：EKS 版本 ≥1.18，Cluster Autoscaler Chart v9.x（具体版本根据使用情况）。
 
 ---
+## Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}
+
+* **问题现象 (What Happened)**：执行 Helm 安装命令时，模板渲染失败并报错：
+  ```
+  Error: template: cluster-autoscaler/templates/serviceaccount.yaml:13:40: executing "cluster-autoscaler/templates/serviceaccount.yaml" at <$v>: wrong type for value; expected string; got map[string]interface {}
+  ```
+* **背景场景 (Context)**：使用 `--set` 传入 `eks.amazonaws.com/role-arn` 等包含 `.` 的键名时，Helm 会将点号解释为嵌套路径，导致注解被解析成 map。
+* **复现方式 (How to Reproduce)**：示例命令：
+  ```bash
+  helm install ca autoscaler/cluster-autoscaler \
+    --namespace kube-system \
+    --set rbac.serviceAccount.annotations.eks.amazonaws.com/role-arn=arn:aws:iam::111122223333:role/ClusterAutoscalerRole
+  ```
+  上述命令会触发 `wrong type for value` 的错误。
+* **根因分析 (Root Cause)**：未转义的点号使 Helm 将该键拆分为多级 map，而模板期望的是字符串键，导致类型不匹配。
+* **修复方法 (Fix / Resolution)**：在 `--set` 中对点号使用 `\\.` 转义，例如：
+  ```bash
+  --set rbac.serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="arn:aws:iam::111122223333:role/ClusterAutoscalerRole"
+  ```
+  或者改用 `--values values.yaml` 明确传入 YAML 结构。
+* **补充建议 (Additional Tips)**：带有 IRSA 的 EKS 部署经常需要配置此注解，推荐统一使用转义或单引号 `--set 'key.with\\.dots=value'` 的形式，避免 shell 或 Helm 解析问题。
+* **适用版本 (Version Info)**：Helm v3.x，Cluster Autoscaler Chart v9.x 及以上。
+
+---
 
 ## Terraform 导入 IAM Role Policy Attachment 使用短名失败（需使用完整 ARN）
 
