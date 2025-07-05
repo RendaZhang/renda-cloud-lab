@@ -118,6 +118,25 @@ docs/
 * **本地环境**：安装 Terraform (\~1.8+)、eksctl (\~0.180+)、kubectl，以及 Helm 等必要的命令行工具。同时确保安装 Git 和 Make 等基础工具。
 * **预检脚本**：可运行 `preflight.sh` 来检查关键 Service Quota 配额和环境依赖（未来将扩展检查 AWS CLI / Terraform / eksctl / Helm 等工具链的版本与状态）。执行 `bash scripts/preflight.sh` 或 `make preflight` 可开始预检。
 
+## 🛠️ 本地环境检查工具（CLI Toolchain Checker）
+
+本项目推荐在以下环境中运行：
+
+| 平台类型 | 是否支持 | 安装方式说明 |
+| ------------------------- | ---------- | --------------- |
+| macOS (Intel/ARM) | ✅ 支持 | Homebrew 自动安装 |
+| Windows WSL2 (Ubuntu) | ✅ 支持 | apt / curl 自动安装 |
+| Ubuntu/Debian Linux | 🟡 支持（实验性） | apt 安装已验证 |
+| 原生 Windows CMD/Powershell | ❌ 不支持 | 请使用 WSL 运行 |
+| Arch/Fedora 等 | ❌ 不支持 | 需手动安装所有工具 |
+
+执行环境初始化建议：
+
+```bash
+make check         # 交互式检查并安装 CLI 工具
+make check-auto    # 自动安装全部缺失工具（无提示）
+```
+
 ### 基础设施部署
 
 1. **克隆仓库**：下载代码库到本地环境。

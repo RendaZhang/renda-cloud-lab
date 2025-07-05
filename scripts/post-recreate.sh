@@ -2,10 +2,10 @@
 # ------------------------------------------------------------
 # Renda Cloud Lab · post-recreate.sh
 # 功能：
-#   1. 获取最新的 EKS NodeGroup 生成的 ASG 名称
-#   2. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
-#   3. 更新本地 kubeconfig 以连接最新创建的集群
-#   4. 通过 Helm 安装或升级 cluster-autoscaler
+#   1. 更新本地 kubeconfig 以连接最新创建的集群
+#   2. 通过 Helm 安装或升级 cluster-autoscaler
+#   3. 获取最新的 EKS NodeGroup 生成的 ASG 名称
+#   4. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
 #   5. 自动写入绑定日志，避免重复执行
 # 使用：
 #   bash scripts/post-recreate.sh
@@ -29,6 +29,7 @@ log() {
 
 # 获取当前最新 ASG 名
 get_latest_asg() {
+  log "🔍 获取最新的 ASG 名称"
   aws autoscaling describe-auto-scaling-groups \
     --region "$REGION" --profile "$PROFILE" \
     --query "AutoScalingGroups[?starts_with(AutoScalingGroupName, \`${ASG_PREFIX}\`)].AutoScalingGroupName" \
@@ -46,11 +47,20 @@ bind_sns_notification() {
     --region "$REGION" --profile "$PROFILE"
 }
 
+# 更新 kubeconfig 以连接 EKS 集群
+update_kubeconfig() {
+  log "🔄 更新 kubeconfig 以连接 EKS 集群: $CLUSTER_NAME"
+  aws eks update-kubeconfig \
+    --region "$REGION" \
+    --name "$CLUSTER_NAME" \
+    --profile "$PROFILE"
+}
+
 # 安装或升级 Cluster Autoscaler
 install_autoscaler() {
-  log "🚀 Installing or upgrading Cluster Autoscaler via Helm..."
+  log "🚀 正在通过 Helm 安装或升级 Cluster Autoscaler..."
   if ! helm repo list | grep -q '^autoscaler'; then
-    log "🔧 Adding autoscaler Helm repo"
+    log "🔧 添加 autoscaler Helm 仓库"
     helm repo add autoscaler https://kubernetes.github.io/autoscaler
   fi
   helm repo update
@@ -65,17 +75,14 @@ install_autoscaler() {
     --set rbac.serviceAccount.annotations."eks.amazonaws.com/role-arn"="$AUTOSCALER_ROLE_ARN" \
     --set image.tag=$k8s_version
   log "✅ Helm install completed"
+  log "🔍 检查 Cluster Autoscaler Pod 状态"
   kubectl -n kube-system get pod -l app.kubernetes.io/name=aws-cluster-autoscaler
 }
 
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
 
-log "🎯 Updating local kubeconfig for EKS cluster..."
-aws eks update-kubeconfig \
-  --region "$REGION" \
-  --name "$CLUSTER_NAME" \
-  --profile "$PROFILE"
+update_kubeconfig
 
 install_autoscaler
 

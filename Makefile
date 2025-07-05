@@ -9,11 +9,12 @@ CLUSTER     = dev
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
 	@echo "🔎 检查 CLI 工具链状态..."
-	@command -v aws >/dev/null      || (echo "❌ AWS CLI 未安装" && exit 1)
-	@command -v terraform >/dev/null || (echo "❌ Terraform 未安装" && exit 1)
-	@command -v eksctl >/dev/null    || (echo "❌ eksctl 未安装" && exit 1)
-	@command -v helm >/dev/null      || (echo "❌ Helm 未安装" && exit 1)
-	@echo "✅ 所有工具存在"
+	@bash scripts/check-tools.sh
+
+## 自动安装全部缺失工具
+check-auto:
+	@echo "🔧 自动安装缺失工具..."
+	@bash scripts/check-tools.sh --auto
 
 ## 🧪 预检 AWS Service Quota 等限制
 preflight:

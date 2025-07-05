@@ -52,9 +52,7 @@
 
    ⚠️ **说明**：以下基于 eksctl 的创建过程仅适用于首次创建集群或参考历史配置。在 EKS 集群已导入 Terraform 后，日常不需要再执行这些命令，集群的创建与销毁将由 Terraform 自动完成。
 
-   * **Makefile 命令**：执行 `make start-cluster` 利用 **eksctl** 创建 EKS 集群（首次创建时可选）。此命令会根据 `infra/eksctl/eksctl-cluster.yaml` 中的配置，在名称为 `dev` 的集群（Region 为 `us-east-1`）上创建控制平面和默认节点组，并将 kubeconfig 配置更新到本地文件以便后续使用。命令中使用了 `--profile phase2-sso` 指定 AWS 凭证配置，`--region us-east-1` 指定区域，`--kubeconfig ~/.kube/config` 指定更新的 kubeconfig 路径。Makefile 在执行该命令前会再次调用 AWS SSO 登录以确保权限有效。
-
-   * **手动 eksctl 命令**：若不使用 Makefile，也可以直接运行 eksctl 命令创建集群（仅首次需要）：
+   * **手动 eksctl 命令**：直接运行 eksctl 命令创建集群（仅首次需要）：
 
      ```bash
      eksctl create cluster -f infra/eksctl/eksctl-cluster.yaml \
@@ -75,7 +73,7 @@
 
      以上示例表示 EKS 控制平面及默认节点组已创建完毕，并已将凭据保存到 kubeconfig 文件。若集群已存在，则 eksctl 会返回错误提示集群名称冲突。在这种情况下，请确认前一晚是否已正确销毁集群，或采用导入方式将现有集群纳入 Terraform 管理，以避免重复创建错误。
 
-   * **Terraform 导入 (Terraform Import)**：如果使用了 eksctl 手动创建了集群和节点组，那么在集群就绪后，应立即将这些现有资源导入 Terraform 状态，以便后续由 Terraform 全面管理（此操作在 2025-06-28 已成功执行）。在项目的 `infra/aws` 目录下，运行以下命令将现有的 EKS 相关资源加入 Terraform 状态：
+   * **Terraform 导入 (Terraform Import)**：如果使用了 eksctl 手动创建了集群和节点组，那么在集群就绪后，应立即将这些现有资源导入 Terraform 状态，以便后续由 Terraform 全面管理。在项目的 `infra/aws` 目录下，运行以下命令将现有的 EKS 相关资源加入 Terraform 状态：
 
      ```bash
      terraform import module.eks.aws_eks_cluster.dev dev

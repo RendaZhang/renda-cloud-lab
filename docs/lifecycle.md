@@ -22,10 +22,12 @@ This guide documents the entire lifecycle of an EKS cluster, including daily tea
 | eksctl    | EKS 控制面辅助工具    |
 | Helm      | 可选，管理集群内组件     |
 
-执行以下命令检查工具：
+执行以下命令检查并按需安装 CLI 工具：
 
 ```bash
 make check
+# 或跳过提示直接安装
+make check-auto
 ```
 
 ### ✅ AWS SSO 登录 (AWS SSO Login)
@@ -33,7 +35,7 @@ make check
 使用以下命令登录 AWS：
 
 ```bash
-aws sso login --profile phase2-sso
+make aws-login
 ```
 
 ---
@@ -57,13 +59,7 @@ make start
 > Terraform 模块 `eks` 会自动启用控制面日志（`api`、`authenticator`），不再需要
 > 手动执行 `eksctl utils update-cluster-logging`。
 
-1. 使用 `eksctl` 创建控制面（仅首次）
-
-```bash
-make start-cluster
-```
-
-3. 自动为 ASG 绑定 Spot Interruption SNS 通知
+2. 自动为 ASG 绑定 Spot Interruption SNS 通知
 
 ```bash
 make post-recreate
@@ -84,7 +80,11 @@ make post-recreate
 若你只需暂时关闭资源：
 
 ```bash
+# 删除 NAT 和 ALB，保留 EKS 集群运行
 make stop
+# 或者：
+# 删除 NAT 和 ALB 以及 EKS 集群
+make stop-hard
 ```
 
 > 该操作不会删除 VPC、Route Table、KMS 等基础结构
@@ -123,12 +123,12 @@ make clean
 
 核心路径：`scripts/post-recreate.sh`
 
+* 更新 kubeconfig 以连接 EKS 集群
+* 自动安装/升级 cluster-autoscaler (Helm)
 * 自动查找当前 ASG 名称（以 `eks-ng-mixed` 为前缀）
 * 若尚未绑定 SNS 通知，则绑定：
-
   * `autoscaling:EC2_INSTANCE_TERMINATE`
   * SNS Topic：`spot-interruption-topic`
-* 自动安装/升级 cluster-autoscaler (Helm)
 * 状态记录：`scripts/.last-asg-bound`
 * 日志：`scripts/logs/post-recreate.log`
 
