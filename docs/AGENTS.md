@@ -77,7 +77,6 @@ AI agents are allowed to:
 
 **Agents are not allowed to:**
 
-* Modify `eksctl-cluster.yaml` unless explicitly instructed
 * Change DNS zone or hosted zone configuration unless specifically asked
 
 ---

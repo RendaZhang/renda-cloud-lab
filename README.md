@@ -59,6 +59,51 @@ The project focuses on hands-on experimentation with AWS infrastructure, Kuberne
 | **diagrams/**          | 系统架构和流量拓扑图，帮助理解基础设施与应用关系                                                           |
 | **.github/workflows/** | GitHub Actions 配置，用于 CI 流水线（格式检查、Terraform Plan 等）                                 |
 
+## 🧭 项目结构与职责分层原则（Infra vs Deploy）
+
+本项目遵循云原生基础设施管理的标准分层设计，**明确将集群资源的创建与 Kubernetes 服务的部署进行解耦**，以提升可维护性、调试效率与后期扩展能力。
+
+### ✅ Terraform 仅负责 Infra 层（集群基础设施）
+
+Terraform 所管理的内容包括但不限于：
+
+* VPC、子网、NAT 网关、路由表等网络资源；
+* EKS 集群与托管 Node Group；
+* IAM 角色与 IRSA（包括 Cluster Autoscaler 所需的角色）；
+* 安全组规则、服务配额与相关依赖。
+
+Terraform 目标：**纯声明式 Infra、幂等、稳定、易重建、适合每日重建测试环境使用。**
+
+### ✅ Helm 脚本负责部署层（K8s 应用与控制器）
+
+所有 Kubernetes 层的应用部署（包括但不限于 `cluster-autoscaler`、`metrics-server`、后续微服务），均由脚本 + Helm 完成，确保部署顺序清晰、调试灵活，避免 Terraform 状态污染。
+
+* Helm Chart 管理 Kubernetes 原生控制器；
+* 每次重建后刷新 kubeconfig 并统一部署所有控制器；
+* 每个微服务都可以拥有独立 Chart 和 `values.yaml`，后期可切换至 Helmfile 或 ArgoCD。
+
+脚本示例：见 [`scripts/post-recreate.sh`](./scripts/post-recreate.sh)
+
+### 📦 示例结构建议（当前 + 后续）
+
+```text
+infra/
+├── terraform/              # 管理集群 Infra（VPC/EKS/IAM/NodeGroup）
+scripts/
+├── post-recreate.sh        # 集群创建后，刷新 kubeconfig 并部署 core service
+├── deploy-service-a.sh     # 部署业务微服务 A（未来）
+helm-charts/
+├── cluster-autoscaler/
+├── service-a/
+docs/
+├── lifecycle.md
+├── troubleshooting-guide.md
+```
+
+### 🧭 实践总结
+
+> Terraform 管控资源边界；Helm 与脚本部署工作负载。两者职责清晰，互不耦合，是现代云原生团队通用的 Infra / App Layer 分离模式。
+
 ## 安装部署指南
 
 以下指南将帮助你在自己的 AWS 账户中部署本实验环境，包括基础设施和示例应用的部署步骤。
