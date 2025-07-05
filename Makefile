@@ -9,12 +9,12 @@ CLUSTER     = dev
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
 	@echo "🔎 检查 CLI 工具链状态..."
-	@bash scripts/check-tools.sh
+	@bash scripts/check-tools.sh --log
 
 ## 自动安装全部缺失工具
 check-auto:
 	@echo "🔧 自动安装缺失工具..."
-	@bash scripts/check-tools.sh --auto
+	@bash scripts/check-tools.sh --auto --log
 
 ## 🧪 预检 AWS Service Quota 等限制
 preflight:
@@ -91,17 +91,25 @@ destroy-all: stop-hard
 logs:
 	@ls -lt scripts/logs | head -n 5
 	@echo "--- 最近日志内容 ---"
-	@echo "Post Create 日志: "
-	@echo "--------------------"
-	@tail -n 10 scripts/logs/post-recreate.log || echo "Post Create ❌ 无日志"
-	@echo "Preflight 日志: "
-	@echo "--------------------"
-	@tail -n 10 scripts/logs/preflight.txt || echo "Preflight ❌ 无日志"
+	@for f in scripts/logs/post-recreate.log scripts/logs/preflight.txt scripts/logs/check-tools.log; do \
+	if [ -f $$f ]; then \
+	echo "`basename $$f`"; \
+	echo "--------------------"; \
+	tail -n 10 $$f; \
+	else \
+	echo "`basename $$f` ❌ 无日志"; \
+	fi; \
+	done
 
 # 🧹 清理临时状态文件
 clean:
+	@echo "🧹 Cleaning caches and logs..."
 	@rm -f scripts/.last-asg-bound
-	@echo "🧹 清理完成：临时文件已删除"
+	@rm -f scripts/logs/*.log scripts/logs/*.txt 2>/dev/null || true
+	@rm -f scripts/*.tmp scripts/*.bak 2>/dev/null || true
+	@rm -f plan.out *.tfplan 2>/dev/null || true
+	@rm -rf $(TF_DIR)/.terraform 2>/dev/null || true
+	@echo "🧹 清理完成：临时文件和日志已删除"
 
 # 📊 更新架构图
 update-diagrams:

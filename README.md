@@ -136,6 +136,7 @@ docs/
 ```bash
 make check         # 交互式检查并安装 CLI 工具
 make check-auto    # 自动安装全部缺失工具（无提示）
+# 日志输出位于 scripts/logs/check-tools.log
 ```
 
 ### 基础设施部署
@@ -253,9 +254,9 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * `make post-recreate`   — 运行 Spot 通知自动绑定脚本并刷新本地 kubeconfig (bind Spot notification & refresh kubeconfig)
 * `make all`             — `start` → `post-recreate` 一键全流程
 * `make destroy-all`     — 先运行 `make stop-hard`，再执行 Terraform 销毁所有资源⚠️ 高危
-* `make check`           — 本地依赖工具链检测（aws / terraform / eksctl / helm）
-* `make logs`            — 快速查看最近日志目录
-* `make clean`           — 删除 Spot 绑定缓存文件、清理日志
+* `make check`           — 本地依赖工具链检测（aws / terraform / eksctl / helm），并将结果写入 `scripts/logs/check-tools.log`
+* `make logs`            — 查看 `scripts/logs/` 下各类日志，自动展示 `post-recreate.log`、`preflight.txt`、`check-tools.log`
+* `make clean`           — 删除 Spot 绑定缓存文件并清空日志目录及计划文件
 * `make update-diagrams` — 一键生成最新的 Terraform 架构图，输出到 `diagrams/` 目录中
 
 以上命令提供了一键式的集群生命周期管理方案。你可以根据需要将它们加入定时任务，实现自动启停（详见下方成本控制说明）。请注意，在重新启动集群资源后，可能需要等待几分钟以恢复所有服务（例如新建的 NAT 网关和 ALB 就绪），应用才能重新通过域名访问。

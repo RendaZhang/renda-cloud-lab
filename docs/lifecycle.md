@@ -111,12 +111,17 @@ make destroy-all
 make logs
 ```
 
+该命令会自动列出 `scripts/logs/` 目录下的最近文件，并依次显示
+`post-recreate.log`、`preflight.txt`、`check-tools.log` 等日志的最后
+10 行，便于排查问题。
+
 ### 清理状态缓存文件（可选） (Clean Cached State)
 
 ```bash
 make clean
 ```
-
+该指令将删除 `.last-asg-bound` 缓存、清空 `scripts/logs/` 下的所有
+日志以及计划文件，保持目录整洁。
 ---
 
 ## 🔁 脚本自动化逻辑说明（post-recreate.sh） (Automation Logic)
