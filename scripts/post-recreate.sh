@@ -63,7 +63,12 @@ install_autoscaler() {
     helm repo add autoscaler https://kubernetes.github.io/autoscaler
   fi
   helm repo update
-  k8s_version=$(kubectl version -o json | jq -r '.serverVersion.gitVersion' | sed 's/^v//')
+  # 获取 Kubernetes 完整版本 (如 v1.33.1)
+  K8S_FULL_VERSION=$(kubectl version -o json | jq -r '.serverVersion.gitVersion')
+  # 提取主次版本号 (如 1.33)
+  K8S_MINOR_VERSION=$(echo "$K8S_FULL_VERSION" | sed -E 's/^v([0-9]+\.[0-9]+)\..*$/\1/')
+  # 确定 Cluster Autoscaler 版本 (总是使用 .0 补丁版本)
+  k8s_version="v${K8S_MINOR_VERSION}.0"
   helm upgrade --install cluster-autoscaler autoscaler/cluster-autoscaler -n kube-system --create-namespace \
     --set awsRegion=$REGION \
     --set autoDiscovery.clusterName=$CLUSTER_NAME \
@@ -76,6 +81,8 @@ install_autoscaler() {
   log "✅ Helm install completed"
   log "🔍 检查 Cluster Autoscaler Pod 状态"
   kubectl -n kube-system get pod -l app.kubernetes.io/name=aws-cluster-autoscaler
+  log "如果 Helm 部署失败，重新部署后，需要执行如下命令删除旧 Pod 让 Deployment 拉新配置: "
+  log "kubectl -n kube-system delete pod -l app.kubernetes.io/name=aws-cluster-autoscaler"
 }
 
 # === 主流程 ===
