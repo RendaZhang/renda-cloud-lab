@@ -97,7 +97,7 @@ make stop
 make destroy-all
 ```
 
-> 会同时调用 `eksctl delete cluster` 与 `terraform destroy`
+> 将先运行 `make stop-hard` 删除 EKS 控制面，随后执行 `terraform destroy` 清理所有基础设施 (first runs `make stop-hard` to remove the EKS control plane, then calls `terraform destroy` to delete all resources)
 
 ---
 

@@ -185,7 +185,7 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * `make stop-hard` — **硬停用完整环境**：通过 Terraform 同时销毁 NAT 网关、ALB 以及 EKS 控制平面和节点组，实现完整环境的彻底停止。用于长时间暂停实验时的彻底关停，避免持续产生任何费用（除了保留的 VPC 和状态存储等）。
 * `make post-recreate`   — 运行 Spot 通知自动绑定脚本并刷新本地 kubeconfig (bind Spot notification & refresh kubeconfig)
 * `make all`             — `start` → `post-recreate` 一键全流程
-* `make destroy-all`     — Terraform 销毁全部资源（含 NodeGroup）⚠️ 高危
+* `make destroy-all`     — 先运行 `make stop-hard`，再执行 Terraform 销毁所有资源⚠️ 高危
 * `make check`           — 本地依赖工具链检测（aws / terraform / eksctl / helm）
 * `make logs`            — 快速查看最近日志目录
 * `make clean`           — 删除 Spot 绑定缓存文件、清理日志

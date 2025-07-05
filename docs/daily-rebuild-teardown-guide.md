@@ -242,7 +242,7 @@
 
 3. **（可选）彻底销毁所有资源 (Optional: Full Teardown of All Resources)**：如果需要完全销毁整个实验环境（包括 EKS 控制平面以及所有基础设施），可选择执行此可选步骤。**请谨慎对待**完整销毁操作——它将删除**所有**由 Terraform 创建或管理的资源，并清空整个环境。
 
-   * **Makefile 命令**：执行 `make destroy-all` 触发一键完全销毁流程。该命令现在直接调用 `terraform destroy`，一次性删除包括 EKS 集群在内的所有资源（例如 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等）。由于集群已纳入 Terraform 状态管理，不再需要单独运行 eksctl 删除集群的步骤。`make destroy-all` 会确保首先关闭任何可能仍在运行的组件，然后销毁 Terraform状态中记录的所有资源。执行前请再次确认AWS凭证有效且无重要资源遗漏在状态外。
+   * **Makefile 命令**：执行 `make destroy-all` 触发一键完全销毁流程。该命令会先调用 `make stop-hard` 删除 EKS 控制面，再运行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源。由于集群已纳入 Terraform 状态管理，不再需要单独运行 eksctl 删除集群。`make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。执行前请再次确认 AWS 凭证有效且无重要资源遗漏在状态外。
 
    * **手动销毁命令**：完整销毁也可通过一条 Terraform 指令完成。在 `infra/aws` 目录下执行：
 
