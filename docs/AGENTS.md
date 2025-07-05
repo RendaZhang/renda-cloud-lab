@@ -1,7 +1,7 @@
 # Guidance for AI Agents
 
 > 📍 Purpose: This file describes how an AI agent (e.g. OpenAI Codex, DevAgent, etc.) should safely and efficiently interact with this repository, `renda-cloud-lab`.
-> 📅 Last Updated: July 5, 2025, 23:30 (UTC+8)
+> 📅 Last Updated: July 6, 2025, 01:20 (UTC+8)
 > 🧑‍💻 Maintainer: Renda Zhang (张人大)
 > 🌐 Environment: AWS Cloud, Terraform, EKS, Helm, GitOps
 
@@ -42,7 +42,7 @@ renda-cloud-lab/
 | Area             | Guidelines                |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `infra/aws/`     | **Use Terraform best practices**. Do not directly edit `.terraform` or state. Modules follow `create_*` toggle flags (e.g., `create_nat`). |
-| `infra/eksctl/`  | Legacy use only — do **not** modify unless explicitly asked. Terraform has taken over cluster management.   |
+| `infra/eksctl/`  | Legacy samples. Terraform now fully manages EKS. Only touch when `create_eks=false` workflows are discussed.   |
 | `scripts/`       | Keep shell scripts POSIX-compliant and idempotent. Side-effects must be logged to `scripts/logs/` if applicable.  |
 | `Makefile`       | Use existing patterns. Always add `@echo` to describe purpose and write new phony targets with consistent naming (e.g., `start`, `stop-hard`). |
 | `docs/`          | All documentation must be bilingual (English+Chinese preferred). Follow `.md` formatting conventions.          |
@@ -102,6 +102,6 @@ A: Yes — if additional capabilities are added or team conventions evolve.
 
 ## 7. 🧾 Last Notes
 
-This repository is optimized for iterative, AI-assisted cloud-native experimentation. Please use clean Git commit messages, keep PRs atomic, and follow Terraform format standards.
+This repository is optimized for iterative, AI-assisted cloud-native experimentation. Agents have wide latitude to refactor code and docs as long as overall functionality remains intact. Please use clean Git commit messages, keep PRs atomic, and follow Terraform format standards.
 
 If you're an agent helping improve this repo — welcome aboard! 🧠🚀
