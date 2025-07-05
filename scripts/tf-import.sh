@@ -2,20 +2,24 @@
 
 set -euo pipefail
 
-export CLUSTER_NAME=dev
-export REGION=us-east-1
+CLUSTER_NAME=${CLUSTER_NAME:-dev}
+REGION=${REGION:-us-east-1}
+PROFILE=${AWS_PROFILE:-phase2-sso}
+# Customer Managed Policy ARN，可通过环境变量覆盖
+POLICY_ARN=${POLICY_ARN:-arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy}
+
+cd "$(dirname "$0")/../infra/aws"
 
 NG_NAME=$(aws eks list-nodegroups --cluster-name "$CLUSTER_NAME" --region "$REGION" \
-               --query 'nodegroups[0]' --output text --profile phase2-sso)
+               --query 'nodegroups[0]' --output text --profile "$PROFILE")
 export NG_NAME
 
-OIDC_ACCOUNT=$(aws sts get-caller-identity --query Account --output text --profile phase2-sso)
+OIDC_ACCOUNT=$(aws sts get-caller-identity --query Account --output text --profile "$PROFILE")
 OIDC_ARN=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" \
                  --query 'cluster.identity.oidc.issuer' --output text \
-                 --profile phase2-sso | sed -e "s|https://||")
-export OIDC_ARN="arn:aws:iam::${OIDC_ACCOUNT}:oidc-provider/${OIDC_ARN}"
-# Customer Managed Policy, 手动创建的需要使用完整 ARN 而不是名字
-export POLICY_ARN="arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy"
+                 --profile "$PROFILE" | sed -e "s|https://||")
+OIDC_ARN="arn:aws:iam::${OIDC_ACCOUNT}:oidc-provider/${OIDC_ARN}"
+export OIDC_ARN
 
 # cluster
 terraform import 'module.eks.aws_eks_cluster.this[0]' "$CLUSTER_NAME"

@@ -117,6 +117,7 @@ docs/
 * **DNS 域名**（可选）：若希望使用自定义域名访问集群服务，请在 Route 53 中预先创建相应 Hosted Zone（当前默认使用的子域为 `lab.rendazhang.com`）。将 Terraform 配置中的域名更新为你的域名，以便将 ALB 地址映射到固定域名。否则，可忽略 DNS 配置，直接使用自动分配的 ALB 域名访问服务。
 * **本地环境**：安装 Terraform (\~1.8+)、eksctl (\~0.180+)、kubectl，以及 Helm 等必要的命令行工具。同时确保安装 Git 和 Make 等基础工具。
 * **预检脚本**：可运行 `preflight.sh` 来检查关键 Service Quota 配额和环境依赖（未来将扩展检查 AWS CLI / Terraform / eksctl / Helm 等工具链的版本与状态）。执行 `bash scripts/preflight.sh` 或 `make preflight` 可开始预检。
+* **AWS SSO 登录**：在运行 Terraform 或脚本前，请执行 `make aws-login` 获取临时凭证。
 
 ## 🛠️ 本地环境检查工具（CLI Toolchain Checker）
 

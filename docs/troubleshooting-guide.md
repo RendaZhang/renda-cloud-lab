@@ -272,6 +272,16 @@
     ```bash
     aws eks describe-cluster --name my-cluster --query "cluster.identity.oidc.issuer"
     ```
+  * 检查当前登录身份：
+
+    ```bash
+    aws sts get-caller-identity --profile phase2-sso
+    ```
+  * 查看最新 ASG 名称：
+
+    ```bash
+    aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[].AutoScalingGroupName'
+    ```
 * **Terraform Import 格式示例**：
 
   * IAM Role Policy Attachment：
@@ -282,5 +292,12 @@
 
     如文档所述，ID 必须是 `role-name/policy-arn` 格式。
 * **Cluster Autoscaler 默认参数**：根据文档，缩容相关默认值为 `scale-down-unneeded-time=10m`、`scale-down-delay-after-add=10m`。可根据应用场景调整缩容时间配置。
+
+* 其他常用 kubectl 排查命令：
+
+  ```bash
+  kubectl get events --sort-by=.lastTimestamp
+  kubectl get pod -A -owide
+  ```
 
 **参考资料：** 以上内容参考了 AWS 官方文档及社区经验，如 \[EKS IRSA 使用指南]、Terraform 官方文档、Kubernetes `kubectl` 文档、Cluster Autoscaler 参数说明等。

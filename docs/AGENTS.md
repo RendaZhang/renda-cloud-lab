@@ -33,7 +33,7 @@ renda-cloud-lab/
 ├── diagrams/               # Terraform graphviz architecture
 ├── Makefile                # Declarative commands to orchestrate lab
 └── README.md               # README file for project
-````
+```
 
 ---
 
@@ -61,6 +61,9 @@ renda-cloud-lab/
 * Default domain name (for ALB): `lab.rendazhang.com`
 * Rebuild lifecycle and autoscaling behavior controlled via `make stop`, `make stop-hard`, `make all`, and supporting scripts.
 * Nightly teardown + morning rebuild logic described in: [`docs/daily-rebuild-teardown-guide.md`](docs/daily-rebuild-teardown-guide.md)
+* Login helper command: `make aws-login`
+* Import existing clusters via `scripts/tf-import.sh`
+* Post-recreate automation script: `scripts/post-recreate.sh` (updates kubeconfig & installs autoscaler)
 
 ---
 
@@ -102,7 +105,3 @@ A: Yes — if additional capabilities are added or team conventions evolve.
 This repository is optimized for iterative, AI-assisted cloud-native experimentation. Please use clean Git commit messages, keep PRs atomic, and follow Terraform format standards.
 
 If you're an agent helping improve this repo — welcome aboard! 🧠🚀
-
-```
-
----

@@ -13,10 +13,10 @@
 
 ### 步骤与命令详解 (Steps and Commands)
 
-1. **AWS SSO 登录 (AWS SSO Login)**：在进行任何 AWS 资源操作之前，需使用 AWS Single Sign-On 登录获取临时凭证。请确保使用配置的 AWS CLI Profile `phase2-sso` 进行登录。若未登录或凭证过期，后续 Terraform 和 AWS CLI 命令将无法访问 AWS 资源。
+1. **AWS SSO 登录 (AWS SSO Login)**：在进行任何 AWS 资源操作之前，需使用 AWS Single Sign-On 登录获取临时凭证。推荐直接执行 `make aws-login`，它会调用 `aws sso login --profile phase2-sso` 并输出登录状态。
 
    ```bash
-   aws sso login --profile phase2-sso
+   make aws-login
    ```
 
    *预期输出*: 登录成功后终端无明显输出。如果凭证有效期已过，则上述命令会提示打开浏览器进行重新认证。完成登录后，可继续后续步骤。
@@ -73,29 +73,19 @@
 
      以上示例表示 EKS 控制平面及默认节点组已创建完毕，并已将凭据保存到 kubeconfig 文件。若集群已存在，则 eksctl 会返回错误提示集群名称冲突。在这种情况下，请确认前一晚是否已正确销毁集群，或采用导入方式将现有集群纳入 Terraform 管理，以避免重复创建错误。
 
-   * **Terraform 导入 (Terraform Import)**：如果使用了 eksctl 手动创建了集群和节点组，那么在集群就绪后，应立即将这些现有资源导入 Terraform 状态，以便后续由 Terraform 全面管理。在项目的 `infra/aws` 目录下，运行以下命令将现有的 EKS 相关资源加入 Terraform 状态：
+   * **Terraform 导入 (Terraform Import)**：若采用 eksctl 首次创建集群与节点组，集群就绪后应立即执行仓库提供的脚本 `scripts/tf-import.sh`，一键将 EKS 控制面、节点组、OIDC Provider 及 IRSA 角色导入 Terraform 状态，便于后续完全由 Terraform 管理。
 
      ```bash
-     terraform import module.eks.aws_eks_cluster.dev dev
-     terraform import module.eks.aws_eks_node_group.default dev:ng-mixed
-     terraform import module.eks.aws_iam_openid_connect_provider.oidc <OIDC_PROVIDER_ARN>
+     bash scripts/tf-import.sh
      ```
 
-     上述示例将 EKS 集群（名称为 `dev`）、默认节点组 `ng-mixed`，以及与该集群关联的 OIDC 提供商导入 Terraform 状态（请将 `<OIDC_PROVIDER_ARN>` 替换为实际的 OIDC Provider Arn，可通过 AWS 控制台或 AWS CLI 查询得到）。导入成功后，可运行状态查询命令验证导入结果：
+     脚本会自动解析当前集群名称、节点组及账户信息，并依次运行 `terraform import` 命令。导入完成后，可通过下列命令验证状态：
 
      ```bash
      terraform state list | grep eks
      ```
 
-     *预期输出*: `terraform state list` 应列出已导入的 EKS 相关资源，例如：
-
-     ```plaintext
-     module.eks.aws_eks_cluster.dev
-     module.eks.aws_eks_node_group.default
-     module.eks.aws_iam_openid_connect_provider.oidc
-     ```
-
-     列表中出现 EKS 集群、节点组及 OIDC 提供商等资源，表示它们已成功纳入 Terraform 状态管理。随后，执行 Terraform 计划检查，确保当前实际资源与状态一致无偏差：
+     正常情况下将看到 EKS 集群、节点组以及 OIDC Provider 等资源都已列在 Terraform 状态中。随后，执行计划检查确保资源完全同步：
 
      ```bash
      terraform plan -var="region=us-east-1"
@@ -176,17 +166,17 @@
 
 ### 步骤与命令详解 (Steps and Commands)
 
-1. **AWS SSO 登录 (AWS SSO Login)**：在销毁资源之前，先确保 AWS 登录有效（同样使用 `phase2-sso` Profile）。如果自早晨登录后已过了数小时，凭证可能过期，建议重新执行登录命令以防止销毁过程中出现认证错误：
+1. **AWS SSO 登录 (AWS SSO Login)**：在销毁资源之前，先确保 AWS 登录有效（同样使用 `phase2-sso` Profile）。如果自早晨登录后已过了数小时，凭证可能过期，建议重新执行登录命令。直接运行以下命令即可：
 
    ```bash
-   aws sso login --profile phase2-sso
+   make aws-login
    ```
 
    登录方法同上，不再赘述。确认凭证有效后继续后续操作。
 
 2. **停止高成本资源 (Shut Down High-Cost Resources)**：该步骤通过 Terraform 销毁白天创建的 NAT 网关、ALB 等资源，但保留基础网络框架，方便日后重建。EKS 集群的控制面通常在此操作中予以保留运行（除非选择了同时销毁集群，详见后文“硬停机”说明或下一步的完全销毁）。
 
-   * **Makefile 命令**：执行 `make stop` 即可一键销毁当日启用的外围资源。此命令会在 `infra/aws` 目录下调用 Terraform，将 `create_nat`、`create_alb` 等变量置为 false（默认不修改 `create_eks`，集群控制面保持开启）后执行 `terraform apply`。结果是 Terraform 会删除 NAT 网关（并释放其 Elastic IP）和 ALB 等所有在早晨创建的可选资源，但不会删除 VPC、子网、安全组以及 EKS 集群本身。若需要连同 EKS 集群一起关闭，请使用下面介绍的 “硬停机” 命令。`make stop` 内置了 AWS SSO 登录检查，确保操作时具有有效权限。
+   * **Makefile 命令**：执行 `make stop` 即可一键销毁当日启用的外围资源。此命令会在 `infra/aws` 目录下调用 Terraform，将 `create_nat`、`create_alb` 等变量置为 false（默认不修改 `create_eks`，集群控制面保持开启）后执行 `terraform apply`。若希望连同 EKS 控制面一起关闭，可使用 `make stop-hard`，该命令会将 `create_eks=false` 一并销毁集群。两者均内置 AWS SSO 登录检查，确保操作时具有有效权限。
 
    * **手动 Terraform 命令**：也可以手动执行 Terraform 实现相同效果。在 `infra/aws` 目录下运行如下命令关闭相关组件：
 

@@ -3,7 +3,7 @@
 * Last Updated: June 28, 2025, 19:30 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
-本项目支持使用 Terraform + eksctl + Bash 脚本统一管理 EKS 集群的每日销毁与重建流程，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。本文件记录从初始化到销毁的全生命周期操作流程，适用于开发、测试和生产演练场景。
+本项目以 Terraform 为核心管理工具，配合一次性的 eksctl 集群创建和 Bash 脚本，完成 EKS 集群的每日销毁与重建流程，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。集群首次可由 eksctl 创建，随后通过 `scripts/tf-import.sh` 导入到 Terraform 管理，日常操作均由 Terraform 与脚本完成。本文档记录从初始化到销毁的全生命周期操作流程，适用于开发、测试和生产演练场景。
 
 This guide documents the entire lifecycle of an EKS cluster, including daily teardown and rebuild automation via Terraform, eksctl and Bash scripts. It explains how to restore critical runtime configuration such as Spot Interruption SNS bindings. The workflow is suitable for development, testing and production experiments.
 
