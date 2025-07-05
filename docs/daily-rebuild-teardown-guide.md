@@ -1,6 +1,6 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: July 5, 2025, 20:40 (UTC+8)
+* Last Updated: July 5, 2025, 21:30 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
@@ -103,9 +103,9 @@
 
    > 提示：在今后的日常流程中，若怀疑 Terraform 状态与实际资源不同步，可随时运行 `terraform plan` 进行检查。一旦发现 drift，应立即排查原因或通过 `terraform import` 等手段修正，以确保 Terraform 管理的资源与真实环境匹配。
 
-5. **绑定 Spot 实例通知 (Bind Spot Interruption Notification)**：为确保集群工作节点的 Spot 实例中断通知能够被及时捕获，需在集群重建后重新绑定 SNS 通知。
+5. **运行 Post Recreate 脚本**：该脚本自动记录日志、简化 AWS ASG 配置，并通过 Helm 确保 Cluster Autoscaler 与集群版本一致。
 
-   * **Makefile 命令**：执行 `make post-recreate` 调用脚本自动为当前 EKS 节点组的 Auto Scaling Group (ASG) 订阅 Spot Interruption SNS 主题。该脚本会自动检索名称以 `eks-ng-mixed` 开头的最新 ASG，并将其与预先创建的 SNS Topic (`spot-interruption-topic`) 进行绑定。脚本设计有幂等性，会记录上次绑定的 ASG 名称，防止重复操作。
+   * **Makefile 命令**：执行 `make post-recreate` 调用脚本会在控制台输出日志并保存到 scripts/logs/post-recreate.log 文件中。它简化了 AWS 自动扩缩组（ASG）的通知配置，避免了手动使用 AWS CLI 的复杂操作。此外，脚本会自动通过 Helm 安装 / 升级 Cluster Autoscaler，确保节点自动扩缩容组件与集群版本一致。该脚本具有幂等性，可以多次执行。
 
    * **手动 CLI 命令**：亦可手动执行脚本或使用 AWS CLI 完成相同操作。推荐直接运行仓库提供的脚本：
 
@@ -114,16 +114,6 @@
      ```
 
      该脚本执行后，会在控制台输出绑定过程日志，并将日志保存到 `scripts/logs/post-recreate.log` 文件。手动方式也可采用 AWS CLI 调用 `aws autoscaling put-notification-configuration`，但需先查询最新 ASG 名称并提供 SNS Topic Arn。使用仓库脚本可避免出错并简化操作。此外，该脚本在更新 kubeconfig 后会自动通过 Helm 安装/升级 Cluster Autoscaler，确保节点自动扩缩容组件始终与集群版本保持一致。
-
-     *预期输出*: 脚本成功绑定通知后，将输出类似日志：
-
-     ```plaintext
-     [2025-06-28 09:00:01] 📣 开始执行 post-recreate 脚本
-     [2025-06-28 09:00:02] 🔄 绑定 SNS 通知到 ASG: eks-ng-mixed-NodeGroup-1A2B3C4D5E
-     [2025-06-28 09:00:03] ✅ 已绑定并记录最新 ASG: eks-ng-mixed-NodeGroup-1A2B3C4D5E
-     ```
-
-     如果该 ASG 之前已经绑定过通知，脚本会输出 “当前 ASG 已绑定过，无需重复绑定”，以避免重复操作。
 
 💡 **改进说明**：上述重建流程在启用 Terraform 接管 EKS 集群后得到了优化。现在，Makefile 命令已统一集成 Terraform 操作，并在首次导入后避免了 eksctl 与 Terraform 并行管理资源可能导致的状态不一致问题。例如，我们已**将 EKS 集群完全交由 Terraform 管理**，无需每日运行 eksctl，这减少了 Terraform 配置中硬编码依赖（如之前固定节点 IAM Role ARN、启动模板 ID 等）的维护负担。今后，可考虑在 Makefile 的 `start` 或 `all` 目标中自动检查 AWS SSO 登录状态，以确保每次运行 Terraform 前凭证有效；另外，在 `make start` 脚本中加入对集群存在与否的判断（例如通过 AWS CLI 或 Terraform 状态查询），如目标集群已存在则跳过创建步骤，从而进一步提高流程健壮性。
 

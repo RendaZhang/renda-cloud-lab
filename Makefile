@@ -48,9 +48,9 @@ start:
 		-var="create_alb=true" \
 		-var="create_eks=true"
 
-## 📨 Spot Interruption SNS 通知绑定
+## 📨 运行 Spot 通知自动绑定并刷新本地 kubeconfig 以及使用 Helm 部署
 post-recreate:
-	@echo "🔁 Running post-recreate to rebind ASG Spot Notification..."
+	@echo "Running post-recreate tasks..."
 	@mkdir -p scripts/logs
 	bash scripts/post-recreate.sh | tee scripts/logs/post-recreate.log
 

@@ -1,6 +1,6 @@
 # ☁️ EKS 云原生集群生命周期流程文档 (EKS Cluster Lifecycle Guide)
 
-* Last Updated: July 5, 2025, 20:40 (UTC+8)
+* Last Updated: July 5, 2025, 21:30 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 本项目以 Terraform 为核心管理工具，配合一次性的 eksctl 集群创建和 Bash 脚本，完成 EKS 集群的每日销毁与重建流程，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。集群首次可由 eksctl 创建，随后通过 `scripts/tf-import.sh` 导入到 Terraform 管理，日常操作均由 Terraform 与脚本完成。本文档记录从初始化到销毁的全生命周期操作流程，适用于开发、测试和生产演练场景。
@@ -59,7 +59,7 @@ make start
 > Terraform 模块 `eks` 会自动启用控制面日志（`api`、`authenticator`），不再需要
 > 手动执行 `eksctl utils update-cluster-logging`。
 
-2. 自动为 ASG 绑定 Spot Interruption SNS 通知
+2. 运行 Spot 通知自动绑定并刷新本地 kubeconfig 以及使用 Helm 部署
 
 ```bash
 make post-recreate
@@ -67,10 +67,10 @@ make post-recreate
 
 该脚本具备：
 
-* 自动识别当前 ASG 名称
-* 防重复绑定（本地记录 `.last-asg-bound`）
 * 更新本地的 kubeconfig
 * 通过 Helm 安装或升级 cluster-autoscaler
+* 自动识别当前 ASG 名称
+* 防重复绑定（本地记录 `.last-asg-bound`）
 * 日志输出到 `scripts/logs/post-recreate.log`
 
 ---
