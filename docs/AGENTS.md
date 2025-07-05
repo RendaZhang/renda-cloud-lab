@@ -1,7 +1,7 @@
 # Guidance for AI Agents
 
 > 📍 Purpose: This file describes how an AI agent (e.g. OpenAI Codex, DevAgent, etc.) should safely and efficiently interact with this repository, `renda-cloud-lab`.
-> 📅 Last Updated: 2025-06-29
+> 📅 Last Updated: 2025-07-05
 > 🧑‍💻 Maintainer: Renda Zhang (张人大)
 > 🌐 Environment: AWS Cloud, Terraform, EKS, Helm, GitOps
 
