@@ -4,7 +4,7 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY: check preflight aws-login init plan start post-recreate start-all scale-zero stop stop-hard stop-all destroy-all logs clean update-diagrams lint
+.PHONY: check preflight aws-login init plan start post-recreate start-all scale-zero stop stop-hard post-teardown stop-all destroy-all logs clean update-diagrams lint
 
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
@@ -18,7 +18,7 @@ check-auto:
 
 ## 🧪 预检 AWS Service Quota 等限制
 preflight:
-	bash scripts/preflight.sh
+	@bash scripts/preflight.sh
 
 ## 🔑 登录 AWS SSO
 aws-login:
@@ -52,7 +52,7 @@ start:
 post-recreate:
 	@echo "Running post-recreate tasks..."
 	@mkdir -p scripts/logs
-	bash scripts/post-recreate.sh | tee scripts/logs/post-recreate.log
+	@bash scripts/post-recreate.sh | tee scripts/logs/post-recreate.log
 
 ## 🚀 一键全流程（重建集群 + 通知绑定）
 start-all: start post-recreate
@@ -60,11 +60,10 @@ start-all: start post-recreate
 ## 🌙 缩容所有 EKS 节点组至 0
 scale-zero:
 	@echo "🌙 Scaling down all EKS node groups to zero..."
-	bash scripts/scale-nodegroup-zero.sh
+	@bash scripts/scale-nodegroup-zero.sh
 
 ## 🌙 销毁 NAT 和 ALB，保留 EKS 集群，缩容 EKS 节点组至 0
-stop:
-	make scale-zero
+stop: scale-zero
 	@echo "Stopping NAT and ALB (retain EKS control plane)..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
 		-var="region=$(REGION)" \
@@ -74,41 +73,44 @@ stop:
 
 ## 🛑 销毁 NAT 和 ALB 以及 EKS 集群
 stop-hard:
-        @echo "Stopping all resources (NAT, ALB, EKS control plane)..."
-        terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
-                -var="region=$(REGION)" \
-                -var="create_nat=false" \
-                -var="create_alb=false" \
-                -var="create_eks=false"
+	@echo "Stopping all resources (NAT, ALB, EKS control plane)..."
+	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
+		-var="region=$(REGION)" \
+		-var="create_nat=false" \
+		-var="create_alb=false" \
+		-var="create_eks=false"
+
+## 🛠️ 清理残留日志组
+post-teardown:
+	@echo "Running post-teardown tasks..."
+	@mkdir -p scripts/logs
+	@bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
 
 ## 🧹 销毁集群后清理残留日志组
-stop-all: stop-hard
-        @echo "Running post-teardown cleanup..."
-        @mkdir -p scripts/logs
-        bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
+stop-all: stop-hard post-teardown
 
 ## 💣 一键彻底销毁所有资源
 destroy-all: stop-hard
-        @echo "🔥 Destroying all Terraform-managed resources..."
-        terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
-                -var="region=$(REGION)"
-        @echo "Running post-teardown cleanup..."
-        @mkdir -p scripts/logs
-        bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
+	@echo "🔥 Destroying all Terraform-managed resources..."
+	terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
+			-var="region=$(REGION)"
+	@echo "Running post-teardown cleanup..."
+	@mkdir -p scripts/logs
+	@bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
 
 ## 📜 查看日志
 logs:
 	@ls -lt scripts/logs | head -n 5
 	@echo "--- 最近日志内容 ---"
 	@for f in scripts/logs/post-recreate.log scripts/logs/preflight.txt scripts/logs/check-tools.log; do \
-	if [ -f $$f ]; then \
-	echo "`basename $$f`"; \
-	echo "--------------------"; \
-	tail -n 10 $$f; \
-	else \
-	echo "`basename $$f` ❌ 无日志"; \
-	fi; \
-	done
+		if [ -f $$f ]; then \
+		echo "`basename $$f`"; \
+		echo "--------------------"; \
+		tail -n 10 $$f; \
+		else \
+		echo "`basename $$f` ❌ 无日志"; \
+		fi; \
+		done
 
 # 🧹 清理临时状态文件
 clean:
@@ -128,4 +130,4 @@ update-diagrams:
 ## 📦 运行 pre-commit 检查（terraform fmt / tflint / yamllint 等）
 lint:
 	@echo "🔍 Running pre-commit checks..."
-	pre-commit run --all-files --verbose --show-diff-on-failure
+	@pre-commit run --all-files --verbose --show-diff-on-failure
