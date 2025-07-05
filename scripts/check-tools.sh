@@ -126,7 +126,13 @@ check_tool(){
       aws) version=$(aws --version 2>&1 | head -n1) ;;
       terraform) version=$(terraform version | head -n1) ;;
       eksctl) version=$(eksctl version) ;;
-      kubectl) version=$(kubectl version --client --short) ;;
+      kubectl)
+        if kubectl version --client --short >/dev/null 2>&1; then
+          version=$(kubectl version --client --short)
+        else
+          version=$(kubectl version --client | head -n1)
+        fi
+        ;;
       helm) version=$(helm version --short) ;;
       jq) version=$(jq --version) ;;
       bc) version=$(bc -v 2>&1 | head -n1) ;;
