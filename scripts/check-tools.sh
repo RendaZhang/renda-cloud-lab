@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Renda Cloud Lab · check-tools.sh
-# 功能：检查并自动安装本地 CLI 工具链 (aws, terraform, eksctl, kubectl, helm)
+# 功能：检查并自动安装本地 CLI 工具链
+#       (aws, terraform, eksctl, kubectl, helm, jq, bc, dot, unzip)
 # Usage: bash scripts/check-tools.sh [--auto] [--log] [--dry-run]
 # ------------------------------------------------------------
 set -euo pipefail
@@ -79,12 +80,17 @@ install_tool(){
     macos)
       case "$tool" in
         terraform) brew install hashicorp/tap/terraform ;;
+        dot) brew install graphviz ;;
         *) brew install "$tool" ;;
       esac
       ;;
     wsl|ubuntu)
       sudo apt-get update -y
-      if sudo apt-get install -y "$tool" 2>/dev/null; then
+      local pkg="$tool"
+      case "$tool" in
+        dot) pkg="graphviz" ;;
+      esac
+      if sudo apt-get install -y "$pkg" 2>/dev/null; then
         return
       fi
       case "$tool" in
@@ -100,6 +106,9 @@ install_tool(){
           tar -xzf /tmp/eksctl.tar.gz -C /tmp
           sudo mv /tmp/eksctl /usr/local/bin/
           rm -f /tmp/eksctl.tar.gz
+          ;;
+        dot)
+          log "无法自动安装 graphviz，请手动安装。"
           ;;
         *)
           log "无法自动安装 $tool，请手动安装。"
@@ -119,6 +128,10 @@ check_tool(){
       eksctl) version=$(eksctl version) ;;
       kubectl) version=$(kubectl version --client --short) ;;
       helm) version=$(helm version --short) ;;
+      jq) version=$(jq --version) ;;
+      bc) version=$(bc -v 2>&1 | head -n1) ;;
+      dot) version=$(dot -V 2>&1 | head -n1) ;;
+      unzip) version=$(unzip -v | head -n1) ;;
     esac
     path=$(command -v "$tool")
     log "✅ $tool: $version ($path)"
@@ -137,7 +150,7 @@ check_tool(){
   fi
 }
 
-for t in aws terraform eksctl kubectl helm; do
+for t in aws terraform eksctl kubectl helm jq bc dot unzip; do
   check_tool "$t"
 done
 
