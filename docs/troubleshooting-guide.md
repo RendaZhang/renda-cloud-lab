@@ -293,6 +293,48 @@
     如文档所述，ID 必须是 `role-name/policy-arn` 格式。
 * **Cluster Autoscaler 默认参数**：根据文档，缩容相关默认值为 `scale-down-unneeded-time=10m`、`scale-down-delay-after-add=10m`。可根据应用场景调整缩容时间配置。
 
+* **Cluster Autoscaler 常用检查命令 (Common Troubleshooting Commands)**：
+
+  ```bash
+  # 查看 Autoscaler Pod 是否启动
+  kubectl --namespace=kube-system get pods -l "app.kubernetes.io/name=aws-cluster-autoscaler,app.kubernetes.io/instance=cluster-autoscaler"
+
+  # 确认 Pod 使用的 ServiceAccount
+  kubectl -n kube-system get pod -l app.kubernetes.io/name=aws-cluster-autoscaler -o jsonpath="{.items[0].spec.serviceAccountName}"
+  kubectl -n kube-system get sa cluster-autoscaler -o yaml | grep role-arn
+  kubectl -n kube-system get deploy cluster-autoscaler-aws-cluster-autoscaler -o jsonpath="{.spec.template.spec.serviceAccountName}{'\n'}"
+
+  # 重新部署后删除旧 Pod 以加载新配置
+  kubectl -n kube-system delete pod -l app.kubernetes.io/name=aws-cluster-autoscaler
+
+  # 查看 Pod 是否就绪并检查日志
+  kubectl -n kube-system get pod -l app.kubernetes.io/name=aws-cluster-autoscaler
+  kubectl -n kube-system logs -l app.kubernetes.io/name=aws-cluster-autoscaler --tail=30
+  kubectl -n kube-system rollout status deployment/cluster-autoscaler-aws-cluster-autoscaler
+  kubectl -n kube-system logs -f deployment/cluster-autoscaler-aws-cluster-autoscaler | grep -i "autoscaler"
+  ```
+
+* **触发扩容 / 缩容示例 (Trigger Scale Up/Down Example)**：
+
+  ```bash
+  # 1) 创建一个持续占用 CPU 的 Deployment
+  kubectl create deployment cpu-hog --image=busybox -- /bin/sh -c "while true; do :; done"
+
+  # 2) 为该 Deployment 设置 CPU Request
+  kubectl set resources deployment cpu-hog --requests=cpu=400m
+
+  # 3) 扩大副本数以触发扩容
+  kubectl scale deployment cpu-hog --replicas=20
+
+  # 4) 观察节点与 Pod 调度情况
+  kubectl get nodes -w
+  kubectl get pods -l app=cpu-hog -w
+  kubectl -n kube-system logs -l app.kubernetes.io/name=aws-cluster-autoscaler -f --tail=20
+
+  # 5) 删除 Deployment 以观察缩容效果
+  kubectl delete deployment cpu-hog
+  ```
+
 * 其他常用 kubectl 排查命令：
 
   ```bash
