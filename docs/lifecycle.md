@@ -73,6 +73,8 @@ make post-recreate
 
 * 自动识别当前 ASG 名称
 * 防重复绑定（本地记录 `.last-asg-bound`）
+* 更新本地的 kubeconfig
+* 通过 Helm 安装或升级 cluster-autoscaler
 * 日志输出到 `scripts/logs/post-recreate.log`
 
 ---
@@ -126,6 +128,7 @@ make clean
 
   * `autoscaling:EC2_INSTANCE_TERMINATE`
   * SNS Topic：`spot-interruption-topic`
+* 自动安装/升级 cluster-autoscaler (Helm)
 * 状态记录：`scripts/.last-asg-bound`
 * 日志：`scripts/logs/post-recreate.log`
 

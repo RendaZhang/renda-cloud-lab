@@ -125,7 +125,7 @@
      bash scripts/post-recreate.sh
      ```
 
-     该脚本执行后，会在控制台输出绑定过程日志，并将日志保存到 `scripts/logs/post-recreate.log` 文件。手动方式也可采用 AWS CLI 调用 `aws autoscaling put-notification-configuration`，但需先查询最新 ASG 名称并提供 SNS Topic Arn。使用仓库脚本可避免出错并简化操作。
+     该脚本执行后，会在控制台输出绑定过程日志，并将日志保存到 `scripts/logs/post-recreate.log` 文件。手动方式也可采用 AWS CLI 调用 `aws autoscaling put-notification-configuration`，但需先查询最新 ASG 名称并提供 SNS Topic Arn。使用仓库脚本可避免出错并简化操作。此外，该脚本在更新 kubeconfig 后会自动通过 Helm 安装/升级 Cluster Autoscaler，确保节点自动扩缩容组件始终与集群版本保持一致。
 
      *预期输出*: 脚本成功绑定通知后，将输出类似日志：
 
