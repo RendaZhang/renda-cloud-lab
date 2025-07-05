@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: July 5, 2025, 4:00 (UTC+8)
+* Last Updated: July 5, 2025, 14:00 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -14,6 +14,8 @@
 ## 项目简介
 
 **Renda Cloud Lab** 项目涵盖 **AWS 云服务、EKS、GitOps、可观测性、SRE 以及 AI Sidecar** 等前沿主题。通过该实验室，开发者可以实践基础设施即代码、容器编排、持续交付、混沌工程和 AI 工作负载集成等技术场景。项目采用 **“代码优先”** 原则，仅存放可运行的脚本、模块和架构图，随着实践不断演进更新。
+
+The project focuses on hands-on experimentation with AWS infrastructure, Kubernetes on EKS, GitOps workflows and observability tooling. It also explores emerging topics such as AI sidecars and cost optimisation. Everything is managed "code first" so you can easily spin the lab up or tear it down.
 
 ## 核心模块说明
 
