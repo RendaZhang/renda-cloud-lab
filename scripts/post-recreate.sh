@@ -29,7 +29,6 @@ log() {
 
 # 获取当前最新 ASG 名
 get_latest_asg() {
-  log "🔍 获取最新的 ASG 名称"
   aws autoscaling describe-auto-scaling-groups \
     --region "$REGION" --profile "$PROFILE" \
     --query "AutoScalingGroups[?starts_with(AutoScalingGroupName, \`${ASG_PREFIX}\`)].AutoScalingGroupName" \
@@ -72,7 +71,7 @@ install_autoscaler() {
     --set rbac.serviceAccount.name=cluster-autoscaler \
     --set extraArgs.balance-similar-node-groups=true \
     --set extraArgs.skip-nodes-with-system-pods=false \
-    --set rbac.serviceAccount.annotations."eks.amazonaws.com/role-arn"="$AUTOSCALER_ROLE_ARN" \
+    --set rbac.serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="$AUTOSCALER_ROLE_ARN" \
     --set image.tag=$k8s_version
   log "✅ Helm install completed"
   log "🔍 检查 Cluster Autoscaler Pod 状态"
@@ -86,6 +85,7 @@ update_kubeconfig
 
 install_autoscaler
 
+log "🔍 获取最新的 ASG 名称"
 asg_name=$(get_latest_asg)
 if [[ -z "$asg_name" ]]; then
   log "❌ 未找到以 $ASG_PREFIX 开头的 ASG, 终止脚本"
