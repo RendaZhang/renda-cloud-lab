@@ -4,7 +4,7 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY: check preflight init plan start post-recreate all scale-zero stop stop-hard destroy-all logs clean update-diagrams lint
+.PHONY: check preflight aws-login init plan start post-recreate all scale-zero stop stop-hard destroy-all logs clean update-diagrams lint
 
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
@@ -19,10 +19,14 @@ check:
 preflight:
 	bash scripts/preflight.sh
 
+## 🔑 登录 AWS SSO
+aws-login:
+	@echo "🔑 正在登录 AWS SSO..."
+	aws sso login --profile $(AWS_PROFILE)
+
 ## 🧰 初始化 Terraform
 init:
 	@echo "Initializing Terraform..."
-	aws sso login --profile $(AWS_PROFILE)
 	terraform -chdir=$(TF_DIR) init -reconfigure
 
 ## ▶ 显示当前计划（Terraform 管理 NAT / ALB / EKS 控制面）
@@ -70,7 +74,6 @@ stop:
 ## 🛑 销毁 NAT 和 ALB 以及 EKS 集群
 stop-hard:
 	@echo "Stopping all resources (NAT, ALB, EKS control plane)..."
-	aws sso login --profile $(AWS_PROFILE)
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
 		-var="region=$(REGION)" \
 		-var="create_nat=false" \
@@ -80,7 +83,6 @@ stop-hard:
 ## 💣 一键彻底销毁所有资源
 destroy-all: stop-hard
 	@echo "🔥 Destroying all Terraform-managed resources..."
-	aws sso login --profile $(AWS_PROFILE)
 	terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
 		-var="region=$(REGION)"
 
