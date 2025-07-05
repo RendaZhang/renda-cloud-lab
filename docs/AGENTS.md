@@ -1,7 +1,7 @@
 # Guidance for AI Agents
 
 > 📍 Purpose: This file describes how an AI agent (e.g. OpenAI Codex, DevAgent, etc.) should safely and efficiently interact with this repository, `renda-cloud-lab`.
-> 📅 Last Updated: 2025-07-05
+> 📅 Last Updated: July 5, 2025, 23:30 (UTC+8)
 > 🧑‍💻 Maintainer: Renda Zhang (张人大)
 > 🌐 Environment: AWS Cloud, Terraform, EKS, Helm, GitOps
 
@@ -59,7 +59,7 @@ renda-cloud-lab/
   * S3 Bucket: `phase2-tf-state-us-east-1`
   * DynamoDB Lock Table: `tf-state-lock`
 * Default domain name (for ALB): `lab.rendazhang.com`
-* Rebuild lifecycle and autoscaling behavior controlled via `make stop`, `make stop-hard`, `make all`, and supporting scripts.
+* Rebuild lifecycle and autoscaling behavior controlled via `make stop-all`, `make start-all`, and supporting scripts.
 * Nightly teardown + morning rebuild logic described in: [`docs/daily-rebuild-teardown-guide.md`](docs/daily-rebuild-teardown-guide.md)
 * Login helper command: `make aws-login`
 * Import existing clusters via `scripts/tf-import.sh`

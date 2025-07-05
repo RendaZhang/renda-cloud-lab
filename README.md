@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: July 5, 2025, 21:30 (UTC+8)
+* Last Updated: July 5, 2025, 23:30 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -91,6 +91,7 @@ infra/
 ├── terraform/              # 管理集群 Infra（VPC/EKS/IAM/NodeGroup）
 scripts/
 ├── post-recreate.sh        # 集群创建后，刷新 kubeconfig 并部署 core service
+├── post-teardown.sh        # 完全销毁后清理 CloudWatch 日志组
 ├── deploy-service-a.sh     # 部署业务微服务 A（未来）
 helm-charts/
 ├── cluster-autoscaler/
@@ -164,7 +165,7 @@ make check-auto    # 自动安装全部缺失工具（无提示）
 
    *注意：Terraform 将根据 `terraform.tfvars` 中的配置在指定区域创建资源，并使用提供的 IAM Role ARN 设置 EKS Admin 权限。若未修改，本项目默认 Region 为 `us-east-1`。*
 
-3. **创建 EKS 集群**：运行提供的一键脚本，使用 eksctl 创建 Kubernetes 控制平面和节点组。该操作会将集群部署在前一步 Terraform 创建的 VPC 中。
+3. **创建 EKS 集群**：使用 eksctl 创建 Kubernetes 控制平面和节点组。该操作会将集群部署在前一步 Terraform 创建的 VPC 中。
 
    ```bash
    # 创建 EKS 控制平面 + 托管节点组
@@ -181,6 +182,7 @@ make check-auto    # 自动安装全部缺失工具（无提示）
    ```
 
   上述脚本会使用 AWS CLI 获取当前集群名称和节点组名称，并依次执行 `terraform import` 命令，将 **EKS 集群（控制平面）**、**托管节点组**、**OIDC 提供商**以及预定义的 **IRSA (IAM Roles for Service Accounts) 角色** 等资源映射到 Terraform 状态中。导入完成后，这些资源便纳入 Terraform 管理（例如后续可以通过 Terraform 管理 OIDC Provider 及 IRSA 绑定策略等），实现基础设施状态的一致性。
+
   *注意：此混合流程结合了 Terraform 与 eksctl 的优势——Terraform 管理底层网络和 IAM 等共享资源，eksctl 负责快速创建/销毁 EKS 控制平面和节点。在集群创建后导入 Terraform 可以保持对关键集群资源的可见性和控制权，同时又不影响底层 VPC 等资源，每次重建集群时无需重复创建网络。*
 
 ### 节点角色所需 IAM 策略 (Mandatory Node Role Policies)
@@ -251,12 +253,13 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * `make start` — **启动基础设施资源**：执行 Terraform 将 NAT 网关、ALB 等高成本资源启用，并确保 EKS 集群（控制平面及节点组）处于运行状态（集群资源现已由 Terraform 统一管理）。通常在每天实验开始时运行，恢复网络出口和对外服务能力。
 * `make stop` — **停止基础设施资源**：执行 Terraform 关闭 NAT 网关、ALB 等非必要资源，并将 EKS 集群的节点组 (NodeGroup) 实例数缩容至 0，保留 EKS 控制平面和基础设施状态，但暂停对外网络访问。适用于每日实验结束时销毁高成本资源，降低支出。
 * `make stop-hard` — **硬停用完整环境**：通过 Terraform 同时销毁 NAT 网关、ALB 以及 EKS 控制平面和节点组，实现完整环境的彻底停止。用于长时间暂停实验时的彻底关停，避免持续产生任何费用（除了保留的 VPC 和状态存储等）。
-* `make post-recreate`   — 刷新本地 kubeconfig 并使用 Helm 部署，以及运行 Spot 通知自动绑定
-* `make all`             — `start` → `post-recreate` 一键全流程
-* `make destroy-all`     — 先运行 `make stop-hard`，再执行 Terraform 销毁所有资源⚠️ 高危
-* `make check`           — 本地依赖工具链检测（aws / terraform / eksctl / helm），并将结果写入 `scripts/logs/check-tools.log`
-* `make logs`            — 查看 `scripts/logs/` 下各类日志，自动展示 `post-recreate.log`、`preflight.txt`、`check-tools.log`
-* `make clean`           — 删除 Spot 绑定缓存文件并清空日志目录及计划文件
+* `make stop-all` — **硬停机并清理日志组**：在 `stop-hard` 的基础上，额外执行 `scripts/post-teardown.sh`，删除残留的 EKS CloudWatch Log Group，避免计费累积。
+* `make post-recreate` — 刷新本地 kubeconfig 并使用 Helm 部署，以及运行 Spot 通知自动绑定
+* `make start-all` — `start` → `post-recreate` 一键全流程
+* `make destroy-all` — **⚠️ 高危！** 先运行 `make stop-hard`，再执行 Terraform 销毁所有资源并调用 `post-teardown.sh` 清理日志组
+* `make check` — 本地依赖工具链检测（aws / terraform / eksctl / helm），并将结果写入 `scripts/logs/check-tools.log`
+* `make logs` — 查看 `scripts/logs/` 下各类日志，自动展示 `post-recreate.log`、`preflight.txt`、`check-tools.log`
+* `make clean` — 删除 Spot 绑定缓存文件并清空日志目录及计划文件
 * `make update-diagrams` — 一键生成最新的 Terraform 架构图，输出到 `diagrams/` 目录中
 
 以上命令提供了一键式的集群生命周期管理方案。你可以根据需要将它们加入定时任务，实现自动启停（详见下方成本控制说明）。请注意，在重新启动集群资源后，可能需要等待几分钟以恢复所有服务（例如新建的 NAT 网关和 ALB 就绪），应用才能重新通过域名访问。
@@ -264,12 +267,16 @@ make preflight   # 等同于 bash scripts/preflight.sh
 ### 推荐完整重建流程
 
 ```bash
-make all          # 一键启用 NAT/ALB + 创建/导入集群 + 绑定 Spot 通知
+# 一键启用 NAT/ALB + 创建/导入集群 + 刷新本地 kubeconfig + 使用 Helm 部署 + 绑定 Spot 通知
+make start-all
+
 # ... coding ...
-make stop         # 下班关大件
+
+# 关闭高成本资源
+make stop-all
 ```
 
-执行 `make all` 完成集群重建后，可用下列命令检查控制面日志和 NodeGroup Spot 订阅是否生效：
+执行 `make start-all` 完成集群重建后，可用下列命令检查控制面日志和 NodeGroup Spot 订阅是否生效：
 
 ```bash
 aws eks describe-cluster --name dev --profile phase2-sso --region us-east-1 --query "cluster.logging.clusterLogging[?enabled].types" --output table
@@ -344,6 +351,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas                         |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态                          |
 | `post-recreate.sh`        | 刷新 kubeconfig，使用 Helm 进行部署，以及自动为最新 NodeGroup 绑定 Spot Interruption SNS |
+| `post-teardown.sh`        | 销毁集群后清理残留的 CloudWatch 日志组 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本    |
 | `update-diagrams.sh`      | 图表生成脚本                                                              |
 
@@ -354,9 +362,6 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 Renda Cloud Lab 仍在持续演进中，未来规划包括但不限于：
 
-* **eksctl 配置模块化**：将 NodeGroup、Addon 等拆分为独立 YAML 文件，统一放置在 `infra/eksctl/` 目录，并结合 `make start` 自动引用，以提高集群配置的灵活性。
-* **预检脚本扩展**：增加本地依赖工具检查、配额趋势监控，并考虑将结果上传至 Slack / Telegram 实现远程提醒。
-* **集群自动化部署完善**：视实际情况决定是否使用 Terraform 模块直接创建 EKS 集群（即完全 IaC 化集群），或增强 eksctl 脚本以实现从 VPC 到集群的一键部署。
 * **集成完整 CI/CD 流水线**：结合 AWS CodePipeline 等服务，实现从代码提交到容器镜像构建、安全扫描、部署到 EKS 的端到端自动化流水线，并提供示例应用演示持续交付过程。
 * **增强 GitOps 与发布策略**：在集群中部署 Argo CD 等工具，支持多环境（Dev/Stage/Prod）的 GitOps 工作流。探索应用分组管理、蓝绿部署/金丝雀发布策略，以提高部署的弹性和可靠性。
 * **丰富可观测性与混沌工程场景**：引入日志收集（EFK 或 AWS OpenSearch）、分布式追踪等组件完善 Observability，同时增加 Chaos Mesh 混沌实验示例（如节点故障、网络延迟），提升集群的稳健性。

@@ -1,6 +1,6 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: July 5, 2025, 21:30 (UTC+8)
+* Last Updated: July 5, 2025, 23:30 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
@@ -9,7 +9,7 @@
 
 每日早晨的重建流程旨在恢复前一晚为节省成本而释放的云资源，以便白天开展实验或开发工作。通过在早晨自动部署必要的基础设施（如 NAT 网关、ALB 负载均衡）并确保 EKS 集群正常运行，我们可以在确保功能完整的同时，将不必要的云开销降至最低。这一策略利用 Terraform 和脚本实现云资源的 **“日间启用，夜间销毁”**——每天上午重建环境、晚上销毁高成本资源，从而保留基础设施状态以便快速重建，并避免不必要的支出。
 
-⚠️ **注意**：截至 2025-06-28，我们已将 EKS 集群（控制面与节点组）导入 Terraform 状态，由 Terraform 全权管理。因此每日重建与销毁可完全依赖 Terraform 一键完成，无需再单独运行 eksctl 命令或维护 eksctl 的 YAML 配置文件。这意味着下面涉及 eksctl 的集群创建步骤仅在首次集群创建或参考历史配置时使用，日常流程中已不再需要。
+⚠️ **注意**：如果你已将 EKS 集群（控制面与节点组）导入 Terraform 状态，并由 Terraform 全权管理。那么，每日重建与销毁可完全依赖 Terraform 一键完成，无需再单独运行 eksctl 命令或维护 eksctl 的 YAML 配置文件。这意味着下面涉及 eksctl 的集群创建步骤仅在首次集群创建或参考历史配置时使用，日常流程中已不再需要。
 
 ### 步骤与命令详解 (Steps and Commands)
 
@@ -37,16 +37,7 @@
 
      上述命令会根据 Terraform 配置在区域 `us-east-1` 中创建启用 NAT 和 ALB 的基础设施，以及包含 EKS 集群的相关资源部署。其中 `-auto-approve` 用于自动确认，无需人工交互。变量 `create_nat=true` 和 `create_alb=true` 启用 NAT 网关与 ALB 资源的创建。`create_eks=true` 则包含 EKS 集群及节点组资源的创建或保持。Terraform 将使用 **远端状态后端**（S3 Bucket: `phase2-tf-state-us-east-1`，DynamoDB 锁表: `tf-state-lock`）记录此次部署的状态。
 
-     *预期输出*: Terraform 执行成功后，将显示各资源创建明细和总结。例如，可能看到类似输出：
-
-     ```plaintext
-     module.nat.aws_eip.nat[0]: Creation complete after 5s [id=eip-0abc12345d6ef7890]
-     module.nat.aws_nat_gateway.ngw[0]: Creation complete after 10s [id=nat-0123456789abcdef0]
-     module.alb.aws_lb.this: Creation complete after 15s [id=alb-12ABC34DEFGH5678]
-     Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
-     ```
-
-     上述示例中，Terraform 成功创建了 NAT 网关 (`nat-0123456789abcdef0`)、分配了 EIP (`eip-0abc12345d6ef7890`)，以及 ALB 负载均衡实例 (`alb-12ABC34DEFGH5678`) 等资源，并报告新增了 6 个资源。
+     *预期输出*: Terraform 执行成功后，将显示各资源创建明细和总结。
 
 3. **创建 EKS 控制平面 (Create EKS Control Plane)** *(首次创建可选 / 历史参考)*：基础网络就绪后，创建或导入 EKS 集群的控制平面和节点组。如果集群已经由 Terraform 管理，此步骤可跳过。
 
@@ -155,7 +146,7 @@
 
 * **Elastic IP 配额不足 (EIP Quota)**：NAT 网关创建需要分配公有 IP (EIP)。AWS 默认每区最多提供 5 个 Elastic IP。如果环境中已有多个 EIP 占用，Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway: InsufficientAddressCapacity` 或相关配额错误。此时应检查账户的 EIP 使用情况：执行 `aws ec2 describe-addresses --region us-east-1 --profile phase2-sso` 查看已分配的 EIP 数量。如已达到上限，可释放不需要的 EIP，或通过提交 AWS Support 工单申请提高配额。
 
-* **集群创建失败或超时 (EKS Cluster Creation Failure)**：如果 Terraform 或 eksctl 创建 EKS 集群的步骤失败（例如网络不通或权限问题导致 EKS 控制面创建失败），请首先检查 Terraform 部署的基础设施是否全部创建成功（VPC、子网、路由等是否就绪）。常见原因包括：未正确配置 EKS Admin Role（变量 `eks_admin_role_arn` 是否设置了正确的 IAM 角色 ARN），可能导致 EKS 控制面创建权限不足；或者之前已有同名集群未删除干净导致名称冲突。对于权限问题，可确认 Terraform 配置中的 IAM Role ARN 是否正确。如是名称冲突，需确保将现有的同名集群删除或导入 Terraform 管理：可以通过 AWS CLI 或控制台删除残留的集群\*\*（不再建议使用 eksctl 删除集群，因为现已改用 Terraform 管理集群）\*\*，然后重新执行部署。若创建过程长时间无响应，可登录 AWS 控制台查看 EKS 集群状态或 CloudFormation 服务（如果此前使用 eksctl 创建过集群，eksctl 会在 CloudFormation 中留下管理栈）查看相关事件日志，以找到失败原因并针对性处理（例如等待较长时间以让资源创建完成，或在出现配额不足时参考上面的步骤检查并提升配额）。
+* **集群创建失败或超时 (EKS Cluster Creation Failure)**：如果 Terraform 或 eksctl 创建 EKS 集群的步骤失败（例如网络不通或权限问题导致 EKS 控制面创建失败），请首先检查 Terraform 部署的基础设施是否全部创建成功（VPC、子网、路由等是否就绪）。常见原因包括：未正确配置 EKS Admin Role（变量 `eks_admin_role_arn` 是否设置了正确的 IAM 角色 ARN），可能导致 EKS 控制面创建权限不足；或者之前已有同名集群未删除干净导致名称冲突。对于权限问题，可确认 Terraform 配置中的 IAM Role ARN 是否正确。如是名称冲突，需确保将现有的同名集群删除或导入 Terraform 管理：可以通过 AWS CLI 或控制台删除残留的集群 **（不再建议使用 eksctl 删除集群，因为现已改用 Terraform 管理集群）**，然后重新执行部署。若创建过程长时间无响应，可登录 AWS 控制台查看 EKS 集群状态或 CloudFormation 服务（如果此前使用 eksctl 创建过集群，eksctl 会在 CloudFormation 中留下管理栈）查看相关事件日志，以找到失败原因并针对性处理（例如等待较长时间以让资源创建完成，或在出现配额不足时参考上面的步骤检查并提升配额）。
 
 * **Terraform 计划有意外更改 (Unexpected Terraform Plan Changes)**：如果在日常运行 `terraform plan` 或 `make start/stop` 时看到有非预期的资源更改（如计划销毁或新建集群等），应检查是否有人工在 AWS 控制台或其他工具中修改了基础设施（例如修改了安全组规则、删除了某些资源等）。此时建议谨慎执行 Terraform，先弄清变更来源。如确实存在 drift，可通过 Terraform Import 或手动调整 Terraform 配置来消除不一致，然后再次运行 plan 验证无变动后再进行 apply。
 
@@ -169,7 +160,7 @@
 * ✅ **节点组及自动伸缩**：默认节点组正常运行。如当前无工作负载且启用了自动扩缩容，节点数可能已自动缩减至 0。这种情况下，`kubectl get nodes` 可能暂时无节点列表，这是预期行为——后续有新工作负载调度时，节点会自动启动。
 * ✅ **Cluster Autoscaler**：运行 `kubectl --namespace=kube-system get pods -l "app.kubernetes.io/name=aws-cluster-autoscaler,app.kubernetes.io/instance=cluster-autoscaler"`，Pod 应处于 `Running` 且其 ServiceAccount 注解含有 `role-arn`
 * ✅ **控制面日志与 LogGroup**：执行 `aws eks describe-cluster` 与 `aws logs describe-log-groups`，应看到 `api`、`authenticator` 日志已启用，且存在 `/aws/eks/dev/cluster` 日志组。
-* ✅ **Spot 中断通知**：确认 Spot 通知订阅成功。可登录 AWS 控制台查看 SNS 主题 *spot-interruption-topic* 的订阅列表，应包含最新的 Auto Scaling Group（名称以 *eks-ng-mixed* 开头）。或者检查脚本日志 `scripts/logs/post-recreate.log`，最后一行应显示“已绑定最新 ASG”且名称匹配当前集群节点组。
+* ✅ **SNS 通知**：确认 Spot 通知订阅成功。可登录 AWS 控制台查看 SNS 主题 *spot-interruption-topic* 的订阅列表，应包含最新的 Auto Scaling Group（名称以 *eks-ng-mixed* 开头）。或者检查脚本日志 `scripts/logs/post-recreate.log`，最后一行应显示“已绑定最新 ASG”且名称匹配当前集群节点组。
 
 ---
 
@@ -191,11 +182,11 @@
 
 2. **停止高成本资源 (Shut Down High-Cost Resources)**：该步骤通过 Terraform 销毁白天创建的 NAT 网关、ALB 等资源，但保留基础网络框架，方便日后重建。EKS 集群的控制面通常在此操作中予以保留运行（除非选择了同时销毁集群，详见后文“硬停机”说明或下一步的完全销毁）。
 
-   * **Makefile 命令**：执行 `make stop` 即可一键销毁当日启用的外围资源。此命令会在 `infra/aws` 目录下调用 Terraform，将 `create_nat`、`create_alb` 等变量置为 false（默认不修改 `create_eks`，集群控制面保持开启）后执行 `terraform apply`。若希望连同 EKS 控制面一起关闭，可使用 `make stop-hard`，该命令会将 `create_eks=false` 一并销毁集群。两者均内置 AWS SSO 登录检查，确保操作时具有有效权限。
+   * **Makefile 命令**：执行 `make stop` 即可一键销毁当日启用的外围资源。此命令会在 `infra/aws` 目录下调用 Terraform，将 `create_nat`、`create_alb` 等变量置为 false（默认不修改 `create_eks`，集群控制面保持开启）后执行 `terraform apply`。若希望连同 EKS 控制面一起关闭，可使用 `make stop-hard`，该命令会将 `create_eks=false` 一并销毁集群。如需额外清理 CloudWatch 日志组，可使用 `make stop-all`，它会在 `stop-hard` 基础上调用 `post-teardown.sh`。
 
    * **手动 Terraform 命令**：也可以手动执行 Terraform 实现相同效果。在 `infra/aws` 目录下运行如下命令关闭相关组件：
 
-     **保留 EKS 集群运行（常规停止）**：
+     **删除 NAT 和 ALB 资源，保留 EKS 集群运行（常规停止）**：
 
      ```bash
      terraform apply -auto-approve \
@@ -205,7 +196,7 @@
        -var="create_eks=true"
      ```
 
-     **删除 EKS 集群（硬停机，可选）**：
+     **删除 NAT, ALB & EKS 集群（硬停机）**：
 
      ```bash
      terraform apply -auto-approve \
@@ -217,35 +208,15 @@
 
      上述命令通过将 `create_nat` 和 `create_alb` 设为 false，使 Terraform 销毁 NAT 和 ALB 相关资源。区别在于 `create_eks` 的取值：保持 `create_eks=true` 时，Terraform 将保留其状态中管理的 EKS 集群及节点组资源，不对其做改动；而当 `create_eks=false` 时，Terraform 会一并销毁受其管理的 EKS 集群和节点组。这意味着选择“硬停机”会移除 EKS 控制面和所有节点（以及关联的安全组、OIDC 等 Terraform 管理的附属资源）。执行前请确认已登录 AWS 且后端状态配置正确，以免销毁过程因权限问题中断。
 
-     *预期输出*: Terraform 会显示各资源销毁的过程和结果。例如，在未删除集群的情况下，输出可能类似：
+     上述命令执行完毕后，高成本的公网出口和入口资源不再计费。VPC 等基础设施以及 EKS 集群仍保留在 AWS 账户中（这些保留的资源通常不产生显著额外费用）。
 
-     ```plaintext
-     module.alb.aws_lb.this: Destroying... [id=alb-12ABC34DEFGH5678]
-     module.alb.aws_lb.this: Destruction complete after 5s
-     module.nat.aws_nat_gateway.ngw[0]: Destroying... [id=nat-0123456789abcdef0]
-     module.nat.aws_nat_gateway.ngw[0]: Destruction complete after 8s
-     module.nat.aws_eip.nat[0]: Destroying... [id=eip-0abc12345d6ef7890]
-     module.nat.aws_eip.nat[0]: Destruction complete after 1s
-     Apply complete! Resources: 0 added, 0 changed, 5 destroyed.
-     ```
+     执行硬停机命令后，在 AWS 控制台或使用 `eksctl get cluster --name dev --region us-east-1` 命令验证时，会发现集群已不存在。
+     
+     **注意**：由于我们采用 Terraform 管理集群，删除操作会通过 EKS API 进行，若集群存在由 eksctl 创建的底层 CloudFormation 管理栈，它可能在 Terraform 删除集群后处于 *DELETE\_FAILED* 等状态。这种情况下，可手动登录 AWS 控制台删除残留的 CloudFormation 栈（如 `eksctl-dev-cluster`），或使用 `eksctl delete cluster --name dev --wait` 确认集群相关资源清理干净，以防止遗留资源占用。
 
-     上述输出表示 ALB 实例、NAT 网关及其相关 Elastic IP 等资源均已成功删除。由于在该示例中 EKS 集群被保留（未包含 `create_eks=false`），Terraform 最终报告销毁了 5 个资源。执行完毕后，高成本的公网出口和入口资源不再计费。VPC 等基础设施以及 EKS 集群仍保留在 AWS 账户中（这些保留的资源通常不产生显著额外费用）。
+3. **⚠️ 高危！彻底销毁所有资源 (Full Teardown of All Resources)**：如果需要完全销毁整个实验环境（包括 EKS 控制平面以及所有基础设施），可选择执行此可选步骤。**请谨慎对待**完整销毁操作——它将删除**所有**由 Terraform 创建或管理的资源，并清空整个环境。
 
-     如果执行的是“硬停机”并删除了 EKS 集群，Terraform 的输出将在上述基础上增加 EKS 集群及节点组的销毁日志。例如：
-
-     ```plaintext
-     module.eks.aws_eks_node_group.default: Destroying... [id=dev:ng-mixed]
-     module.eks.aws_eks_node_group.default: Destruction complete after 3s
-     module.eks.aws_eks_cluster.dev: Destroying... [id=dev]
-     module.eks.aws_eks_cluster.dev: Destruction complete after 4s
-     Apply complete! Resources: 0 added, 0 changed, 7 destroyed.
-     ```
-
-     可以看到集群和节点组资源也已删除（此示例中 Terraform 共销毁 7 个资源，包括 EKS 相关资源）。在 AWS 控制台或使用 `eksctl get cluster --name dev --region us-east-1` 命令验证时，会发现集群已不存在。**注意**：由于我们采用 Terraform 管理集群，删除操作会通过 EKS API 进行，若集群存在由 eksctl 创建的底层 CloudFormation 管理栈，它可能在 Terraform 删除集群后处于 *DELETE\_FAILED* 等状态。这种情况下，可手动登录 AWS 控制台删除残留的 CloudFormation 栈（如 `eksctl-dev-cluster`），或使用 `eksctl delete cluster --name dev --wait` 确认集群相关资源清理干净，以防止遗留资源占用。
-
-3. **（可选）彻底销毁所有资源 (Optional: Full Teardown of All Resources)**：如果需要完全销毁整个实验环境（包括 EKS 控制平面以及所有基础设施），可选择执行此可选步骤。**请谨慎对待**完整销毁操作——它将删除**所有**由 Terraform 创建或管理的资源，并清空整个环境。
-
-   * **Makefile 命令**：执行 `make destroy-all` 触发一键完全销毁流程。该命令会先调用 `make stop-hard` 删除 EKS 控制面，再运行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源。由于集群已纳入 Terraform 状态管理，不再需要单独运行 eksctl 删除集群。`make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。执行前请再次确认 AWS 凭证有效且无重要资源遗漏在状态外。
+   * **Makefile 命令**：执行 `make destroy-all` 触发一键完全销毁流程。该命令会先调用 `make stop-hard` 删除 EKS 控制面，再运行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源。最后会自动执行 `post-teardown.sh` 清理 CloudWatch 日志组。由于集群已纳入 Terraform 状态管理，不再需要单独运行 eksctl 删除集群。`make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。执行前请再次确认 AWS 凭证有效且无重要资源遗漏在状态外。
 
    * **手动销毁命令**：完整销毁也可通过一条 Terraform 指令完成。在 `infra/aws` 目录下执行：
 
@@ -255,9 +226,9 @@
 
      该命令将基于 Terraform 状态清单删除所有 AWS 资源，包括 EKS 集群控制面、节点组以及 VPC 等网络基础架构。由于使用了 `-auto-approve`，命令将直接执行销毁，无需交互确认。
 
-     *预期输出*: 完全销毁完成后，Terraform 将提示所有资源删除完毕，例如：`Destroy complete! Resources: 30 destroyed.`。此时在 AWS 控制台应看不到与实验相关的任何资源。由于我们使用了远端 S3 后端，Terraform 状态文件本身会保留在状态后端中，但其中已不再有任何资源记录。**请注意**：完全销毁后，下次重建前需要重新执行 `terraform init` 初始化，以确保 Terraform 能正确连接远端后端并重新创建所需资源（由于状态文件清空后，Terraform 本地可能需要重新获取后端配置）。
-
-   > ℹ️ **说明**：在过去的流程中，由于 EKS 集群并未纳入 Terraform，一键销毁需要先通过 eksctl 删除集群再 Terraform Destroy。如今我们已简化为 Terraform 独立完成所有删除工作，但在执行完全销毁时仍需小心。完整销毁会移除**所有**资源，执行前请确认不再需要保留任何环境数据。
+     *预期输出*: 完全销毁完成后，Terraform 将提示所有资源删除完毕，例如：`Destroy complete! Resources: 30 destroyed.`。此时在 AWS 控制台应看不到与实验相关的任何资源。由于我们使用了远端 S3 后端，Terraform 状态文件本身会保留在状态后端中，但其中已不再有任何资源记录。
+     
+     **请注意**：完全销毁后，下次重建前需要重新执行 `terraform init` 初始化，以确保 Terraform 能正确连接远端后端并重新创建所需资源（由于状态文件清空后，Terraform 本地可能需要重新获取后端配置）。
 
 💡 **成本优化提示**：对于每日仅关闭部分资源的场景，如果想进一步节省成本，可考虑在夜间停用时对 EKS 集群采取额外措施。例如，将节点组实例数缩容至 0（如果白天未自动缩容）可确保没有 EC2 实例在夜间运行。本项目提供了辅助脚本 `scripts/scale-nodegroup-zero.sh` 实现一键将节点组缩容至0的功能，可将其集成到销毁流程中作为附加步骤。此外，如果确定每晚都不使用集群，也可考虑使用 `make stop-hard` 实现“硬停机”：该命令在 `make stop` 基础上额外删除了 EKS 控制面，适用于连续多日不使用环境的情形。请根据实际需求选择合适的销毁程度，在成本优化与第二天的重建时间之间取得平衡。
 
@@ -273,17 +244,18 @@
 
 ## ✅ 销毁清单验证 (Evening Checklist)
 
-* ✅ **NAT 网关已删除 (NAT Gateway removed)**：
-  `aws ec2 describe-nat-gateways --region us-east-1 --profile phase2-sso` 应返回空列表或状态为 `deleted`。
-* ✅ **ALB 已删除 (ALB removed)**：
-  运行 `aws elbv2 describe-load-balancers --region us-east-1 --profile phase2-sso` 不再包含实验负载均衡。
-* ✅ **EKS 集群状态 (EKS cluster state)**：
-  如执行 `make stop-hard`，`aws eks list-clusters --region us-east-1 --profile phase2-sso` 中不应出现集群名称；若仅执行 `make stop`，集群依旧存在但工作节点应已缩容至 0。
-* ✅ **Spot 通知解绑 (Spot notification unsubscribed)**：
-  检查 `scripts/logs/stop.log` 或 SNS 控制台，确认 Auto Scaling Group 已无 Spot 中断订阅。
-* ❌ **VPC 与子网保留 (VPC & subnets retained)**：
+* ✅ **VPC 与子网保留 (VPC & subnets retained)**：
   `aws ec2 describe-vpcs --region us-east-1 --profile phase2-sso` 及 `aws ec2 describe-subnets` 仍会列出网络资源。
+* ❌ **NAT 网关已删除 (NAT Gateway removed)**：
+  `aws ec2 describe-nat-gateways --region us-east-1 --profile phase2-sso` 应返回空列表或状态为 `deleted`。
+* ❌ **ALB 已删除 (ALB removed)**：
+  运行 `aws elbv2 describe-load-balancers --region us-east-1 --profile phase2-sso` 不再包含实验负载均衡。
+* ❌ **EKS 集群状态 (EKS cluster state)**：
+  如执行 `make stop-hard`，`aws eks list-clusters --region us-east-1 --profile phase2-sso` 中不应出现集群名称；若仅执行 `make stop`，集群依旧存在但工作节点应已缩容至 0。
+* ❌ **Spot 通知解绑 (Spot notification unsubscribed)**：
+  检查 `scripts/logs/stop.log` 或 SNS 控制台，确认 Auto Scaling Group 已无 Spot 中断订阅。
 * ❌ **Terraform 状态存储保留 (State bucket retained)**：
   `aws s3 ls s3://phase2-tf-state-us-east-1 --profile phase2-sso` 可看到状态文件。
+* ❌ **CloudWatch -> Log Group 已经删除。**
 
 若上述项目均符合预期，即表示夜间销毁流程顺利完成。若发现未删除的资源，可重新运行 Terraform 或检查日志排查原因。

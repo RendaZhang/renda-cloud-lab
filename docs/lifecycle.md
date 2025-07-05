@@ -1,6 +1,6 @@
 # ☁️ EKS 云原生集群生命周期流程文档 (EKS Cluster Lifecycle Guide)
 
-* Last Updated: July 5, 2025, 21:30 (UTC+8)
+* Last Updated: July 5, 2025, 23:30 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 本项目以 Terraform 为核心管理工具，配合一次性的 eksctl 集群创建和 Bash 脚本，完成 EKS 集群的每日销毁与重建流程，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。集群首次可由 eksctl 创建，随后通过 `scripts/tf-import.sh` 导入到 Terraform 管理，日常操作均由 Terraform 与脚本完成。本文档记录从初始化到销毁的全生命周期操作流程，适用于开发、测试和生产演练场景。
@@ -42,10 +42,10 @@ make aws-login
 
 ## ☀ 集群每日重建流程 (Daily Rebuild Steps)
 
-> 可通过 `make all` 一键执行
+> 可通过 `make start-all` 一键执行
 
 ```bash
-make all
+make start-all
 ```
 
 等价于手动执行：
@@ -85,9 +85,11 @@ make stop
 # 或者：
 # 删除 NAT 和 ALB 以及 EKS 集群
 make stop-hard
+# 若同时需要清理 EKS CloudWatch 日志组
+make stop-all
 ```
 
-> 该操作不会删除 VPC、Route Table、KMS 等基础结构
+> 该操作不会删除 VPC、Route Table、KMS 等基础结构；`stop-all` 会在销毁集群后额外执行 `scripts/post-teardown.sh` 清理 EKS CloudWatch 日志组
 
 ---
 
@@ -99,7 +101,7 @@ make stop-hard
 make destroy-all
 ```
 
-> 将先运行 `make stop-hard` 删除 EKS 控制面，随后执行 `terraform destroy` 清理所有基础设施 (first runs `make stop-hard` to remove the EKS control plane, then calls `terraform destroy` to delete all resources)
+> 将先运行 `make stop-hard` 删除 EKS 控制面，随后执行 `terraform destroy` 清理所有基础设施，并在最后调用 `post-teardown.sh` 删除 CloudWatch 日志组 (first runs `make stop-hard` to remove the EKS control plane, then calls `terraform destroy` followed by `post-teardown.sh` to delete the log group)
 
 ---
 
@@ -153,4 +155,4 @@ scripts/logs/*
 
 * 将 SNS Topic 与 Budget 也纳入 Terraform 管理
 * 支持通知绑定覆盖多个 NodeGroup
-* 整合 GitHub Actions 自动执行 `make all`
+* 整合 GitHub Actions 自动执行 `make start-all`
