@@ -211,7 +211,7 @@
      上述命令执行完毕后，高成本的公网出口和入口资源不再计费。VPC 等基础设施以及 EKS 集群仍保留在 AWS 账户中（这些保留的资源通常不产生显著额外费用）。
 
      执行硬停机命令后，在 AWS 控制台或使用 `eksctl get cluster --name dev --region us-east-1` 命令验证时，会发现集群已不存在。
-     
+
      **注意**：由于我们采用 Terraform 管理集群，删除操作会通过 EKS API 进行，若集群存在由 eksctl 创建的底层 CloudFormation 管理栈，它可能在 Terraform 删除集群后处于 *DELETE\_FAILED* 等状态。这种情况下，可手动登录 AWS 控制台删除残留的 CloudFormation 栈（如 `eksctl-dev-cluster`），或使用 `eksctl delete cluster --name dev --wait` 确认集群相关资源清理干净，以防止遗留资源占用。
 
 3. **⚠️ 高危！彻底销毁所有资源 (Full Teardown of All Resources)**：如果需要完全销毁整个实验环境（包括 EKS 控制平面以及所有基础设施），可选择执行此可选步骤。**请谨慎对待**完整销毁操作——它将删除**所有**由 Terraform 创建或管理的资源，并清空整个环境。
@@ -227,7 +227,7 @@
      该命令将基于 Terraform 状态清单删除所有 AWS 资源，包括 EKS 集群控制面、节点组以及 VPC 等网络基础架构。由于使用了 `-auto-approve`，命令将直接执行销毁，无需交互确认。
 
      *预期输出*: 完全销毁完成后，Terraform 将提示所有资源删除完毕，例如：`Destroy complete! Resources: 30 destroyed.`。此时在 AWS 控制台应看不到与实验相关的任何资源。由于我们使用了远端 S3 后端，Terraform 状态文件本身会保留在状态后端中，但其中已不再有任何资源记录。
-     
+
      **请注意**：完全销毁后，下次重建前需要重新执行 `terraform init` 初始化，以确保 Terraform 能正确连接远端后端并重新创建所需资源（由于状态文件清空后，Terraform 本地可能需要重新获取后端配置）。
 
 💡 **成本优化提示**：对于每日仅关闭部分资源的场景，如果想进一步节省成本，可考虑在夜间停用时对 EKS 集群采取额外措施。例如，将节点组实例数缩容至 0（如果白天未自动缩容）可确保没有 EC2 实例在夜间运行。本项目提供了辅助脚本 `scripts/scale-nodegroup-zero.sh` 实现一键将节点组缩容至0的功能，可将其集成到销毁流程中作为附加步骤。此外，如果确定每晚都不使用集群，也可考虑使用 `make stop-hard` 实现“硬停机”：该命令在 `make stop` 基础上额外删除了 EKS 控制面，适用于连续多日不使用环境的情形。请根据实际需求选择合适的销毁程度，在成本优化与第二天的重建时间之间取得平衡。
