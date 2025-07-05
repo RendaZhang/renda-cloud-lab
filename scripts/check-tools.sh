@@ -26,7 +26,9 @@ done
 
 log(){
   echo "$*"
-  [ $LOG -eq 1 ] && echo "$*" >> "$LOG_FILE"
+  if [ "$LOG" -eq 1 ]; then
+    echo "$*" >> "$LOG_FILE"
+  fi
 }
 
 # --- 平台识别 ---
