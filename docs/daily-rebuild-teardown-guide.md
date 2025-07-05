@@ -113,7 +113,31 @@
      bash scripts/post-recreate.sh
      ```
 
-     该脚本执行后，会在控制台输出绑定过程日志，并将日志保存到 `scripts/logs/post-recreate.log` 文件。手动方式也可采用 AWS CLI 调用 `aws autoscaling put-notification-configuration`，但需先查询最新 ASG 名称并提供 SNS Topic Arn。使用仓库脚本可避免出错并简化操作。此外，该脚本在更新 kubeconfig 后会自动通过 Helm 安装/升级 Cluster Autoscaler，确保节点自动扩缩容组件始终与集群版本保持一致。
+该脚本执行后，会在控制台输出绑定过程日志，并将日志保存到 `scripts/logs/post-recreate.log` 文件。手动方式也可采用 AWS CLI 调用 `aws autoscaling put-notification-configuration`，但需先查询最新 ASG 名称并提供 SNS Topic Arn。使用仓库脚本可避免出错并简化操作。此外，该脚本在更新 kubeconfig 后会自动通过 Helm 安装/升级 Cluster Autoscaler，确保节点自动扩缩容组件始终与集群版本保持一致。
+
+6. **验证控制面日志与 Spot 通知 (Verify Control Plane Logs & Spot Notifications)**：
+
+   * **控制面日志 (Control Plane Logs)**：运行以下命令，确认 `api` 与 `authenticator` 日志已启用，且 CloudWatch 日志组 `/aws/eks/dev/cluster` 已创建：
+
+     ```bash
+     aws eks describe-cluster --name dev --profile phase2-sso --region us-east-1 --query "cluster.logging.clusterLogging[?enabled].types" --output table
+     aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group-name-prefix "/aws/eks/dev/cluster" --query 'logGroups[].logGroupName' --output text
+     ```
+
+     预期输出示例：
+
+     ```plaintext
+     --------------------------
+     |     DescribeCluster    |
+     +------+-----------------+
+     |  api |  authenticator  |
+     +------+-----------------+
+     /aws/eks/dev/cluster
+     ```
+
+     随后可在 **AWS Console ➜ CloudWatch ➜ Logs ➜ Log groups** 中看到 `api`、`authenticator` 等日志流。
+
+   * **Spot 通知订阅 (Spot Notification Subscription)**：登录 **AWS Console ➜ SNS ➜ Topics ➜ `spot-interruption-topic` ➜ Subscriptions**，应看到状态为 `Confirmed`，并在绑定成功后收到邮件通知。
 
 💡 **改进说明**：上述重建流程在启用 Terraform 接管 EKS 集群后得到了优化。现在，Makefile 命令已统一集成 Terraform 操作，并在首次导入后避免了 eksctl 与 Terraform 并行管理资源可能导致的状态不一致问题。例如，我们已**将 EKS 集群完全交由 Terraform 管理**，无需每日运行 eksctl，这减少了 Terraform 配置中硬编码依赖（如之前固定节点 IAM Role ARN、启动模板 ID 等）的维护负担。今后，可考虑在 Makefile 的 `start` 或 `all` 目标中自动检查 AWS SSO 登录状态，以确保每次运行 Terraform 前凭证有效；另外，在 `make start` 脚本中加入对集群存在与否的判断（例如通过 AWS CLI 或 Terraform 状态查询），如目标集群已存在则跳过创建步骤，从而进一步提高流程健壮性。
 
@@ -144,6 +168,7 @@
 * ✅ **EKS 控制平面**：集群状态为 *ACTIVE*。可以通过 `eksctl get cluster --name dev --region us-east-1` （或 `aws eks describe-cluster --name dev`）检查集群存在且状态正常。kubectl 配置已更新，执行 `kubectl get nodes` 可以看到节点状态为 Ready（如果有节点运行）。
 * ✅ **节点组及自动伸缩**：默认节点组正常运行。如当前无工作负载且启用了自动扩缩容，节点数可能已自动缩减至 0。这种情况下，`kubectl get nodes` 可能暂时无节点列表，这是预期行为——后续有新工作负载调度时，节点会自动启动。
 * ✅ **Cluster Autoscaler**：运行 `kubectl --namespace=kube-system get pods -l "app.kubernetes.io/name=aws-cluster-autoscaler,app.kubernetes.io/instance=cluster-autoscaler"`，Pod 应处于 `Running` 且其 ServiceAccount 注解含有 `role-arn`
+* ✅ **控制面日志与 LogGroup**：执行 `aws eks describe-cluster` 与 `aws logs describe-log-groups`，应看到 `api`、`authenticator` 日志已启用，且存在 `/aws/eks/dev/cluster` 日志组。
 * ✅ **Spot 中断通知**：确认 Spot 通知订阅成功。可登录 AWS 控制台查看 SNS 主题 *spot-interruption-topic* 的订阅列表，应包含最新的 Auto Scaling Group（名称以 *eks-ng-mixed* 开头）。或者检查脚本日志 `scripts/logs/post-recreate.log`，最后一行应显示“已绑定最新 ASG”且名称匹配当前集群节点组。
 
 ---

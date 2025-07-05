@@ -269,6 +269,15 @@ make all          # 一键启用 NAT/ALB + 创建/导入集群 + 绑定 Spot 通
 make stop         # 下班关大件
 ```
 
+执行 `make all` 完成集群重建后，可用下列命令检查控制面日志和 NodeGroup Spot 订阅是否生效：
+
+```bash
+aws eks describe-cluster --name dev --profile phase2-sso --region us-east-1 --query "cluster.logging.clusterLogging[?enabled].types" --output table
+aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group-name-prefix "/aws/eks/dev/cluster" --query 'logGroups[].logGroupName' --output text
+```
+
+输出应包含 `api`、`authenticator` 以及 `/aws/eks/dev/cluster`。随后在 AWS Console ➜ SNS ➜ Topics ➜ `spot-interruption-topic` 中确认订阅状态为 *Confirmed*。
+
 ## 💰 成本控制说明
 
 云资源按需高效利用是本项目的重要考量。**Renda Cloud Lab** 实践了一套“每日自动销毁 -> 次日重建”的基础设施生命周期策略，以最大化节约 AWS 费用：
