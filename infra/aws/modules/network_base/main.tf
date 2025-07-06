@@ -1,3 +1,5 @@
+data "aws_availability_zones" "available" {}
+
 resource "aws_vpc" "this" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -6,7 +8,7 @@ resource "aws_vpc" "this" {
   }
 }
 
-# 2 public + 2 private 子网
+# 2 public 子网
 resource "aws_subnet" "public" {
   count                   = 2
   vpc_id                  = aws_vpc.this.id
@@ -18,6 +20,7 @@ resource "aws_subnet" "public" {
   }
 }
 
+# 2 private 子网
 resource "aws_subnet" "private" {
   count             = 2
   vpc_id            = aws_vpc.this.id
@@ -82,10 +85,6 @@ resource "aws_security_group" "alb" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
-
-data "aws_availability_zones" "available" {
-
 }
 
 data "aws_route53_zone" "lab" {
