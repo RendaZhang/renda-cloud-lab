@@ -118,6 +118,38 @@ get_latest_asg() {
     --output text | head -n1
 }
 
+# 绑定 SNS 通知
+bind_sns_notification() {
+  local asg_name="$1"
+  log "🔄 绑定 SNS 通知到 ASG: $asg_name"
+  aws autoscaling put-notification-configuration \
+    --auto-scaling-group-name "$asg_name" \
+    --topic-arn "$TOPIC_ARN" \
+    --notification-types "autoscaling:EC2_INSTANCE_TERMINATE" \
+    --region "$REGION" --profile "$PROFILE"
+}
+
+# 确保 SNS 绑定到最新 ASG
+ensure_sns_binding() {
+  local asg_name="$1"
+  if [[ -z "$asg_name" ]]; then
+    log "❌ 未找到以 $ASG_PREFIX 开头的 ASG, 终止脚本"
+    exit 1
+  fi
+  if [[ -f "$STATE_FILE" ]]; then
+    last_bound_asg=$(cat "$STATE_FILE")
+  else
+    last_bound_asg=""
+  fi
+  if [[ "$asg_name" == "$last_bound_asg" ]]; then
+    log "✅ 当前 ASG [$asg_name] 已绑定过, 无需重复绑定"
+  else
+    bind_sns_notification "$asg_name"
+    echo "$asg_name" > "$STATE_FILE"
+    log "✅ 已绑定并记录最新 ASG: $asg_name"
+  fi
+}
+
 # 检查 NAT 网关状态
 check_nat_gateway() {
   aws ec2 describe-nat-gateways \
@@ -167,15 +199,31 @@ check_sns_binding() {
     --output json | jq length
 }
 
-# 绑定 SNS 通知
-bind_sns_notification() {
+# 进行基础资源检查
+perform_health_checks() {
   local asg_name="$1"
-  log "🔄 绑定 SNS 通知到 ASG: $asg_name"
-  aws autoscaling put-notification-configuration \
-    --auto-scaling-group-name "$asg_name" \
-    --topic-arn "$TOPIC_ARN" \
-    --notification-types "autoscaling:EC2_INSTANCE_TERMINATE" \
-    --region "$REGION" --profile "$PROFILE"
+  log "🔍 开始执行基础资源健康检查..."
+  log "🔍 检查 NAT 网关状态"
+  nat_count=$(check_nat_gateway)
+  log "NAT Gateway count: $nat_count"
+  log "🔍 检查 ALB 状态"
+  alb_count=$(check_alb)
+  log "ALB count: $alb_count"
+  log "🔍 检查 EKS 集群状态"
+  eks_status=$(check_eks_cluster)
+  log "EKS cluster status: $eks_status"
+  log "🔍 检查节点组状态"
+  node_status=$(check_nodegroup)
+  log "NodeGroup status: $node_status"
+  log "🔍 检查 LogGroup 是否存在"
+  log_group=$(check_log_group)
+  log "LogGroup: $log_group"
+  log "🔍 检查 Cluster Autoscaler 部署状态"
+  autoscaler_status=$(check_autoscaler_status)
+  log "Cluster Autoscaler status: $autoscaler_status"
+  log "🔍 验证 SNS 通知绑定"
+  sns_bound=$(check_sns_binding "$asg_name")
+  log "SNS bindings for ASG [$asg_name]: $sns_bound"
 }
 
 # === 主流程 ===
@@ -185,52 +233,9 @@ update_kubeconfig
 
 install_autoscaler
 
-# 进行基础资源检查
-log "🔍 检查 NAT 网关状态"
-nat_count=$(check_nat_gateway)
-log "NAT Gateway count: $nat_count"
-
-log "🔍 检查 ALB 状态"
-alb_count=$(check_alb)
-log "ALB count: $alb_count"
-
-log "🔍 检查 EKS 集群状态"
-eks_status=$(check_eks_cluster)
-log "EKS cluster status: $eks_status"
-
-log "🔍 检查节点组状态"
-node_status=$(check_nodegroup)
-log "NodeGroup status: $node_status"
-
-log "🔍 检查 LogGroup 是否存在"
-log_group=$(check_log_group)
-log "LogGroup: $log_group"
-
 log "🔍 获取最新的 ASG 名称"
 asg_name=$(get_latest_asg)
-if [[ -z "$asg_name" ]]; then
-  log "❌ 未找到以 $ASG_PREFIX 开头的 ASG, 终止脚本"
-  exit 1
-fi
 
-log "🔍 检查 Cluster Autoscaler 部署状态"
-autoscaler_status=$(check_autoscaler_status)
-log "Cluster Autoscaler status: $autoscaler_status"
+ensure_sns_binding "$asg_name"
 
-if [[ -f "$STATE_FILE" ]]; then
-  last_bound_asg=$(cat "$STATE_FILE")
-else
-  last_bound_asg=""
-fi
-
-if [[ "$asg_name" == "$last_bound_asg" ]]; then
-  log "✅ 当前 ASG [$asg_name] 已绑定过, 无需重复绑定"
-else
-  bind_sns_notification "$asg_name"
-  echo "$asg_name" > "$STATE_FILE"
-  log "✅ 已绑定并记录最新 ASG: $asg_name"
-fi
-
-log "🔍 验证 SNS 通知绑定"
-sns_bound=$(check_sns_binding "$asg_name")
-log "SNS bindings for ASG [$asg_name]: $sns_bound"
+perform_health_checks "$asg_name"
