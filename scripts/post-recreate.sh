@@ -114,7 +114,7 @@ install_autoscaler() {
 get_latest_asg() {
   aws autoscaling describe-auto-scaling-groups \
     --region "$REGION" --profile "$PROFILE" \
-    --query "AutoScalingGroups[?starts_with(AutoScalingGroupName, \`${ASG_PREFIX}\`)].AutoScalingGroupName" \
+    --query "AutoScalingGroups[?starts_with(AutoScalingGroupName, '$ASG_PREFIX')].AutoScalingGroupName" \
     --output text | head -n1
 }
 
