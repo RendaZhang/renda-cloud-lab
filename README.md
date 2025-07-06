@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: July 6, 2025, 01:20 (UTC+8)
+* Last Updated: July 6, 2025, 14:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -21,7 +21,7 @@ The project focuses on hands-on experimentation with AWS infrastructure, Kuberne
 
 本项目围绕云原生领域的多个核心模块展开，包括但不限于：
 
-* **IaC (Infrastructure as Code)** — 使用 Terraform 管理 AWS 基础设施，探索 Pulumi 等多种 IaC 实践。如需手动创建集群，可在 `create_eks=false` 时借助 eksctl。
+* **IaC (Infrastructure as Code)** — 使用 Terraform 管理 AWS 基础设施，探索 Pulumi 等多种 IaC 实践。如确有需要手动创建集群，可参考 [docs/README_LEGACY.md](docs/README_LEGACY.md)。
 * **容器 & 编排** — 基于 Docker 容器、Kubernetes (托管于 EKS) 进行应用部署，利用 Karpenter 实现弹性伸缩
 * **CI/CD & GitOps** — 集成 AWS CodePipeline 持续集成流水线，结合 Argo CD 与 Helm 实现 GitOps 持续部署
 * **可观测性 & SRE** — 引入 OpenTelemetry、Prometheus、Grafana 构建可观测体系，并通过 Chaos Mesh 落实 Chaos Engineering（混沌工程）实践
@@ -36,7 +36,7 @@ The project focuses on hands-on experimentation with AWS infrastructure, Kuberne
 ```text
 ├─ infra/                  # IaC 模块与环境定义
 │  ├─ aws/                 # Terraform 配置（backend / providers / vars 等）
-│  └─ eksctl/              # eksctl YAML (EKS cluster & nodegroups)
+│  └─ eksctl/              # eksctl YAML (legacy - optional)
 ├─ docs/                   # 设计与流程文档（如 lifecycle.md）
 ├─ charts/                 # Helm Charts（按功能拆分的应用和系统组件）
 ├─ scripts/                # 基础设施启停与自动化脚本（如一键部署、节点伸缩、清理等）
@@ -52,7 +52,7 @@ The project focuses on hands-on experimentation with AWS infrastructure, Kuberne
 | 目录                     | 说明                                                                                 |
 | ---------------------- | ---------------------------------------------------------------------------------- |
 | **infra/aws/**         | Terraform 模块（VPC、子网、NAT、ALB、EKS 等）和环境配置，远端状态保存在 S3/DynamoDB（默认 Region=`us-east-1`） |
-| **infra/eksctl/**      | 可选的 eksctl 配置（仅在 `create_eks=false` 时使用）。默认完全由 Terraform 管理 EKS |
+| **infra/eksctl/**      | eksctl 配置（Legacy，可选，`create_eks=false` 时使用） |
 | **docs/**              | 生命周期与流程说明文档，例如 `docs/lifecycle.md`（一键重建、Spot 绑定、清理指令等）                             |
 | **charts/**            | 应用和系统的 Helm Chart，遵循 OCI 制品规范，便于复用与扩展                                              |
 | **scripts/**           | 脚本：如 `preflight.sh`（预检检查）、`tf-import.sh`（Terraform 导入） 等                           |
@@ -116,7 +116,7 @@ docs/
 * **AWS 账户及权限**：拥有可用的 AWS 账户，并已安装并配置 AWS CLI（例如通过 `aws configure` 或 AWS SSO 登录）。**本项目默认使用 AWS CLI 的 SSO Profile 名称 `phase2-sso`，默认区域为 `us-east-1`**，如与你的配置不同请相应调整后续命令。建议创建一支具有管理员权限的 IAM Role（例如 `eks-admin-role`），用于 EKS 集群的管理操作。
 * **Terraform 后端**：提前创建用于 Terraform 状态存储的 S3 Bucket 及 DynamoDB 锁定表，并在 `infra/aws/backend.tf` 中相应配置名称。默认假定 S3 Bucket 名为 `phase2-tf-state-us-east-1`，DynamoDB 表名为 `tf-state-lock`（可根据需要修改）。
 * **DNS 域名**（可选）：若希望使用自定义域名访问集群服务，请在 Route 53 中预先创建相应 Hosted Zone（当前默认使用的子域为 `lab.rendazhang.com`）。将 Terraform 配置中的域名更新为你的域名，以便将 ALB 地址映射到固定域名。否则，可忽略 DNS 配置，直接使用自动分配的 ALB 域名访问服务。
-* **本地环境**：安装 Terraform (~1.8+)、kubectl 以及 Helm 等必要的命令行工具。同时确保安装 Git 和 Make 等基础工具。仅在 `create_eks=false` 时才需要 eksctl。
+* **本地环境**：安装 Terraform (~1.8+)、kubectl 以及 Helm 等必要的命令行工具，同时安装 Git 和 Make 等基础工具。若因兼容性需要使用 eksctl，请参阅 [docs/README_LEGACY.md](docs/README_LEGACY.md)。
 * **预检脚本**：可运行 `preflight.sh` 来检查关键 Service Quota 配额和环境依赖（未来将扩展检查 AWS CLI / Terraform / Helm 等工具链的版本与状态）。执行 `bash scripts/preflight.sh` 或 `make preflight` 可开始预检。
 * **AWS SSO 登录**：在运行 Terraform 或脚本前，请执行 `make aws-login` 获取临时凭证。
 
@@ -165,32 +165,7 @@ make check-auto    # 自动安装全部缺失工具（无提示）
 
    *注意：Terraform 将根据 `terraform.tfvars` 中的配置在指定区域创建资源，并使用提供的 IAM Role ARN 设置 EKS Admin 权限。若未修改，本项目默认 Region 为 `us-east-1`。*
 
-3. **创建 EKS 集群**：默认情况下，步骤 2 中的 Terraform Apply 已同时创建 EKS 控制平面和托管节点组（变量 `create_eks=true`）。仅当你显式将 `create_eks=false` 时，才需要使用 eksctl 手动创建集群，例如：
-
-   ```bash
-   eksctl create cluster -f infra/eksctl/eksctl-cluster.yaml --profile phase2-sso
-   ```
-
-   使用 eksctl 创建集群会产生额外的 CloudFormation Stack，后续删除集群时需手动清理（见下文）。
-
-4. **导入集群资源至 Terraform（仅在手动创建时）**：若使用 eksctl 创建了集群和节点组，请执行提供的脚本将这些资源导入 Terraform 状态，以便后续通过 Terraform 统一管理。
-
-   ```bash
-   # 导入 EKS 集群、节点组、OIDC 提供商、IRSA 等到 Terraform 状态
-  bash scripts/tf-import.sh
-  ```
-
-  使用 eksctl 创建集群会产生三个 CloudFormation Stack，删除集群后请手动执行以下命令清理：
-
-  ```bash
-  aws cloudformation delete-stack --stack-name eksctl-dev-nodegroup-ng-mixed --region us-east-1 --profile phase2-sso
-  aws cloudformation delete-stack --stack-name eksctl-dev-addon-vpc-cni --region us-east-1 --profile phase2-sso
-  aws cloudformation delete-stack --stack-name eksctl-dev-cluster --region us-east-1 --profile phase2-sso
-  ```
-
-  上述脚本会使用 AWS CLI 获取当前集群名称和节点组名称，并依次执行 `terraform import` 命令，将 **EKS 集群（控制平面）**、**托管节点组**、**OIDC 提供商**以及预定义的 **IRSA (IAM Roles for Service Accounts) 角色** 等资源映射到 Terraform 状态中。导入完成后，这些资源便纳入 Terraform 管理（例如后续可以通过 Terraform 管理 OIDC Provider 及 IRSA 绑定策略等），实现基础设施状态的一致性。
-
-  *注意：若选择 eksctl 方式，仅在 `create_eks=false` 的场景下使用。Terraform 全权管理集群时不会生成任何 CloudFormation Stack，删除也更为干净。*
+3. **（可选）手动创建并导入 EKS 集群**：默认情况下，步骤 2 中的 `terraform apply` 已同时创建 EKS 控制平面和托管节点组（变量 `create_eks=true`）。若因特殊需求将 `create_eks=false`，请参考 [docs/README_LEGACY.md](docs/README_LEGACY.md) 使用 eksctl 创建集群并随后导入 Terraform。
 
 ### 节点角色所需 IAM 策略 (Mandatory Node Role Policies)
 
@@ -202,7 +177,7 @@ make check-auto    # 自动安装全部缺失工具（无提示）
 
 这些策略缺一不可，否则节点启动时可能无法正常注册到集群。
 
-5. **验证集群**：确保本地 `kubeconfig` 已更新并指向新创建的 EKS 集群。执行简单的 Kubernetes 命令确认集群正常运行，例如：
+4. **验证集群**：确保本地 `kubeconfig` 已更新并指向新创建的 EKS 集群。执行简单的 Kubernetes 命令确认集群正常运行，例如：
 
    ```bash
    kubectl get svc
@@ -335,9 +310,6 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 * **问：默认提供的域名 `lab.rendazhang.com` 有什么作用？可以更换吗？**
   **答**：该自定义域名通过 Route 53 Alias 记录固定解析到实验集群的 ALB，作用是在重建集群时保持对外访问地址不变。如果你 Fork 本项目或在自己的账户中部署，通常无法使用 `lab.rendazhang.com` 域名。此时你可以**更换为自己的域名**：方法是在你的 Route 53 中创建对应域名的 Hosted Zone，并在 Terraform 配置中将 `lab.rendazhang.com` 修改为你的域名（或如果不想使用自定义域名，也可删除 Terraform 中 `aws_route53_record` 资源直接使用 ALB 默认域名）。更换域名后，需要在访问应用时使用新的域名。如果不设置自定义域名，则可直接使用 AWS ALB 自动分配的域名来访问服务。
 
-* **问：为什么还保留 eksctl 目录？**
-  **答**：当前集群已完全由 Terraform 创建和销毁，`infra/eksctl` 仅在你将变量 `create_eks=false` 时才会用到，用于手动创建集群并随后导入 Terraform。若全程使用 Terraform，则无需执行 eksctl，也不会生成任何 CloudFormation Stack。
-
 ## 附录
 
 ### 文档
@@ -346,6 +318,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 * 📘 [每日 EKS 重建与销毁操作指南](docs/daily-rebuild-teardown-guide.md)
 * 📕 [踩坑与排查手册](docs/troubleshooting-guide.md)
 * 🤖 [Codex 智能体操作指南（AGENTS.md）](docs/AGENTS.md)
+* 📕 [eksctl 遗留指引](docs/README_LEGACY.md)
 
 
 ### 检查清单
