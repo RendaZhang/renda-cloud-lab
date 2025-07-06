@@ -39,6 +39,14 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
+# 判断 EKS 集群是否存在
+cluster_exists() {
+  aws eks describe-cluster \
+    --name "$CLUSTER_NAME" \
+    --region "$REGION" \
+    --profile "$PROFILE" >/dev/null 2>&1
+}
+
 # 更新 kubeconfig 以连接 EKS 集群
 update_kubeconfig() {
   log "🔄 更新 kubeconfig 以连接 EKS 集群: $CLUSTER_NAME"
@@ -224,6 +232,11 @@ perform_health_checks() {
 
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
+
+if ! cluster_exists; then
+  log "⚠️  未找到 EKS 集群 $CLUSTER_NAME，可能已销毁，脚本退出"
+  exit 0
+fi
 
 log "🔍 获取最新的 ASG 名称"
 asg_name=$(get_latest_asg)

@@ -19,6 +19,14 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
+# 判断 EKS 集群是否存在
+cluster_exists() {
+  aws eks describe-cluster \
+    --name "$CLUSTER_NAME" \
+    --region "$REGION" \
+    --profile "$PROFILE" >/dev/null 2>&1
+}
+
 delete_log_group() {
   log "🧹 清理 CloudWatch Log Group: $LOG_GROUP"
   if aws logs describe-log-groups \
@@ -101,6 +109,10 @@ check_sns_unbound() {
 }
 
 # === 主流程 ===
+if cluster_exists; then
+  log "⚠️  检测到 EKS 集群 $CLUSTER_NAME 仍存在，疑似未执行销毁操作，脚本退出"
+  exit 0
+fi
 delete_log_group
 check_nat_gateway_deleted
 check_alb_deleted
