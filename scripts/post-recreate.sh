@@ -213,6 +213,10 @@ if [[ -z "$asg_name" ]]; then
   exit 1
 fi
 
+log "🔍 检查 Cluster Autoscaler 部署状态"
+autoscaler_status=$(check_autoscaler_status)
+log "Cluster Autoscaler status: $autoscaler_status"
+
 if [[ -f "$STATE_FILE" ]]; then
   last_bound_asg=$(cat "$STATE_FILE")
 else
