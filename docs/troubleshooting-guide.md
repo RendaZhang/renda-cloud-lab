@@ -1,6 +1,6 @@
 # 集群故障排查指南 (Troubleshooting Guide)
 
-* Last Updated: July 5, 2025, 20:40 (UTC+8)
+* Last Updated: July 6, 2025, 17:00 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 简介 (Purpose)
@@ -66,7 +66,7 @@
 
 ## Terraform `aws.billing` alias 报 “No valid credential sources found”
 
-* **问题现象 (What Happened)**  
+* **问题现象 (What Happened)**
   运行 `terraform plan` / `make stop-hard` 等命令时，初始化 `provider["registry.terraform.io/hashicorp/aws"].billing` 阶段失败，终端输出：
   ```
   Error: No valid credential sources found
@@ -74,8 +74,8 @@
   │ Error: failed to refresh cached credentials, no EC2 IMDS role found, operation error ec2imds: GetMetadata, request canceled, context deadline exceeded
   ````
 
-* **背景场景 (Context)**  
-在 budgets.tf 中为 **AWS Budgets** 声明了专用 alias：  
+* **背景场景 (Context)**
+在 budgets.tf 中为 **AWS Budgets** 声明了专用 alias：
   ```hcl
   provider "aws" {
     alias  = "billing"
