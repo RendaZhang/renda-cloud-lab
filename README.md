@@ -91,7 +91,7 @@ infra/
 ├── terraform/              # 管理集群 Infra（VPC/EKS/IAM/NodeGroup）
 scripts/
 ├── post-recreate.sh        # 集群创建后，刷新 kubeconfig 并部署 core service
-├── post-teardown.sh        # 完全销毁后清理 CloudWatch 日志组
+├── post-teardown.sh        # 完全销毁后清理日志组并确认资源删除
 ├── deploy-service-a.sh     # 部署业务微服务 A（未来）
 helm-charts/
 ├── cluster-autoscaler/
@@ -235,10 +235,10 @@ make preflight   # 等同于 bash scripts/preflight.sh
 * `make start` — **启动基础设施资源**：执行 Terraform 将 NAT 网关、ALB 等高成本资源启用，并确保 EKS 集群（控制平面及节点组）处于运行状态（集群资源现已由 Terraform 统一管理）。通常在每天实验开始时运行，恢复网络出口和对外服务能力。
 * `make stop` — **停止基础设施资源**：执行 Terraform 关闭 NAT 网关、ALB 等非必要资源，并将 EKS 集群的节点组 (NodeGroup) 实例数缩容至 0，保留 EKS 控制平面和基础设施状态，但暂停对外网络访问。适用于每日实验结束时销毁高成本资源，降低支出。
 * `make stop-hard` — **硬停用完整环境**：通过 Terraform 同时销毁 NAT 网关、ALB 以及 EKS 控制平面和节点组，实现完整环境的彻底停止。用于长时间暂停实验时的彻底关停，避免持续产生任何费用（除了保留的 VPC 和状态存储等）。
-* `make stop-all` — **硬停机并清理日志组**：在 `stop-hard` 的基础上，额外执行 `scripts/post-teardown.sh`，删除残留的 EKS CloudWatch Log Group，避免计费累积。
+* `make stop-all` — **硬停机并清理日志组与检查**：在 `stop-hard` 的基础上，额外执行 `scripts/post-teardown.sh`，删除残留的 EKS CloudWatch Log Group，并验证 NAT 网关、ALB、EKS 集群及 SNS 通知等资源均已正确移除，避免计费累积。
 * `make post-recreate` — 刷新本地 kubeconfig 并使用 Helm 部署，以及运行 Spot 通知自动绑定
 * `make start-all` — `start` → `post-recreate` 一键全流程
-* `make destroy-all` — **⚠️ 高危！** 先运行 `make stop-hard`，再执行 Terraform 销毁所有资源并调用 `post-teardown.sh` 清理日志组
+* `make destroy-all` — **⚠️ 高危！** 先运行 `make stop-hard`，再执行 Terraform 销毁所有资源并调用 `post-teardown.sh` 清理日志组并执行删除后检查
 * `make check` — 本地依赖工具链检测（aws / terraform / helm），并将结果写入 `scripts/logs/check-tools.log`
 * `make logs` — 查看 `scripts/logs/` 下各类日志，自动展示 `post-recreate.log`、`preflight.txt`、`check-tools.log`
 * `make clean` — 删除 Spot 绑定缓存文件并清空日志目录及计划文件
@@ -332,7 +332,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas                         |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态                          |
 | `post-recreate.sh`        | 刷新 kubeconfig，使用 Helm 进行部署，以及自动为最新 NodeGroup 绑定 Spot Interruption SNS |
-| `post-teardown.sh`        | 销毁集群后清理残留的 CloudWatch 日志组 |
+| `post-teardown.sh`        | 销毁集群后清理 CloudWatch 日志组并验证所有资源已删除 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本    |
 | `update-diagrams.sh`      | 图表生成脚本                                                              |
 

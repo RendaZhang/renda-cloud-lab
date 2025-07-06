@@ -102,7 +102,7 @@ make stop-hard
 make stop-all
 ```
 
-> 该操作不会删除 VPC、Route Table、KMS 等基础结构；`stop-all` 会在销毁集群后额外执行 `scripts/post-teardown.sh` 清理 EKS CloudWatch 日志组
+> 该操作不会删除 VPC、Route Table、KMS 等基础结构；`stop-all` 会在销毁集群后额外执行 `scripts/post-teardown.sh` 清理日志组并检查 NAT 网关、ALB、EKS 等资源是否完全移除
 
 ---
 
@@ -114,7 +114,7 @@ make stop-all
 make destroy-all
 ```
 
-> 将先运行 `make stop-hard` 删除 EKS 控制面，随后执行 `terraform destroy` 清理所有基础设施，并在最后调用 `post-teardown.sh` 删除 CloudWatch 日志组 (first runs `make stop-hard` to remove the EKS control plane, then calls `terraform destroy` followed by `post-teardown.sh` to delete the log group)
+> 将先运行 `make stop-hard` 删除 EKS 控制面，随后执行 `terraform destroy` 清理所有基础设施，并在最后调用 `post-teardown.sh` 删除日志组并验证资源删除情况 (first runs `make stop-hard` to remove the EKS control plane, then calls `terraform destroy` followed by `post-teardown.sh` to delete the log group and run final checks)
 
 ---
 

@@ -147,7 +147,7 @@
 
 2. **停止高成本资源 (Shut Down High-Cost Resources)**：该步骤通过 Terraform 销毁白天创建的 NAT 网关、ALB 等资源，但保留基础网络框架，方便日后重建。EKS 集群的控制面通常在此操作中予以保留运行（除非选择了同时销毁集群，详见后文“硬停机”说明或下一步的完全销毁）。
 
-   * **Makefile 命令**：执行 `make stop` 即可一键销毁当日启用的外围资源。此命令会在 `infra/aws` 目录下调用 Terraform，将 `create_nat`、`create_alb` 等变量置为 false（默认不修改 `create_eks`，集群控制面保持开启）后执行 `terraform apply`。若希望连同 EKS 控制面一起关闭，可使用 `make stop-hard`，该命令会将 `create_eks=false` 一并销毁集群。如需额外清理 CloudWatch 日志组，可使用 `make stop-all`，它会在 `stop-hard` 基础上调用 `post-teardown.sh`。
+   * **Makefile 命令**：执行 `make stop` 即可一键销毁当日启用的外围资源。此命令会在 `infra/aws` 目录下调用 Terraform，将 `create_nat`、`create_alb` 等变量置为 false（默认不修改 `create_eks`，集群控制面保持开启）后执行 `terraform apply`。若希望连同 EKS 控制面一起关闭，可使用 `make stop-hard`，该命令会将 `create_eks=false` 一并销毁集群。如需额外清理 CloudWatch 日志组并验证资源是否完全删除，可使用 `make stop-all`，它会在 `stop-hard` 基础上调用 `post-teardown.sh`。
 
    * **手动 Terraform 命令**：也可以手动执行 Terraform 实现相同效果。在 `infra/aws` 目录下运行如下命令关闭相关组件：
 
@@ -177,7 +177,7 @@
 
     执行硬停机命令后，可通过 `aws eks list-clusters --region us-east-1 --profile phase2-sso` 确认集群已不存在。
     **注意**：若历史上曾使用 eksctl 创建过集群，可能在 CloudFormation 中留下 `eksctl-dev-cluster` 等栈。Terraform 删除集群后，请手动删除这些栈，以防资源残留。
-   * **Makefile 命令**：执行 `make destroy-all` 触发一键完全销毁流程。该命令会先调用 `make stop-hard` 删除 EKS 控制面，再运行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源。最后会自动执行 `post-teardown.sh` 清理 CloudWatch 日志组。`make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。执行前请再次确认 AWS 凭证有效且无重要资源遗漏在状态外。
+   * **Makefile 命令**：执行 `make destroy-all` 触发一键完全销毁流程。该命令会先调用 `make stop-hard` 删除 EKS 控制面，再运行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源。最后会自动执行 `post-teardown.sh` 清理 CloudWatch 日志组并再次验证所有资源均已删除。`make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。执行前请再次确认 AWS 凭证有效且无重要资源遗漏在状态外。
 
    * **手动销毁命令**：完整销毁也可通过一条 Terraform 指令完成。在 `infra/aws` 目录下执行：
 
@@ -216,7 +216,7 @@
 * ❌ **EKS 集群状态 (EKS cluster state)**：
   如执行 `make stop-hard`，`aws eks list-clusters --region us-east-1 --profile phase2-sso` 中不应出现集群名称；若仅执行 `make stop`，集群依旧存在但工作节点应已缩容至 0。
 * ❌ **Spot 通知解绑 (Spot notification unsubscribed)**：
-  检查 `scripts/logs/stop.log` 或 SNS 控制台，确认 Auto Scaling Group 已无 Spot 中断订阅。
+  `post-teardown.sh` 会自动检查 ASG 是否仍绑定通知，也可在 SNS 控制台确认。
 * ❌ **CloudWatch -> Log Group 已经删除。**
 
 若上述项目均符合预期，即表示夜间销毁流程顺利完成。若发现未删除的资源，可重新运行 Terraform 或检查日志排查原因。
