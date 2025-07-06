@@ -5,6 +5,10 @@ repos:
     hooks:
       - id: terraform_fmt
       - id: terraform_validate
+        # JSON 格式输出
+        args: [--args=-json]
+        # 排除子模块目录
+        exclude: modules/
       - id: terraform_tflint
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -17,5 +21,6 @@ repos:
     rev: v1.35.1
     hooks:
       - id: yamllint
-        files: \.(yaml|yml)$
-        additional_dependencies: [yamllint]
+        # 优化：简化正则表达式（原写法也正确）
+        files: \.(ya?ml)$
+        # 修正：移除冗余依赖（yamllint 已内置）

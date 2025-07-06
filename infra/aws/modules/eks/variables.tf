@@ -6,14 +6,6 @@ variable "cluster_name" {
   type = string
 }
 
-variable "cluster_role_arn" {
-  type = string
-}
-
-variable "node_role_arn" {
-  type = string
-}
-
 variable "private_subnet_ids" {
   type = list(string)
 }
@@ -24,6 +16,12 @@ variable "public_subnet_ids" {
 
 variable "nodegroup_name" {
   type = string
+}
+
+variable "nodegroup_capacity_type" {
+  description = "EKS node group capacity type"
+  type        = string
+  default     = "ON_DEMAND"
 }
 
 variable "instance_types" {
@@ -53,4 +51,10 @@ variable "nodeport_cidrs" {
   description = "CIDR blocks allowed to access NodePort services"
   type        = list(string)
   default     = ["0.0.0.0/0"]
+}
+
+variable "eksctl_version" {
+  description = "Version of eksctl to use"
+  type        = string
+  default     = "0.210.0"
 }

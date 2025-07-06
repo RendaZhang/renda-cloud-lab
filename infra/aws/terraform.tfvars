@@ -2,9 +2,19 @@ region = "us-east-1"
 
 profile = "phase2-sso"
 
-eks_admin_role_arn = "arn:aws:iam::563149051155:role/eks-admin-role"
+cluster_name = "dev"
 
-node_role_arn = "arn:aws:iam::563149051155:role/eksctl-dev-nodegroup-ng-mixed-NodeInstanceRole-6iVyvrDnxZQO"
+nodegroup_capacity_type = "ON_DEMAND"
+
+nodegroup_name = "ng-mixed"
+
+irsa_role_name = "eks-cluster-autoscaler"
+
+service_account_name = "cluster-autoscaler"
+
+kubernetes_default_namespace = "kube-system"
+
+eksctl_version = "0.210.0"
 
 # Enable control plane logs for API server and authenticator
 cluster_log_types = ["api", "authenticator"]

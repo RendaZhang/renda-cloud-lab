@@ -9,14 +9,46 @@ variable "profile" {
   default     = "phase2-sso" # 本机使用的 profile
 }
 
-variable "eks_admin_role_arn" {
-  description = "IAM role ARN with EKS admin permissions"
+variable "cluster_name" {
+  description = "Name of the EKS cluster"
   type        = string
+  default     = "dev"
 }
 
-variable "node_role_arn" {
-  description = "IAM role ARN for EKS worker nodes"
+variable "nodegroup_name" {
+  description = "Name of the EKS node group"
   type        = string
+  default     = "ng-mixed"
+}
+
+variable "nodegroup_capacity_type" {
+  description = "EKS node group capacity type"
+  type        = string
+  default     = "ON_DEMAND" # 可选值：ON_DEMAND, SPOT
+}
+
+variable "irsa_role_name" {
+  description = "Name of the IRSA role"
+  type        = string
+  default     = "eks-cluster-autoscaler"
+}
+
+variable "service_account_name" {
+  description = "Name of the ServiceAccount in Kubernetes"
+  type        = string
+  default     = "cluster-autoscaler"
+}
+
+variable "kubernetes_default_namespace" {
+  description = "Default Kubernetes namespace for the ServiceAccount"
+  type        = string
+  default     = "kube-system"
+}
+
+variable "eksctl_version" {
+  description = "Version of eksctl to use"
+  type        = string
+  default     = "0.210.0"
 }
 
 variable "cluster_log_types" {

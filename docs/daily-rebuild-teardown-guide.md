@@ -1,6 +1,6 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: July 6, 2025, 16:40 (UTC+8)
+* Last Updated: July 6, 2025, 19:10 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
@@ -111,7 +111,7 @@
 
 * **Elastic IP 配额不足 (EIP Quota)**：NAT 网关创建需要分配公有 IP (EIP)。AWS 默认每区最多提供 5 个 Elastic IP。如果环境中已有多个 EIP 占用，Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway: InsufficientAddressCapacity` 或相关配额错误。此时应检查账户的 EIP 使用情况：执行 `aws ec2 describe-addresses --region us-east-1 --profile phase2-sso` 查看已分配的 EIP 数量。如已达到上限，可释放不需要的 EIP，或通过提交 AWS Support 工单申请提高配额。
 
-* **集群创建失败或超时 (EKS Cluster Creation Failure)**：如果 Terraform 创建 EKS 集群的步骤失败（例如网络不通或权限问题导致控制面创建失败），请首先检查 Terraform 部署的基础设施是否全部创建成功（VPC、子网、路由等是否就绪）。常见原因包括：未正确配置 EKS Admin Role（变量 `eks_admin_role_arn` 是否设置了正确的 IAM 角色 ARN），可能导致 EKS 控制面创建权限不足；或者之前已有同名集群未删除干净导致名称冲突。对于权限问题，可确认 Terraform 配置中的 IAM Role ARN 是否正确。如是名称冲突，需确保将现有的同名集群删除或导入 Terraform 管理：可以通过 AWS CLI 或控制台删除残留的集群，然后重新执行部署。若创建过程长时间无响应，可登录 AWS 控制台查看 EKS 集群状态或 CloudFormation 服务，找到失败原因并针对性处理。
+* **集群创建失败或超时 (EKS Cluster Creation Failure)**：如果 Terraform 创建 EKS 集群的步骤失败（例如网络不通或权限问题导致控制面创建失败），请首先检查 Terraform 部署的基础设施是否全部创建成功（VPC、子网、路由等是否就绪）。常见原因包括：未正确配置 EKS Role，可能导致 EKS 控制面创建权限不足；或者之前已有同名集群未删除干净导致名称冲突。对于权限问题，可确认 Terraform 配置中的 IAM Role 是否正确。如是名称冲突，需确保将现有的同名集群删除或导入 Terraform 管理：可以通过 AWS CLI 或控制台删除残留的集群，然后重新执行部署。若创建过程长时间无响应，可登录 AWS 控制台查看 EKS 集群状态或 CloudFormation 服务，找到失败原因并针对性处理。
 
 * **Terraform 计划有意外更改 (Unexpected Terraform Plan Changes)**：如果在日常运行 `terraform plan` 或 `make start/stop` 时看到有非预期的资源更改（如计划销毁或新建集群等），应检查是否有人工在 AWS 控制台或其他工具中修改了基础设施（例如修改了安全组规则、删除了某些资源等）。此时建议谨慎执行 Terraform，先弄清变更来源。如确实存在 drift，可通过 Terraform Import 或手动调整 Terraform 配置来消除不一致，然后再次运行 plan 验证无变动后再进行 apply。
 

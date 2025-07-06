@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: July 6, 2025, 16:40 (UTC+8)
+* Last Updated: July 6, 2025, 19:10 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -113,7 +113,7 @@ docs/
 
 在开始部署之前，请确保满足以下前置条件：
 
-* **AWS 账户及权限**：拥有可用的 AWS 账户，并已安装并配置 AWS CLI（例如通过 `aws configure` 或 AWS SSO 登录）。**本项目默认使用 AWS CLI 的 SSO Profile 名称 `phase2-sso`，默认区域为 `us-east-1`**，如与你的配置不同请相应调整后续命令。建议创建一支具有管理员权限的 IAM Role（例如 `eks-admin-role`），用于 EKS 集群的管理操作。
+* **AWS 账户及权限**：拥有可用的 AWS 账户，并已安装并配置 AWS CLI（例如通过 `aws configure` 或 AWS SSO 登录）。**本项目默认使用 AWS CLI 的 SSO Profile 名称 `phase2-sso`，默认区域为 `us-east-1`**，如与你的配置不同请相应调整后续命令。
 * **Terraform 后端**：提前创建用于 Terraform 状态存储的 S3 Bucket 及 DynamoDB 锁定表，并在 `infra/aws/backend.tf` 中相应配置名称。默认假定 S3 Bucket 名为 `phase2-tf-state-us-east-1`，DynamoDB 表名为 `tf-state-lock`（可根据需要修改）。
 * **DNS 域名**（可选）：若希望使用自定义域名访问集群服务，请在 Route 53 中预先创建相应 Hosted Zone（当前默认使用的子域为 `lab.rendazhang.com`）。将 Terraform 配置中的域名更新为你的域名，以便将 ALB 地址映射到固定域名。否则，可忽略 DNS 配置，直接使用自动分配的 ALB 域名访问服务。
 * **本地环境**：安装 Terraform (~1.8+)、kubectl 以及 Helm 等必要的命令行工具，同时安装 Git 和 Make 等基础工具。若因兼容性需要使用 eksctl，请参阅 [docs/README_LEGACY.md](docs/README_LEGACY.md)。
@@ -163,31 +163,11 @@ make check-auto    # 自动安装全部缺失工具（无提示）
    terraform apply -auto-approve
    ```
 
-   *注意：Terraform 将根据 `terraform.tfvars` 中的配置在指定区域创建资源，并使用提供的 IAM Role ARN 设置 EKS Admin 权限。若未修改，本项目默认 Region 为 `us-east-1`。*
+   *注意：Terraform 将根据 `terraform.tfvars` 中的配置在指定区域创建资。若未修改，本项目默认 Region 为 `us-east-1`。*
 
 3. **（可选）手动创建并导入 EKS 集群**：默认情况下，步骤 2 中的 `terraform apply` 已同时创建 EKS 控制平面和托管节点组（变量 `create_eks=true`）。若因特殊需求将 `create_eks=false`，请参考 [docs/README_LEGACY.md](docs/README_LEGACY.md) 使用 eksctl 创建集群并随后导入 Terraform。
 
-### 节点角色所需 IAM 策略 (Mandatory Node Role Policies)
-
-在 `infra/aws/variables.tf` 中的 `node_role_arn` 变量指定了托管节点组使用的 IAM Role。创建该 Role 时请至少绑定以下 AWS 托管策略 (AWS Managed Policies)：
-
-* `AmazonEKSWorkerNodePolicy` — 允许工作节点加入集群并与控制平面通信。
-* `AmazonEKS_CNI_Policy` — 授权 CNI 插件在 VPC 中创建和管理 ENI。
-* `AmazonEC2ContainerRegistryReadOnly` — 使节点能够从 ECR 拉取镜像。
-
-这些策略缺一不可，否则节点启动时可能无法正常注册到集群。
-
-4. **验证集群**：确保本地 `kubeconfig` 已更新并指向新创建的 EKS 集群。执行简单的 Kubernetes 命令确认集群正常运行，例如：
-
-   ```bash
-  kubectl get svc
-  kubectl get nodes
-  kubectl get pods -A
-  ```
-
-  若能正常列出 Kubernetes 节点和服务，则基础设施部分部署成功。
-
-#### 首次创建 Spot Interruption SNS Topic (One-Time Setup)
+### 首次创建 Spot Interruption SNS Topic (One-Time Setup)
 
 如需接收节点被回收前两分钟的通知，请在第一次部署时手动创建并订阅 SNS 主题 `spot-interruption-topic`：
 
@@ -316,8 +296,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
   **答**：运行 `make preflight`，脚本会自动检查本地 CLI 工具版本、AWS SSO 登录状态，以及关键配额（如 ENI / vCPU / Spot 使用情况），并生成报告帮助你评估当前环境是否符合要求。
 
 * **问：如何将本项目部署到我的 AWS 账户？需要修改哪些配置？**
-  **答**：首先请确保满足文档中提到的所有前置条件，然后在 `infra/aws/terraform.tfvars` 中修改必要的变量以匹配你的环境。例如，将 `profile` 更新为你的 AWS CLI 配置文件名，提供你自有的 S3 Bucket 和 DynamoDB 表用于 Terraform 后端存储，并替换 `eks_admin_role_arn` 为你账户中具有管理员权限的 IAM Role。若使用自定义域名，还需要在 Terraform 配置中将默认的 `lab.rendazhang.com` 改为你的域名并提供对应的 Hosted Zone。完成配置后，按照**安装部署指南**中的步骤执行 Terraform 和相关脚本即可。部署过程中请确保 AWS 凭证有效且有足够权限创建所需资源。
-  `terraform.tfvars` 还包含 AWS Budgets 相关变量，可将 `create_budget=false` 以兼容无 Billing 权限的账号。
+  **答**：首先请确保满足文档中提到的所有前置条件，然后在 `infra/aws/terraform.tfvars` 中修改必要的变量以匹配你的环境。例如，将 `profile` 更新为你的 AWS CLI 配置文件名，提供你自有的 S3 Bucket 和 DynamoDB 表用于 Terraform 后端存储。若使用自定义域名，还需要在 Terraform 配置中将默认的 `lab.rendazhang.com` 改为你的域名并提供对应的 Hosted Zone。完成配置后，按照**安装部署指南**中的步骤执行 Terraform 和相关脚本即可。部署过程中请确保 AWS 凭证有效且有足够权限创建所需资源。`terraform.tfvars` 还包含 AWS Budgets 相关变量，可将 `create_budget=false` 以兼容无 Billing 权限的账号。
 
 * **问：每天自动销毁和重建集群环境是如何实现的？可以自定义这个调度吗？**
   **答**：本项目通过 Makefile 脚本和 Terraform 模块实现资源的按日启停：早晨执行 `make start` 创建 NAT 网关、ALB 等资源，夜晚执行 `make stop` 销毁这些资源并保留基础设施状态。你可以利用 CI/CD 平台的定时任务实现全自动调度，例如使用 GitHub Actions 的 `cron` 定时触发 `make start/stop`，或通过 AWS CodePipeline 配合 EventBridge 定时事件触发。同样地，你也可以根据需要调整策略：例如，仅在工作日执行自动启停，周末保持关闭，甚至完全停用自动销毁（但需承担额外费用）。调度的灵活性完全取决于你的实验需求。

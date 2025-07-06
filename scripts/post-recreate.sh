@@ -17,8 +17,10 @@ set -euo pipefail
 CLOUD_PROVIDER="aws"
 PROFILE="phase2-sso"
 REGION="us-east-1"
+
 CLUSTER_NAME="dev"
 NODEGROUP_NAME="ng-mixed"
+KUBE_DEFAULT_NAMESPACE="kube-system"
 ASG_PREFIX="eks-${NODEGROUP_NAME}"
 ACCOUNT_ID="563149051155"
 TOPIC_NAME="spot-interruption-topic"
@@ -26,7 +28,8 @@ TOPIC_ARN="arn:${CLOUD_PROVIDER}:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
 STATE_FILE="scripts/.last-asg-bound"
 AUTOSCALER_CHART_NAME="cluster-autoscaler"
 AUTOSCALER_RELEASE_NAME=${AUTOSCALER_CHART_NAME}
-AUTOSCALER_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/eks-${AUTOSCALER_RELEASE_NAME}"
+AUTOSCALER_ROLE_NAME="eks-cluster-autoscaler"
+AUTOSCALER_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${AUTOSCALER_ROLE_NAME}"
 DEPLOYMENT_AUTOSCALER_NAME="${AUTOSCALER_RELEASE_NAME}-${CLOUD_PROVIDER}-${AUTOSCALER_CHART_NAME}"
 POD_AUTOSCALER_LABEL="app.kubernetes.io/name=${AUTOSCALER_RELEASE_NAME}"
 
@@ -46,11 +49,11 @@ update_kubeconfig() {
 
 # 检查 Cluster Autoscaler 部署状态
 check_autoscaler_status() {
-  if ! kubectl -n kube-system get deployment $DEPLOYMENT_AUTOSCALER_NAME >/dev/null 2>&1; then
+  if ! kubectl -n $KUBE_DEFAULT_NAMESPACE get deployment $DEPLOYMENT_AUTOSCALER_NAME >/dev/null 2>&1; then
     echo "missing"
     return
   fi
-  if kubectl -n kube-system get pod -l $POD_AUTOSCALER_LABEL \
+  if kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_AUTOSCALER_LABEL \
       --no-headers 2>/dev/null | grep -v Running >/dev/null; then
     echo "unhealthy"
   else
@@ -72,7 +75,7 @@ install_autoscaler() {
       ;;
     unhealthy)
       log "❌ 检测到 Cluster Autoscaler 状态异常, 删除旧 Pod 后重新部署"
-      kubectl -n kube-system delete pod -l $POD_AUTOSCALER_LABEL --ignore-not-found
+      kubectl -n $KUBE_DEFAULT_NAMESPACE delete pod -l $POD_AUTOSCALER_LABEL --ignore-not-found
       ;;
     *)
       log "⚠️  未知的 Cluster Autoscaler 状态, 继续尝试安装"
@@ -90,7 +93,7 @@ install_autoscaler() {
   K8S_MINOR_VERSION=$(echo "$K8S_FULL_VERSION" | sed -E 's/^v([0-9]+\.[0-9]+)\..*$/\1/')
   # 确定 Cluster Autoscaler 版本 (总是使用 .0 补丁版本)
   AUTOSCALER_VERSION="v${K8S_MINOR_VERSION}.0"
-  helm upgrade --install ${AUTOSCALER_RELEASE_NAME} autoscaler/${AUTOSCALER_CHART_NAME} -n kube-system --create-namespace \
+  helm upgrade --install ${AUTOSCALER_RELEASE_NAME} autoscaler/${AUTOSCALER_CHART_NAME} -n $KUBE_DEFAULT_NAMESPACE --create-namespace \
     --set awsRegion=$REGION \
     --set autoDiscovery.clusterName=$CLUSTER_NAME \
     --set rbac.serviceAccount.create=true \
@@ -101,9 +104,9 @@ install_autoscaler() {
     --set image.tag=$AUTOSCALER_VERSION
   log "✅ Helm install completed"
   log "🔍 检查 Cluster Autoscaler Pod 状态"
-  kubectl -n kube-system get pod -l $POD_AUTOSCALER_LABEL
+  kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_AUTOSCALER_LABEL
   log "如果 Helm 部署失败，重新部署后，需要执行如下命令删除旧 Pod 让 Deployment 拉新配置: "
-  log "kubectl -n kube-system delete pod -l $POD_AUTOSCALER_LABEL"
+  log "kubectl -n $KUBE_DEFAULT_NAMESPACE delete pod -l $POD_AUTOSCALER_LABEL"
 }
 
 # 获取当前最新 ASG 名

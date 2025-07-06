@@ -3,6 +3,11 @@ variable "name" {
   type        = string
 }
 
+variable "cluster_name" {
+  description = "Name of the EKS cluster"
+  type        = string
+}
+
 variable "namespace" {
   description = "K8s Namespace of the ServiceAccount"
   type        = string
