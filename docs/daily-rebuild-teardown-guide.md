@@ -1,6 +1,6 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: July 6, 2025, 22:20 (UTC+8)
+* Last Updated: July 6, 2025, 23:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
@@ -205,6 +205,8 @@
 
 ## ✅ 销毁清单验证 (Evening Checklist)
 
+* ✅ **Terraform 状态存储保留 (State bucket retained)**：
+  `aws s3 ls s3://phase2-tf-state-us-east-1 --profile phase2-sso` 可看到状态文件。
 * ✅ **VPC 与子网保留 (VPC & subnets retained)**：
   `aws ec2 describe-vpcs --region us-east-1 --profile phase2-sso` 及 `aws ec2 describe-subnets` 仍会列出网络资源。
 * ❌ **NAT 网关已删除 (NAT Gateway removed)**：
@@ -215,8 +217,6 @@
   如执行 `make stop-hard`，`aws eks list-clusters --region us-east-1 --profile phase2-sso` 中不应出现集群名称；若仅执行 `make stop`，集群依旧存在但工作节点应已缩容至 0。
 * ❌ **Spot 通知解绑 (Spot notification unsubscribed)**：
   检查 `scripts/logs/stop.log` 或 SNS 控制台，确认 Auto Scaling Group 已无 Spot 中断订阅。
-* ❌ **Terraform 状态存储保留 (State bucket retained)**：
-  `aws s3 ls s3://phase2-tf-state-us-east-1 --profile phase2-sso` 可看到状态文件。
 * ❌ **CloudWatch -> Log Group 已经删除。**
 
 若上述项目均符合预期，即表示夜间销毁流程顺利完成。若发现未删除的资源，可重新运行 Terraform 或检查日志排查原因。
