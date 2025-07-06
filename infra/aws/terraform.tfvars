@@ -11,3 +11,9 @@ cluster_log_types = ["api", "authenticator"]
 
 # Instance types for EKS node group
 instance_types = ["t3.small", "t3.medium"]
+
+# --- Budget settings ---
+create_budget              = true
+budget_limit_usd           = 90
+budget_email               = "rendazhang@qq.com"
+budget_alert_threshold_pct = 80

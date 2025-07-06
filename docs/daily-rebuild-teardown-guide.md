@@ -1,13 +1,14 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: July 6, 2025, 15:20 (UTC+8)
+* Last Updated: July 6, 2025, 16:40 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
 
 ### 操作目的与背景 (Purpose & Background)
 
-每日早晨的重建流程旨在恢复前一晚为节省成本而释放的云资源，以便白天开展实验或开发工作。通过在早晨自动部署必要的基础设施（如 NAT 网关、ALB 负载均衡）并确保 EKS 集群正常运行，我们可以在确保功能完整的同时，将不必要的云开销降至最低。这一策略利用 Terraform 和脚本实现云资源的 **“日间启用，夜间销毁”**——每天上午重建环境、晚上销毁高成本资源，从而保留基础设施状态以便快速重建，并避免不必要的支出。
+ 每日早晨的重建流程旨在恢复前一晚为节省成本而释放的云资源，以便白天开展实验或开发工作。通过在早晨自动部署必要的基础设施（如 NAT 网关、ALB 负载均衡）并确保 EKS 集群正常运行，我们可以在确保功能完整的同时，将不必要的云开销降至最低。这一策略利用 Terraform 和脚本实现云资源的 **“日间启用，夜间销毁”**——每天上午重建环境、晚上销毁高成本资源，从而保留基础设施状态以便快速重建，并避免不必要的支出。
+此外，本仓库已通过 Terraform 创建 AWS Budgets（默认 90 USD），当花费接近阈值时会以邮件提醒。(AWS Budgets are provisioned via Terraform with a default 90 USD limit to email alerts when spending nears the threshold.)
 
 
 ### 步骤与命令详解 (Steps and Commands)

@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: July 6, 2025, 15:20 (UTC+8)
+* Last Updated: July 6, 2025, 16:40 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -298,6 +298,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 * **弹性扩缩容**：集群工作节点采用按需 **Spot 实例**（结合 Karpenter 或 Auto Scaling），根据负载自动伸缩。在无工作负载时可将节点数缩至 0 以节省开销（提供了 `scripts/scale-nodegroup-zero.sh` 脚本可一键将节点组缩容至 0）。恢复实验时，只需重新部署应用或产生新负载，节点便会按需启动。
 
 * **Spot 中断预警**：`post-recreate.sh` 会自动刷新本地 kubeconfig，使用 Helm 进行部署，然后把最新 NodeGroup 的 ASG 订阅到 `spot-interruption-topic`，确保节点被回收前 2 分钟触发 SNS → 邮件/ChatOps，方便预留时间将应用流量疏散或触发自动化操作。
+* **成本预算提醒**：通过 Terraform 创建 AWS Budgets（默认 90 USD），当支出达到设定比例时会向指定邮箱发送警报。
 
 通过以上措施，实验集群在确保功能完整的同时，将日常运行成本控制在低水平。如需了解每天晚上关机、早上重建的具体操作步骤及故障排查，请参阅 [每日 EKS 重建与销毁操作指南](docs/daily-rebuild-teardown-guide.md)。下表为启用成本控制策略下的主要资源月度费用估算：
 
@@ -316,6 +317,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 * **问：如何将本项目部署到我的 AWS 账户？需要修改哪些配置？**
   **答**：首先请确保满足文档中提到的所有前置条件，然后在 `infra/aws/terraform.tfvars` 中修改必要的变量以匹配你的环境。例如，将 `profile` 更新为你的 AWS CLI 配置文件名，提供你自有的 S3 Bucket 和 DynamoDB 表用于 Terraform 后端存储，并替换 `eks_admin_role_arn` 为你账户中具有管理员权限的 IAM Role。若使用自定义域名，还需要在 Terraform 配置中将默认的 `lab.rendazhang.com` 改为你的域名并提供对应的 Hosted Zone。完成配置后，按照**安装部署指南**中的步骤执行 Terraform 和相关脚本即可。部署过程中请确保 AWS 凭证有效且有足够权限创建所需资源。
+  `terraform.tfvars` 还包含 AWS Budgets 相关变量，可将 `create_budget=false` 以兼容无 Billing 权限的账号。
 
 * **问：每天自动销毁和重建集群环境是如何实现的？可以自定义这个调度吗？**
   **答**：本项目通过 Makefile 脚本和 Terraform 模块实现资源的按日启停：早晨执行 `make start` 创建 NAT 网关、ALB 等资源，夜晚执行 `make stop` 销毁这些资源并保留基础设施状态。你可以利用 CI/CD 平台的定时任务实现全自动调度，例如使用 GitHub Actions 的 `cron` 定时触发 `make start/stop`，或通过 AWS CodePipeline 配合 EventBridge 定时事件触发。同样地，你也可以根据需要调整策略：例如，仅在工作日执行自动启停，周末保持关闭，甚至完全停用自动销毁（但需承担额外费用）。调度的灵活性完全取决于你的实验需求。
