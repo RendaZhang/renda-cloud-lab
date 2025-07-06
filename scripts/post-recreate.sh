@@ -132,10 +132,6 @@ bind_sns_notification() {
 # 确保 SNS 绑定到最新 ASG
 ensure_sns_binding() {
   local asg_name="$1"
-  if [[ -z "$asg_name" ]]; then
-    log "❌ 未找到以 $ASG_PREFIX 开头的 ASG, 终止脚本"
-    exit 1
-  fi
   if [[ -f "$STATE_FILE" ]]; then
     last_bound_asg=$(cat "$STATE_FILE")
   else
@@ -229,12 +225,16 @@ perform_health_checks() {
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
 
+log "🔍 获取最新的 ASG 名称"
+asg_name=$(get_latest_asg)
+if [[ -z "$asg_name" ]]; then
+  log "❌ 未找到以 $ASG_PREFIX 开头的 ASG, 终止脚本"
+  exit 1
+fi
+
 update_kubeconfig
 
 install_autoscaler
-
-log "🔍 获取最新的 ASG 名称"
-asg_name=$(get_latest_asg)
 
 ensure_sns_binding "$asg_name"
 
