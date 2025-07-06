@@ -64,6 +64,64 @@
 
 ---
 
+## Terraform `aws.billing` alias 报 “No valid credential sources found”
+
+* **问题现象 (What Happened)**  
+  运行 `terraform plan` / `make stop-hard` 等命令时，初始化 `provider["registry.terraform.io/hashicorp/aws"].billing` 阶段失败，终端输出：
+  ```
+  Error: No valid credential sources found
+  │
+  │ Error: failed to refresh cached credentials, no EC2 IMDS role found, operation error ec2imds: GetMetadata, request canceled, context deadline exceeded
+  ````
+
+* **背景场景 (Context)**  
+在 budgets.tf 中为 **AWS Budgets** 声明了专用 alias：  
+  ```hcl
+  provider "aws" {
+    alias  = "billing"
+    region = "us-east-1"
+  }
+  ````
+
+本地通过 **AWS SSO** 登录 (`phase2-sso` profile)。如果当前 Shell 未 export `AWS_PROFILE`，或 SSO token 过期，Terraform 初始化 alias 时将走完整的 AWS SDK credential chain，最终回落至 **IMDS** 而失败。
+
+* **根因分析 (Root Cause)**
+
+  *alias* provider 与默认 provider 是两条独立的 credential chain。
+  当 Shell 未暴露任何凭证，且不在 EC2 环境时，SDK 报 `no EC2 IMDS role found`，从而触发 *No valid credential sources found*。
+
+* **修复方法 (Fix / Resolution)**
+
+  1. **刷新 SSO 并导出 profile**（最简单）
+     ```bash
+     aws sso login --profile phase2-sso
+     export AWS_PROFILE=phase2-sso    # 或在 Makefile 默认 export
+     ```
+  2. **在 alias provider 内显式指定 profile**
+     ```hcl
+     provider "aws" {
+       alias   = "billing"
+       region  = "us-east-1"
+       profile = var.aws_profile   # 默认 "phase2-sso"
+     }
+     ```
+  3. **CI 场景**：使用 Access Key / OIDC Role，或 `aws sso login --no-browser` 预热 token。
+  4. 若只是 Fork & 无 Billing 权限，可在 `terraform apply -var="create_budget=false"` 下跳过 Budget 资源，避免 alias provider 被实例化。
+
+* **相关命令 (Commands Used)**
+  ```bash
+  aws sts get-caller-identity --profile phase2-sso
+  terraform providers
+  terraform plan -var="create_budget=false"
+  ```
+
+* **适用版本 (Version Info)**
+  * Terraform ≥ 1.6
+  * AWS Provider ≥ 5.x
+  * AWS CLI v2 + SSO
+
+---
+
 ## Terraform 导入 IAM Role Policy Attachment 使用短名失败（需使用完整 ARN）
 
 * **问题现象 (What Happened)**：执行 `terraform import aws_iam_role_policy_attachment.xxx ROLE_NAME/POLICY_NAME` 报错：提示 `unexpected format of ID ... expected <role-name>/<policy_arn>`，或者提示 `ValidationError: The specified value for roleName is invalid`。
