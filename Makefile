@@ -120,6 +120,8 @@ clean:
 	@rm -f scripts/*.tmp scripts/*.bak 2>/dev/null || true
 	@rm -f plan.out *.tfplan 2>/dev/null || true
 	@rm -rf $(TF_DIR)/.terraform 2>/dev/null || true
+	@rm -rf $(TF_DIR)/modules/*/.terraform 2>/dev/null || true
+	@rm -rf $(TF_DIR)/modules/*/.terraform.lock.hcl 2>/dev/null || true
 	@echo "🧹 清理完成：临时文件和日志已删除"
 
 # 📊 更新架构图
