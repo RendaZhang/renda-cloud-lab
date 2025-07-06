@@ -29,7 +29,8 @@ iam:
   # 为后续 IRSA / Autoscaler 打基础
   withOIDC: true
   # 指向手动建的 Role，权限：AmazonEKSClusterPolicy + AmazonEKSVPCResourceController
-  serviceRoleARN: "arn:aws:iam::563149051155:role/eks-admin-role"
+  # $ACCOUNT_ID 需要被代替为 AWS 账号 ID
+  serviceRoleARN: "arn:aws:iam::$ACCOUNT_ID:role/eks-admin-role"
 
 managedNodeGroups:
   - name: ng-mixed

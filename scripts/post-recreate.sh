@@ -16,14 +16,17 @@ set -euo pipefail
 
 # === 可配置参数 ===
 CLOUD_PROVIDER="aws"
-PROFILE="phase2-sso"
-REGION="us-east-1"
+# 可通过环境变量覆盖
+PROFILE=${AWS_PROFILE:-phase2-sso}
+REGION=${REGION:-us-east-1}
+ACCOUNT_ID=${ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --profile "$PROFILE" --output text)}
+echo "使用 AWS 账号: $ACCOUNT_ID"
 
 CLUSTER_NAME="dev"
 NODEGROUP_NAME="ng-mixed"
 KUBE_DEFAULT_NAMESPACE="kube-system"
 ASG_PREFIX="eks-${NODEGROUP_NAME}"
-ACCOUNT_ID="563149051155"
+
 TOPIC_NAME="spot-interruption-topic"
 TOPIC_ARN="arn:${CLOUD_PROVIDER}:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
 STATE_FILE="scripts/.last-asg-bound"

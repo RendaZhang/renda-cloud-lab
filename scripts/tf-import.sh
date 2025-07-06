@@ -2,11 +2,12 @@
 
 set -euo pipefail
 
+# 可通过环境变量覆盖
+PROFILE=${AWS_PROFILE:-phase2-sso}
+ACCOUNT_ID=${ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --profile "$PROFILE" --output text)}
 CLUSTER_NAME=${CLUSTER_NAME:-dev}
 REGION=${REGION:-us-east-1}
-PROFILE=${AWS_PROFILE:-phase2-sso}
-# Customer Managed Policy ARN，可通过环境变量覆盖
-POLICY_ARN=${POLICY_ARN:-arn:aws:iam::563149051155:policy/EKSClusterAutoscalerPolicy}
+POLICY_ARN=${POLICY_ARN:-arn:aws:iam::$ACCOUNT_ID:policy/${CLUSTER_NAME}-ClusterAutoscalerPolicy}
 
 cd "$(dirname "$0")/../infra/aws"
 
