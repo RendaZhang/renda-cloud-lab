@@ -1,6 +1,6 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: July 6, 2025, 01:20 (UTC+8)
+* Last Updated: July 6, 2025, 15:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
@@ -20,7 +20,22 @@
 
    *预期输出*: 登录成功后终端无明显输出。如果凭证有效期已过，则上述命令会提示打开浏览器进行重新认证。完成登录后，可继续后续步骤。
 
-2. **启动基础设施 (Start Infrastructure)**：首先启动基础网络和必要组件，包括 NAT 网关和 ALB。此步骤会创建 VPC 下的网络出口 (NAT Gateway，需要 Elastic IP) 和集群入口 (Application Load Balancer) 等资源，为 EKS 集群提供所需的网络环境。
+2. **(仅首次) 创建 Spot Interruption SNS Topic** (First-Time Topic Setup)：若还未创建 `spot-interruption-topic`，可以在控制台手动操作，或执行下面的命令并订阅邮箱：
+
+   ```bash
+   aws sns create-topic --name spot-interruption-topic \
+     --profile phase2-sso --region us-east-1 \
+     --output text --query 'TopicArn'
+   export SPOT_TOPIC_ARN=arn:aws:sns:us-east-1:123456789012:spot-interruption-topic
+   aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
+     --protocol email --notification-endpoint you@example.com \
+     --profile phase2-sso --region us-east-1
+   ```
+
+   打开邮箱点击 **Confirm** 完成订阅。该 Topic 只需创建一次，后续执行 `make post-recreate` 会自动绑定最新 ASG。
+   (Open your mailbox and click **Confirm** to finalize the subscription. The topic only needs to be created once; later runs of `make post-recreate` will subscribe the latest ASG automatically.)
+
+3. **启动基础设施 (Start Infrastructure)**：首先启动基础网络和必要组件，包括 NAT 网关和 ALB。此步骤会创建 VPC 下的网络出口 (NAT Gateway，需要 Elastic IP) 和集群入口 (Application Load Balancer) 等资源，为 EKS 集群提供所需的网络环境。
 
    * **Makefile 命令**：执行 `make start` 一键应用 Terraform 模板来创建 NAT 网关和 ALB。该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb` 设置为 true（`create_eks` 亦默认为 true）。这样将启用 NAT 和 ALB 相关资源，并确保 EKS 集群资源包含在部署中。如果前一晚执行了集群销毁，则此步骤会通过 Terraform **新建** EKS 控制面和节点组；若集群尚存在于 Terraform 状态中，Terraform 将识别已有集群且不重复创建，仅验证配置一致性。
 
@@ -39,11 +54,11 @@
      *预期输出*: Terraform 执行成功后，将显示各资源创建明细和总结。
 
 
-3. **验证 Terraform 状态一致 (Verify Terraform State Consistency)**：Terraform 执行完成后，建议再次运行 `terraform plan`，确保状态与实际资源无偏差。Plan 返回 *No changes* 即表示资源完全同步，可放心进入下一步。
+4. **验证 Terraform 状态一致 (Verify Terraform State Consistency)**：Terraform 执行完成后，建议再次运行 `terraform plan`，确保状态与实际资源无偏差。Plan 返回 *No changes* 即表示资源完全同步，可放心进入下一步。
 
    > 提示：在今后的日常流程中，若怀疑 Terraform 状态与实际资源不同步，可随时运行 `terraform plan` 进行检查。一旦发现 drift，应立即排查原因或通过 `terraform import` 等手段修正，以确保 Terraform 管理的资源与真实环境匹配。
 
-4. **运行 Post Recreate 脚本**：该脚本自动记录日志、简化 AWS ASG 配置，并通过 Helm 确保 Cluster Autoscaler 与集群版本一致。
+5. **运行 Post Recreate 脚本**：该脚本自动记录日志、简化 AWS ASG 配置，并通过 Helm 确保 Cluster Autoscaler 与集群版本一致。
 
    * **Makefile 命令**：执行 `make post-recreate` 调用脚本会在控制台输出日志并保存到 scripts/logs/post-recreate.log 文件中。它简化了 AWS 自动扩缩组（ASG）的通知配置，避免了手动使用 AWS CLI 的复杂操作。此外，脚本会自动通过 Helm 安装 / 升级 Cluster Autoscaler，确保节点自动扩缩容组件与集群版本一致。该脚本具有幂等性，可以多次执行。
 
@@ -55,7 +70,7 @@
 
 该脚本执行后，会在控制台输出绑定过程日志，并将日志保存到 `scripts/logs/post-recreate.log` 文件。手动方式也可采用 AWS CLI 调用 `aws autoscaling put-notification-configuration`，但需先查询最新 ASG 名称并提供 SNS Topic Arn。使用仓库脚本可避免出错并简化操作。此外，该脚本在更新 kubeconfig 后会自动通过 Helm 安装/升级 Cluster Autoscaler，确保节点自动扩缩容组件始终与集群版本保持一致。
 
-5. **验证控制面日志与 Spot 通知 (Verify Control Plane Logs & Spot Notifications)**：
+6. **验证控制面日志与 Spot 通知 (Verify Control Plane Logs & Spot Notifications)**：
 
    * **控制面日志 (Control Plane Logs)**：运行以下命令，确认 `api` 与 `authenticator` 日志已启用，且 CloudWatch 日志组 `/aws/eks/dev/cluster` 已创建：
 

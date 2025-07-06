@@ -1,6 +1,6 @@
 # 📝 eksctl Legacy Guide (eksctl 旧版指引)
 
-* Last Updated: July 6, 2025, 14:20 (UTC+8)
+* Last Updated: July 6, 2025, 15:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## ⚠️ About This Document (文档说明)
@@ -40,5 +40,3 @@ aws cloudformation delete-stack --stack-name eksctl-dev-cluster --region us-east
 - **为什么仍保留 `infra/eksctl` 目录？ (Why keep `infra/eksctl`?)**
   由于历史原因和多样化使用场景，该目录依然存在，以便在必要时使用 eksctl 手动创集群并导入 Terraform。
   Terraform 已能全面创建和销毁 EKS，常见无需再依赖 eksctl。
-
-

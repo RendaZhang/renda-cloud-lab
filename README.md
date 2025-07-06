@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: July 6, 2025, 14:20 (UTC+8)
+* Last Updated: July 6, 2025, 15:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -180,12 +180,28 @@ make check-auto    # 自动安装全部缺失工具（无提示）
 4. **验证集群**：确保本地 `kubeconfig` 已更新并指向新创建的 EKS 集群。执行简单的 Kubernetes 命令确认集群正常运行，例如：
 
    ```bash
-   kubectl get svc
-   kubectl get nodes
-   kubectl get pods -A
-   ```
+  kubectl get svc
+  kubectl get nodes
+  kubectl get pods -A
+  ```
 
-   若能正常列出 Kubernetes 节点和服务，则基础设施部分部署成功。
+  若能正常列出 Kubernetes 节点和服务，则基础设施部分部署成功。
+
+#### 首次创建 Spot Interruption SNS Topic (One-Time Setup)
+
+如需接收节点被回收前两分钟的通知，请在第一次部署时手动创建并订阅 SNS 主题 `spot-interruption-topic`：
+
+```bash
+aws sns create-topic --name spot-interruption-topic \
+  --profile phase2-sso --region us-east-1 \
+  --output text --query 'TopicArn'
+export SPOT_TOPIC_ARN=arn:aws:sns:us-east-1:123456789012:spot-interruption-topic
+aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
+  --protocol email --notification-endpoint you@example.com \
+  --profile phase2-sso --region us-east-1
+```
+
+随后打开邮箱点击 **Confirm** 完成订阅。该 Topic 仅需创建一次，后续执行 `make post-recreate` 会自动将最新 NodeGroup 的 ASG 绑定到此主题。
 
 ### 集群后置部署（Post Recreate）
 

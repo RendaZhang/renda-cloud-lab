@@ -1,6 +1,6 @@
 # ☁️ EKS 云原生集群生命周期流程文档 (EKS Cluster Lifecycle Guide)
 
-* Last Updated: July 6, 2025, 01:20 (UTC+8)
+* Last Updated: July 6, 2025, 15:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 本项目以 Terraform 为核心管理工具，配合 Bash 脚本完成 EKS 集群的每日销毁与重建，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。本文档记录从初始化到销毁的全生命周期操作流程，适用于开发、测试和生产演练场景。
@@ -46,6 +46,20 @@ make aws-login
 ```bash
 make start-all
 ```
+
+首次使用前，请先在 AWS Console 或通过下列命令创建 `spot-interruption-topic` 并订阅邮箱 (create once before the first run):
+
+```bash
+aws sns create-topic --name spot-interruption-topic \
+  --profile phase2-sso --region us-east-1 \
+  --output text --query 'TopicArn'
+export SPOT_TOPIC_ARN=arn:aws:sns:us-east-1:123456789012:spot-interruption-topic
+aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
+  --protocol email --notification-endpoint you@example.com \
+  --profile phase2-sso --region us-east-1
+```
+
+打开邮箱确认订阅即可。之后执行 `make post-recreate` 会自动将最新的 NodeGroup ASG 绑定到该主题。
 
 等价于手动执行：
 
