@@ -1,6 +1,6 @@
 # Renda Cloud Lab
 
-* Last Updated: July 6, 2025, 19:10 (UTC+8)
+* Last Updated: July 6, 2025, 22:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -185,7 +185,7 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 
 ### 集群后置部署（Post Recreate）
 
-在基础设施创建完成后，运行 `make post-recreate` 可以刷新本地 kubeconfig、安装 Cluster Autoscaler 等控制器，并绑定 Spot 通知。该脚本属于 **部署层**，与 Terraform 管理的 **基础设施层** 解耦，便于在不修改 Infra 的情况下迭代集群内组件。
+在基础设施创建完成后，运行 `make post-recreate` 可以刷新本地 kubeconfig、安装 Cluster Autoscaler，并自动检查 NAT 网关、ALB、EKS 控制面及节点组、日志组等资源状态。同时脚本会绑定 Spot 通知，确保节点回收告警生效。此脚本属于 **部署层**，与 Terraform 管理的 **基础设施层** 解耦，便于在不修改 Infra 的情况下迭代集群内组件。
 
 ### 应用部署
 

@@ -1,6 +1,6 @@
 # ☁️ EKS 云原生集群生命周期流程文档 (EKS Cluster Lifecycle Guide)
 
-* Last Updated: July 6, 2025, 16:40 (UTC+8)
+* Last Updated: July 6, 2025, 22:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 本项目以 Terraform 为核心管理工具，配合 Bash 脚本完成 EKS 集群的每日销毁与重建，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。本文档记录从初始化到销毁的全生命周期操作流程，适用于开发、测试和生产演练场景。
@@ -81,7 +81,8 @@ make post-recreate
 
 * 更新本地的 kubeconfig
 * 通过 Helm 安装或升级 cluster-autoscaler
-* 自动识别当前 ASG 名称
+* 自动识别当前 ASG 名称并绑定 SNS 通知
+* 检查 NAT 网关、ALB、EKS 控制平面、节点组及日志组状态
 * 防重复绑定（本地记录 `.last-asg-bound`）
 * 日志输出到 `scripts/logs/post-recreate.log`
 
@@ -144,7 +145,8 @@ make clean
 
 * 更新 kubeconfig 以连接 EKS 集群
 * 自动安装/升级 cluster-autoscaler (Helm)
-* 自动查找当前 ASG 名称（以 `eks-ng-mixed` 为前缀）
+* 自动查找当前 ASG 名称（以 `eks-ng-mixed` 为前缀）并检查 SNS 通知绑定
+* 验证 NAT 网关、ALB、EKS 控制面、节点组和日志组状态
 * 若尚未绑定 SNS 通知，则绑定：
   * `autoscaling:EC2_INSTANCE_TERMINATE`
   * SNS Topic：`spot-interruption-topic`

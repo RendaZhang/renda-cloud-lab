@@ -4,9 +4,10 @@
 # 功能：
 #   1. 更新本地 kubeconfig 以连接最新创建的集群
 #   2. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
-#   3. 获取最新的 EKS NodeGroup 生成的 ASG 名称
-#   4. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
-#   5. 自动写入绑定日志，避免重复执行
+#   3. 检查 NAT 网关、ALB、EKS 控制面和节点组等状态
+#   4. 获取最新的 EKS NodeGroup 生成的 ASG 名称
+#   5. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
+#   6. 自动写入绑定日志，避免重复执行
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
@@ -117,6 +118,55 @@ get_latest_asg() {
     --output text | head -n1
 }
 
+# 检查 NAT 网关状态
+check_nat_gateway() {
+  aws ec2 describe-nat-gateways \
+    --region "$REGION" --profile "$PROFILE" \
+    --query "NatGateways[?State=='available']" --output json | jq length
+}
+
+# 检查 ALB 状态
+check_alb() {
+  aws elbv2 describe-load-balancers \
+    --region "$REGION" --profile "$PROFILE" \
+    --query "LoadBalancers[?Type=='application']" --output json | jq length
+}
+
+# 检查 EKS 集群状态
+check_eks_cluster() {
+  aws eks describe-cluster \
+    --region "$REGION" --profile "$PROFILE" \
+    --name "$CLUSTER_NAME" \
+    --query 'cluster.status' --output text
+}
+
+# 检查节点组状态
+check_nodegroup() {
+  aws eks describe-nodegroup \
+    --region "$REGION" --profile "$PROFILE" \
+    --cluster-name "$CLUSTER_NAME" \
+    --nodegroup-name "$NODEGROUP_NAME" \
+    --query 'nodegroup.status' --output text
+}
+
+# 检查日志组存在
+check_log_group() {
+  aws logs describe-log-groups \
+    --region "$REGION" --profile "$PROFILE" \
+    --log-group-name-prefix "/aws/eks/${CLUSTER_NAME}/cluster" \
+    --query 'logGroups[*].logGroupName' --output text
+}
+
+# 检查 SNS 绑定
+check_sns_binding() {
+  local asg_name="$1"
+  aws autoscaling describe-auto-scaling-groups \
+    --region "$REGION" --profile "$PROFILE" \
+    --auto-scaling-group-names "$asg_name" \
+    --query "AutoScalingGroups[0].NotificationConfigurations[?TopicARN=='${TOPIC_ARN}']" \
+    --output json | jq length
+}
+
 # 绑定 SNS 通知
 bind_sns_notification() {
   local asg_name="$1"
@@ -134,6 +184,27 @@ log "📣 开始执行 post-recreate 脚本"
 update_kubeconfig
 
 install_autoscaler
+
+# 进行基础资源检查
+log "🔍 检查 NAT 网关状态"
+nat_count=$(check_nat_gateway)
+log "NAT Gateway count: $nat_count"
+
+log "🔍 检查 ALB 状态"
+alb_count=$(check_alb)
+log "ALB count: $alb_count"
+
+log "🔍 检查 EKS 集群状态"
+eks_status=$(check_eks_cluster)
+log "EKS cluster status: $eks_status"
+
+log "🔍 检查节点组状态"
+node_status=$(check_nodegroup)
+log "NodeGroup status: $node_status"
+
+log "🔍 检查 LogGroup 是否存在"
+log_group=$(check_log_group)
+log "LogGroup: $log_group"
 
 log "🔍 获取最新的 ASG 名称"
 asg_name=$(get_latest_asg)
@@ -155,3 +226,7 @@ else
   echo "$asg_name" > "$STATE_FILE"
   log "✅ 已绑定并记录最新 ASG: $asg_name"
 fi
+
+log "🔍 验证 SNS 通知绑定"
+sns_bound=$(check_sns_binding "$asg_name")
+log "SNS bindings for ASG [$asg_name]: $sns_bound"

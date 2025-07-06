@@ -1,6 +1,6 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: July 6, 2025, 19:10 (UTC+8)
+* Last Updated: July 6, 2025, 22:20 (UTC+8)
 * 作者: 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
@@ -59,7 +59,7 @@
 
    > 提示：在今后的日常流程中，若怀疑 Terraform 状态与实际资源不同步，可随时运行 `terraform plan` 进行检查。一旦发现 drift，应立即排查原因或通过 `terraform import` 等手段修正，以确保 Terraform 管理的资源与真实环境匹配。
 
-5. **运行 Post Recreate 脚本**：该脚本自动记录日志、简化 AWS ASG 配置，并通过 Helm 确保 Cluster Autoscaler 与集群版本一致。
+5. **运行 Post Recreate 脚本**：该脚本自动记录日志、简化 AWS ASG 配置，并通过 Helm 确保 Cluster Autoscaler 与集群版本一致。此外，它会检查 NAT 网关、ALB、EKS 控制平面、节点组、日志组等资源是否正常，并验证 SNS 告警订阅是否生效。
 
    * **Makefile 命令**：执行 `make post-recreate` 调用脚本会在控制台输出日志并保存到 scripts/logs/post-recreate.log 文件中。它简化了 AWS 自动扩缩组（ASG）的通知配置，避免了手动使用 AWS CLI 的复杂操作。此外，脚本会自动通过 Helm 安装 / 升级 Cluster Autoscaler，确保节点自动扩缩容组件与集群版本一致。该脚本具有幂等性，可以多次执行。
 
@@ -69,7 +69,7 @@
      bash scripts/post-recreate.sh
      ```
 
-该脚本执行后，会在控制台输出绑定过程日志，并将日志保存到 `scripts/logs/post-recreate.log` 文件。手动方式也可采用 AWS CLI 调用 `aws autoscaling put-notification-configuration`，但需先查询最新 ASG 名称并提供 SNS Topic Arn。使用仓库脚本可避免出错并简化操作。此外，该脚本在更新 kubeconfig 后会自动通过 Helm 安装/升级 Cluster Autoscaler，确保节点自动扩缩容组件始终与集群版本保持一致。
+该脚本执行后，会在控制台输出绑定和资源检查的日志，并将结果保存到 `scripts/logs/post-recreate.log` 文件。手动方式亦可使用 AWS CLI 完成，但需手动查询最新 ASG 名称并验证各种资源状态。脚本在更新 kubeconfig 后会自动通过 Helm 安装/升级 Cluster Autoscaler，并检查 NAT 网关、ALB、EKS 与节点组状态以及日志组与 SNS 通知配置，确保环境完全就绪。
 
 6. **验证控制面日志与 Spot 通知 (Verify Control Plane Logs & Spot Notifications)**：
 
