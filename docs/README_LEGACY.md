@@ -2,12 +2,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 目录 (Table of Contents)
 
--  [📝 eksctl Legacy Guide (eksctl 旧版指引)](#-eksctl-legacy-guide-eksctl-%E6%97%A7%E7%89%88%E6%8C%87%E5%BC%95)
-  -  [⚠️ About This Document (文档说明)](#-about-this-document-%E6%96%87%E6%A1%A3%E8%AF%B4%E6%98%8E)
-  -  [1. 创建集群 (Create the Cluster)](#1-%E5%88%9B%E5%BB%BA%E9%9B%86%E7%BE%A4-create-the-cluster)
-  -  [2. 导入 Terraform (Import to Terraform)](#2-%E5%AF%BC%E5%85%A5-terraform-import-to-terraform)
-  -  [3. 清理 CloudFormation 栈 (Clean up Stacks)](#3-%E6%B8%85%E7%90%86-cloudformation-%E6%A0%88-clean-up-stacks)
-  -  [FAQ](#faq)
+- [📝 eksctl Legacy Guide (eksctl 旧版指引)](#-eksctl-legacy-guide-eksctl-%E6%97%A7%E7%89%88%E6%8C%87%E5%BC%95)
+  - [⚠️ About This Document (文档说明)](#-about-this-document-%E6%96%87%E6%A1%A3%E8%AF%B4%E6%98%8E)
+  - [1. 创建集群 (Create the Cluster)](#1-%E5%88%9B%E5%BB%BA%E9%9B%86%E7%BE%A4-create-the-cluster)
+  - [2. 导入 Terraform (Import to Terraform)](#2-%E5%AF%BC%E5%85%A5-terraform-import-to-terraform)
+  - [3. 清理 CloudFormation 栈 (Clean up Stacks)](#3-%E6%B8%85%E7%90%86-cloudformation-%E6%A0%88-clean-up-stacks)
+  - [FAQ](#faq)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 

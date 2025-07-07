@@ -2,13 +2,13 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 目录 (Table of Contents)
 
--  [前置条件操作指南 (Prerequisites Setup Guide)](#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%E6%93%8D%E4%BD%9C%E6%8C%87%E5%8D%97-prerequisites-setup-guide)
-  -  [1. AWS 账户及 CLI 配置 (AWS Account & CLI)](#1-aws-%E8%B4%A6%E6%88%B7%E5%8F%8A-cli-%E9%85%8D%E7%BD%AE-aws-account--cli)
-  -  [2. Terraform 后端设置 (Terraform Backend Setup)](#2-terraform-%E5%90%8E%E7%AB%AF%E8%AE%BE%E7%BD%AE-terraform-backend-setup)
-  -  [3. DNS 域名（可选）(DNS Domain Optional)](#3-dns-%E5%9F%9F%E5%90%8D%E5%8F%AF%E9%80%89dns-domain-optional)
-  -  [4. 本地环境准备 (Local Environment)](#4-%E6%9C%AC%E5%9C%B0%E7%8E%AF%E5%A2%83%E5%87%86%E5%A4%87-local-environment)
-  -  [5. 运行预检脚本 (Run Preflight Script)](#5-%E8%BF%90%E8%A1%8C%E9%A2%84%E6%A3%80%E8%84%9A%E6%9C%AC-run-preflight-script)
-  -  [6. AWS SSO 登录 (AWS SSO Login)](#6-aws-sso-%E7%99%BB%E5%BD%95-aws-sso-login)
+- [前置条件操作指南 (Prerequisites Setup Guide)](#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%E6%93%8D%E4%BD%9C%E6%8C%87%E5%8D%97-prerequisites-setup-guide)
+  - [1. AWS 账户及 CLI 配置 (AWS Account & CLI)](#1-aws-%E8%B4%A6%E6%88%B7%E5%8F%8A-cli-%E9%85%8D%E7%BD%AE-aws-account--cli)
+  - [2. Terraform 后端设置 (Terraform Backend Setup)](#2-terraform-%E5%90%8E%E7%AB%AF%E8%AE%BE%E7%BD%AE-terraform-backend-setup)
+  - [3. DNS 域名（可选）(DNS Domain Optional)](#3-dns-%E5%9F%9F%E5%90%8D%E5%8F%AF%E9%80%89dns-domain-optional)
+  - [4. 本地环境准备 (Local Environment)](#4-%E6%9C%AC%E5%9C%B0%E7%8E%AF%E5%A2%83%E5%87%86%E5%A4%87-local-environment)
+  - [5. 运行预检脚本 (Run Preflight Script)](#5-%E8%BF%90%E8%A1%8C%E9%A2%84%E6%A3%80%E8%84%9A%E6%9C%AC-run-preflight-script)
+  - [6. AWS SSO 登录 (AWS SSO Login)](#6-aws-sso-%E7%99%BB%E5%BD%95-aws-sso-login)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 

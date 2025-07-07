@@ -2,17 +2,17 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 目录 (Table of Contents)
 
--  [每日 Terraform 重建与销毁流程操作文档](#%E6%AF%8F%E6%97%A5-terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
-  -  [🌅 每日重建流程 (Morning Rebuild Procedure)](#-%E6%AF%8F%E6%97%A5%E9%87%8D%E5%BB%BA%E6%B5%81%E7%A8%8B-morning-rebuild-procedure)
-    -  [操作目的与背景 (Purpose & Background)](#%E6%93%8D%E4%BD%9C%E7%9B%AE%E7%9A%84%E4%B8%8E%E8%83%8C%E6%99%AF-purpose--background)
-    -  [步骤与命令详解 (Steps and Commands)](#%E6%AD%A5%E9%AA%A4%E4%B8%8E%E5%91%BD%E4%BB%A4%E8%AF%A6%E8%A7%A3-steps-and-commands)
-    -  [常见错误与排查指引 (Common Errors & Troubleshooting)](#%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF%E4%B8%8E%E6%8E%92%E6%9F%A5%E6%8C%87%E5%BC%95-common-errors--troubleshooting)
-  -  [✅ 验收清单 (Morning Checklist)](#-%E9%AA%8C%E6%94%B6%E6%B8%85%E5%8D%95-morning-checklist)
-  -  [🌙 每日销毁流程 (Evening Teardown Procedure)](#-%E6%AF%8F%E6%97%A5%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B-evening-teardown-procedure)
-    -  [操作目的与背景 (Purpose & Background)](#%E6%93%8D%E4%BD%9C%E7%9B%AE%E7%9A%84%E4%B8%8E%E8%83%8C%E6%99%AF-purpose--background-1)
-    -  [步骤与命令详解 (Steps and Commands)](#%E6%AD%A5%E9%AA%A4%E4%B8%8E%E5%91%BD%E4%BB%A4%E8%AF%A6%E8%A7%A3-steps-and-commands-1)
-    -  [常见错误与排查指引 (Common Errors & Troubleshooting)](#%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF%E4%B8%8E%E6%8E%92%E6%9F%A5%E6%8C%87%E5%BC%95-common-errors--troubleshooting-1)
-  -  [✅ 销毁清单验证 (Evening Checklist)](#-%E9%94%80%E6%AF%81%E6%B8%85%E5%8D%95%E9%AA%8C%E8%AF%81-evening-checklist)
+- [每日 Terraform 重建与销毁流程操作文档](#%E6%AF%8F%E6%97%A5-terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
+  - [🌅 每日重建流程 (Morning Rebuild Procedure)](#-%E6%AF%8F%E6%97%A5%E9%87%8D%E5%BB%BA%E6%B5%81%E7%A8%8B-morning-rebuild-procedure)
+    - [操作目的与背景 (Purpose & Background)](#%E6%93%8D%E4%BD%9C%E7%9B%AE%E7%9A%84%E4%B8%8E%E8%83%8C%E6%99%AF-purpose--background)
+    - [步骤与命令详解 (Steps and Commands)](#%E6%AD%A5%E9%AA%A4%E4%B8%8E%E5%91%BD%E4%BB%A4%E8%AF%A6%E8%A7%A3-steps-and-commands)
+    - [常见错误与排查指引 (Common Errors & Troubleshooting)](#%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF%E4%B8%8E%E6%8E%92%E6%9F%A5%E6%8C%87%E5%BC%95-common-errors--troubleshooting)
+  - [✅ 验收清单 (Morning Checklist)](#-%E9%AA%8C%E6%94%B6%E6%B8%85%E5%8D%95-morning-checklist)
+  - [🌙 每日销毁流程 (Evening Teardown Procedure)](#-%E6%AF%8F%E6%97%A5%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B-evening-teardown-procedure)
+    - [操作目的与背景 (Purpose & Background)](#%E6%93%8D%E4%BD%9C%E7%9B%AE%E7%9A%84%E4%B8%8E%E8%83%8C%E6%99%AF-purpose--background-1)
+    - [步骤与命令详解 (Steps and Commands)](#%E6%AD%A5%E9%AA%A4%E4%B8%8E%E5%91%BD%E4%BB%A4%E8%AF%A6%E8%A7%A3-steps-and-commands-1)
+    - [常见错误与排查指引 (Common Errors & Troubleshooting)](#%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF%E4%B8%8E%E6%8E%92%E6%9F%A5%E6%8C%87%E5%BC%95-common-errors--troubleshooting-1)
+  - [✅ 销毁清单验证 (Evening Checklist)](#-%E9%94%80%E6%AF%81%E6%B8%85%E5%8D%95%E9%AA%8C%E8%AF%81-evening-checklist)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 

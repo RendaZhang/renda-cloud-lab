@@ -2,20 +2,19 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 目录 (Table of Contents)
 
--  [集群故障排查指南 (Troubleshooting Guide)](#%E9%9B%86%E7%BE%A4%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97-troubleshooting-guide)
-  -  [简介 (Purpose)](#%E7%AE%80%E4%BB%8B-purpose)
-  -  [问题分类 (Issue Categories)](#%E9%97%AE%E9%A2%98%E5%88%86%E7%B1%BB-issue-categories)
-  -  [Helm 部署 cluster-autoscaler 时 IRSA 注解配置错误导致 CrashLoopBackOff](#helm-%E9%83%A8%E7%BD%B2-cluster-autoscaler-%E6%97%B6-irsa-%E6%B3%A8%E8%A7%A3%E9%85%8D%E7%BD%AE%E9%94%99%E8%AF%AF%E5%AF%BC%E8%87%B4-crashloopbackoff)
-  -  [Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}](#helm-%E5%AE%89%E8%A3%85-cluster-autoscaler-%E6%8A%A5%E9%94%99wrong-type-for-value-expected-string-got-mapstringinterface-)
-  -  [Terraform `aws.billing` alias 报 “No valid credential sources found”](#terraform-awsbilling-alias-%E6%8A%A5-no-valid-credential-sources-found)
-  -  [Terraform 导入 IAM Role Policy Attachment 使用短名失败（需使用完整 ARN）](#terraform-%E5%AF%BC%E5%85%A5-iam-role-policy-attachment-%E4%BD%BF%E7%94%A8%E7%9F%AD%E5%90%8D%E5%A4%B1%E8%B4%A5%E9%9C%80%E4%BD%BF%E7%94%A8%E5%AE%8C%E6%95%B4-arn)
-  -  [OIDC Provider 的 URL 固定写死导致重建失败隐患](#oidc-provider-%E7%9A%84-url-%E5%9B%BA%E5%AE%9A%E5%86%99%E6%AD%BB%E5%AF%BC%E8%87%B4%E9%87%8D%E5%BB%BA%E5%A4%B1%E8%B4%A5%E9%9A%90%E6%82%A3)
-  -  [创建 Deployment 失败 – 错误地将 `--requests=cpu=400m` 写在 `kubectl create` 命令中](#%E5%88%9B%E5%BB%BA-deployment-%E5%A4%B1%E8%B4%A5--%E9%94%99%E8%AF%AF%E5%9C%B0%E5%B0%86---requestscpu400m-%E5%86%99%E5%9C%A8-kubectl-create-%E5%91%BD%E4%BB%A4%E4%B8%AD)
-  -  [无法找到 Deployment 名称（Helm 安装时名称自动拼接）](#%E6%97%A0%E6%B3%95%E6%89%BE%E5%88%B0-deployment-%E5%90%8D%E7%A7%B0helm-%E5%AE%89%E8%A3%85%E6%97%B6%E5%90%8D%E7%A7%B0%E8%87%AA%E5%8A%A8%E6%8B%BC%E6%8E%A5)
-  -  [Auto-Scaling 未触发/触发后未缩容（如冷却时间问题）](#auto-scaling-%E6%9C%AA%E8%A7%A6%E5%8F%91%E8%A7%A6%E5%8F%91%E5%90%8E%E6%9C%AA%E7%BC%A9%E5%AE%B9%E5%A6%82%E5%86%B7%E5%8D%B4%E6%97%B6%E9%97%B4%E9%97%AE%E9%A2%98)
-  -  [NodeCreationFailure：实例未能加入集群（AL2023 nodeadm 变更）](#nodecreationfailure%E5%AE%9E%E4%BE%8B%E6%9C%AA%E8%83%BD%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4al2023-nodeadm-%E5%8F%98%E6%9B%B4)
-  -  [NodeCreationFailure：CNI 插件未初始化导致节点无法加入集群](#nodecreationfailurecni-%E6%8F%92%E4%BB%B6%E6%9C%AA%E5%88%9D%E5%A7%8B%E5%8C%96%E5%AF%BC%E8%87%B4%E8%8A%82%E7%82%B9%E6%97%A0%E6%B3%95%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4)
-  -  [附录 (Appendix)](#%E9%99%84%E5%BD%95-appendix)
+- [集群故障排查指南 (Troubleshooting Guide)](#%E9%9B%86%E7%BE%A4%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97-troubleshooting-guide)
+  - [简介 (Purpose)](#%E7%AE%80%E4%BB%8B-purpose)
+  - [Helm 部署 cluster-autoscaler 时 IRSA 注解配置错误导致 CrashLoopBackOff](#helm-%E9%83%A8%E7%BD%B2-cluster-autoscaler-%E6%97%B6-irsa-%E6%B3%A8%E8%A7%A3%E9%85%8D%E7%BD%AE%E9%94%99%E8%AF%AF%E5%AF%BC%E8%87%B4-crashloopbackoff)
+  - [Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}](#helm-%E5%AE%89%E8%A3%85-cluster-autoscaler-%E6%8A%A5%E9%94%99wrong-type-for-value-expected-string-got-mapstringinterface-)
+  - [Terraform `aws.billing` alias 报 “No valid credential sources found”](#terraform-awsbilling-alias-%E6%8A%A5-no-valid-credential-sources-found)
+  - [Terraform 导入 IAM Role Policy Attachment 使用短名失败（需使用完整 ARN）](#terraform-%E5%AF%BC%E5%85%A5-iam-role-policy-attachment-%E4%BD%BF%E7%94%A8%E7%9F%AD%E5%90%8D%E5%A4%B1%E8%B4%A5%E9%9C%80%E4%BD%BF%E7%94%A8%E5%AE%8C%E6%95%B4-arn)
+  - [OIDC Provider 的 URL 固定写死导致重建失败隐患](#oidc-provider-%E7%9A%84-url-%E5%9B%BA%E5%AE%9A%E5%86%99%E6%AD%BB%E5%AF%BC%E8%87%B4%E9%87%8D%E5%BB%BA%E5%A4%B1%E8%B4%A5%E9%9A%90%E6%82%A3)
+  - [创建 Deployment 失败 – 错误地将 `--requests=cpu=400m` 写在 `kubectl create` 命令中](#%E5%88%9B%E5%BB%BA-deployment-%E5%A4%B1%E8%B4%A5--%E9%94%99%E8%AF%AF%E5%9C%B0%E5%B0%86---requestscpu400m-%E5%86%99%E5%9C%A8-kubectl-create-%E5%91%BD%E4%BB%A4%E4%B8%AD)
+  - [无法找到 Deployment 名称（Helm 安装时名称自动拼接）](#%E6%97%A0%E6%B3%95%E6%89%BE%E5%88%B0-deployment-%E5%90%8D%E7%A7%B0helm-%E5%AE%89%E8%A3%85%E6%97%B6%E5%90%8D%E7%A7%B0%E8%87%AA%E5%8A%A8%E6%8B%BC%E6%8E%A5)
+  - [Auto-Scaling 未触发/触发后未缩容（如冷却时间问题）](#auto-scaling-%E6%9C%AA%E8%A7%A6%E5%8F%91%E8%A7%A6%E5%8F%91%E5%90%8E%E6%9C%AA%E7%BC%A9%E5%AE%B9%E5%A6%82%E5%86%B7%E5%8D%B4%E6%97%B6%E9%97%B4%E9%97%AE%E9%A2%98)
+  - [NodeCreationFailure：实例未能加入集群（AL2023 nodeadm 变更）](#nodecreationfailure%E5%AE%9E%E4%BE%8B%E6%9C%AA%E8%83%BD%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4al2023-nodeadm-%E5%8F%98%E6%9B%B4)
+  - [NodeCreationFailure：CNI 插件未初始化导致节点无法加入集群](#nodecreationfailurecni-%E6%8F%92%E4%BB%B6%E6%9C%AA%E5%88%9D%E5%A7%8B%E5%8C%96%E5%AF%BC%E8%87%B4%E8%8A%82%E7%82%B9%E6%97%A0%E6%B3%95%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4)
+  - [附录 (Appendix)](#%E9%99%84%E5%BD%95-appendix)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -27,15 +26,6 @@
 ## 简介 (Purpose)
 
 本文档汇总了 **renda-cloud-lab** 项目在集群搭建与运维过程中常见的问题和解决方案，采用中英文混排（中文说明+英文术语）形式进行说明。每个问题包括：问题现象、背景场景、复现方式、根因分析、修复方法、相关命令和适用版本等条目，以便快速定位和解决类似故障。
-
-## 问题分类 (Issue Categories)
-
-* **Terraform Import**：与 Terraform 资源导入相关的问题。
-* **IRSA (IAM Roles for Service Accounts)**：与 Kubernetes 服务账户 IAM 角色绑定相关的问题。
-* **Helm**：Helm 部署和命名相关的问题。
-* **OIDC**：与 EKS OIDC 身份提供商配置相关的问题。
-* **AutoScaling (Cluster Autoscaler)**：集群自动伸缩（Cluster Autoscaler）相关的问题。
-* **其他 Kubernetes 命令**：如 `kubectl` 命令使用错误等问题。
 
 ---
 
