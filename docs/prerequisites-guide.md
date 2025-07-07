@@ -1,7 +1,7 @@
 # 前置条件操作指南 (Prerequisites Setup Guide)
 
-* Last Updated: July 6, 2025, 23:50 (UTC+8)
-* 作者: 张人大（Renda Zhang）
+* **Last Updated:** July 6, 2025, 23:50 (UTC+8)
+* **作者:** 张人大（Renda Zhang）
 
 本文档整理了部署 **Renda Cloud Lab** 之前需要完成的准备工作，以便顺利运行 Terraform 与脚本。
 This document provides the step-by-step prerequisites for deploying **Renda Cloud Lab**, including AWS setup and local tool installation.

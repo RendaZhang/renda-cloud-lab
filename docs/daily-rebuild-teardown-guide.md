@@ -1,7 +1,7 @@
 # 每日 Terraform 重建与销毁流程操作文档
 
-* Last Updated: July 6, 2025, 23:20 (UTC+8)
-* 作者: 张人大（Renda Zhang）
+* **Last Updated:** July 6, 2025, 23:20 (UTC+8)
+* **作者:** 张人大（Renda Zhang）
 
 ## 🌅 每日重建流程 (Morning Rebuild Procedure)
 

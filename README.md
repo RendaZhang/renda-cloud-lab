@@ -1,7 +1,7 @@
 # Renda Cloud Lab
 
-* Last Updated: July 6, 2025, 22:20 (UTC+8)
-* 作者: 张人大（Renda Zhang）
+* **Last Updated:** July 7, 2025, 17:50 (UTC+8)
+* **作者:** 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
 

@@ -1,7 +1,7 @@
 # 📝 eksctl Legacy Guide (eksctl 旧版指引)
 
-* Last Updated: July 6, 2025, 15:20 (UTC+8)
-* 作者: 张人大（Renda Zhang）
+* **Last Updated:** July 6, 2025, 15:20 (UTC+8)
+* **作者:** 张人大（Renda Zhang）
 
 ## ⚠️ About This Document (文档说明)
 

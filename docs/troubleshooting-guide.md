@@ -1,7 +1,7 @@
 # 集群故障排查指南 (Troubleshooting Guide)
 
-* Last Updated: July 6, 2025, 17:00 (UTC+8)
-* 作者: 张人大（Renda Zhang）
+* **Last Updated:** July 6, 2025, 17:00 (UTC+8)
+* **作者:** 张人大（Renda Zhang）
 
 ## 简介 (Purpose)
 
