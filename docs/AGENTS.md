@@ -1,3 +1,18 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+## 目录 (Table of Contents)
+
+-  [Guidance for AI Agents](#guidance-for-ai-agents)
+  -  [1. 🔍 Project Overview](#1--project-overview)
+  -  [2. 📁 Key Project Structure](#2--key-project-structure)
+  -  [3. 📌 Rules for Modification](#3--rules-for-modification)
+  -  [4. 🧠 Context to Remember](#4--context-to-remember)
+  -  [5. ✅ Allowed Actions](#5--allowed-actions)
+  -  [6. 📎 FAQs](#6--faqs)
+  -  [7. 🧾 Last Notes](#7--last-notes)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Guidance for AI Agents
 
 * 📍 **Purpose:** This file describes how an AI agent (e.g. OpenAI Codex, DevAgent, etc.) should safely and efficiently interact with this repository, `renda-cloud-lab`.

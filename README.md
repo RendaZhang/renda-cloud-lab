@@ -1,3 +1,39 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+## 目录 (Table of Contents)
+
+-  [Renda Cloud Lab](#renda-cloud-lab)
+  -  [项目简介](#%E9%A1%B9%E7%9B%AE%E7%AE%80%E4%BB%8B)
+  -  [核心模块说明](#%E6%A0%B8%E5%BF%83%E6%A8%A1%E5%9D%97%E8%AF%B4%E6%98%8E)
+  -  [🗂 目录结构](#-%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84)
+  -  [🧭 项目结构与职责分层原则（Infra vs Deploy）](#-%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E8%81%8C%E8%B4%A3%E5%88%86%E5%B1%82%E5%8E%9F%E5%88%99infra-vs-deploy)
+    -  [✅ Terraform 仅负责 Infra 层（集群基础设施）](#-terraform-%E4%BB%85%E8%B4%9F%E8%B4%A3-infra-%E5%B1%82%E9%9B%86%E7%BE%A4%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD)
+    -  [✅ Helm 脚本负责部署层（K8s 应用与控制器）](#-helm-%E8%84%9A%E6%9C%AC%E8%B4%9F%E8%B4%A3%E9%83%A8%E7%BD%B2%E5%B1%82k8s-%E5%BA%94%E7%94%A8%E4%B8%8E%E6%8E%A7%E5%88%B6%E5%99%A8)
+    -  [📦 示例结构建议（当前 + 后续）](#-%E7%A4%BA%E4%BE%8B%E7%BB%93%E6%9E%84%E5%BB%BA%E8%AE%AE%E5%BD%93%E5%89%8D--%E5%90%8E%E7%BB%AD)
+    -  [🧭 实践总结](#-%E5%AE%9E%E8%B7%B5%E6%80%BB%E7%BB%93)
+  -  [安装部署指南](#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2%E6%8C%87%E5%8D%97)
+    -  [前置条件](#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6)
+  -  [🛠️ 本地环境检查工具（CLI Toolchain Checker）](#-%E6%9C%AC%E5%9C%B0%E7%8E%AF%E5%A2%83%E6%A3%80%E6%9F%A5%E5%B7%A5%E5%85%B7cli-toolchain-checker)
+    -  [基础设施部署](#%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD%E9%83%A8%E7%BD%B2)
+    -  [首次创建 Spot Interruption SNS Topic (One-Time Setup)](#%E9%A6%96%E6%AC%A1%E5%88%9B%E5%BB%BA-spot-interruption-sns-topic-one-time-setup)
+    -  [集群后置部署（Post Recreate）](#%E9%9B%86%E7%BE%A4%E5%90%8E%E7%BD%AE%E9%83%A8%E7%BD%B2post-recreate)
+    -  [应用部署](#%E5%BA%94%E7%94%A8%E9%83%A8%E7%BD%B2)
+  -  [日常工作流](#%E6%97%A5%E5%B8%B8%E5%B7%A5%E4%BD%9C%E6%B5%81)
+    -  [预检检查 Preflight](#%E9%A2%84%E6%A3%80%E6%A3%80%E6%9F%A5-preflight)
+    -  [集群启停管理 (Start & Stop)](#%E9%9B%86%E7%BE%A4%E5%90%AF%E5%81%9C%E7%AE%A1%E7%90%86-start--stop)
+    -  [推荐完整重建流程](#%E6%8E%A8%E8%8D%90%E5%AE%8C%E6%95%B4%E9%87%8D%E5%BB%BA%E6%B5%81%E7%A8%8B)
+  -  [💰 成本控制说明](#-%E6%88%90%E6%9C%AC%E6%8E%A7%E5%88%B6%E8%AF%B4%E6%98%8E)
+  -  [常见问题 (FAQ)](#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98-faq)
+  -  [附录](#%E9%99%84%E5%BD%95)
+    -  [文档](#%E6%96%87%E6%A1%A3)
+    -  [检查清单](#%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95)
+    -  [脚本清单](#%E8%84%9A%E6%9C%AC%E6%B8%85%E5%8D%95)
+  -  [未来计划](#%E6%9C%AA%E6%9D%A5%E8%AE%A1%E5%88%92)
+  -  [🤝 贡献指南](#-%E8%B4%A1%E7%8C%AE%E6%8C%87%E5%8D%97)
+  -  [📜 许可证](#-%E8%AE%B8%E5%8F%AF%E8%AF%81)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Renda Cloud Lab
 
 * **Last Updated:** July 7, 2025, 17:50 (UTC+8)
