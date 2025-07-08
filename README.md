@@ -31,12 +31,13 @@
   - [未来计划](#%E6%9C%AA%E6%9D%A5%E8%AE%A1%E5%88%92)
   - [🤝 贡献指南](#-%E8%B4%A1%E7%8C%AE%E6%8C%87%E5%8D%97)
   - [📜 许可证](#-%E8%AE%B8%E5%8F%AF%E8%AF%81)
+  - [📬 联系方式](#-%E8%81%94%E7%B3%BB%E6%96%B9%E5%BC%8F)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # Renda Cloud Lab
 
-* **Last Updated:** July 7, 2025, 17:50 (UTC+8)
+* **Last Updated:** July 8, 2025, 21:00 (UTC+8)
 * **作者:** 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -50,8 +51,6 @@
 ## 项目简介
 
 **Renda Cloud Lab** 项目涵盖 **AWS 云服务、EKS、GitOps、可观测性、SRE 以及 AI Sidecar** 等前沿主题。通过该实验室，开发者可以实践基础设施即代码、容器编排、持续交付、混沌工程和 AI 工作负载集成等技术场景。项目采用 **“代码优先”** 原则，仅存放可运行的脚本、模块和架构图，随着实践不断演进更新。
-
-The project focuses on hands-on experimentation with AWS infrastructure, Kubernetes on EKS, GitOps workflows and observability tooling. It also explores emerging topics such as AI sidecars and cost optimisation. Everything is managed "code first" so you can easily spin the lab up or tear it down.
 
 ## 核心模块说明
 
@@ -348,10 +347,10 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 ### 文档
 
 * 📘 [EKS 云原生集群生命周期流程](docs/lifecycle.md)
-* 📘 [每日 EKS 重建与销毁操作指南](docs/daily-rebuild-teardown-guide.md)
+* 📗 [每日 EKS 重建与销毁操作指南](docs/daily-rebuild-teardown-guide.md)
 * 📕 [踩坑与排查手册](docs/troubleshooting-guide.md)
 * 🤖 [Codex 智能体操作指南（AGENTS.md）](docs/AGENTS.md)
-* 📕 [eksctl 遗留指引](docs/README_LEGACY.md)
+* 📘 [eksctl 遗留指引](docs/README_LEGACY.md)
 * 📗 [前置条件操作指南](docs/prerequisites-guide.md)
 
 
@@ -401,5 +400,11 @@ Renda Cloud Lab 仍在持续演进中，未来规划包括但不限于：
 本项目采用 **MIT 协议** 开源发布。这意味着你可以自由地使用、修改并重新发布本仓库的内容，只需在分发时附上原始许可证声明。
 
 ---
+
+## 📬 联系方式
+
+* 联系人：张人大（Renda Zhang）
+* 邮箱：[952402967@qq.com](mailto:952402967@qq.com)
+* 个人网站：[https://rendazhang.com](https://rendazhang.com)
 
 > ⏰ **Maintainer**：@Renda — 如果本项目对你有帮助，请不要忘了点亮 ⭐️ Star 支持我们！
