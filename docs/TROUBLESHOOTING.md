@@ -20,8 +20,10 @@
 
 # 集群故障排查指南 (Troubleshooting Guide)
 
-* **Last Updated:** July 6, 2025, 17:00 (UTC+8)
+* **Last Updated:** July 18, 2025, 19:30 (UTC+8)
 * **作者:** 张人大（Renda Zhang）
+
+--
 
 ## 简介 (Purpose)
 
@@ -50,6 +52,7 @@
 * **适用版本 (Version Info)**：EKS 版本 ≥1.18，Cluster Autoscaler Chart v9.x（具体版本根据使用情况）。
 
 ---
+
 ## Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}
 
 * **问题现象 (What Happened)**：执行 Helm 安装命令时，模板渲染失败并报错：
@@ -346,6 +349,7 @@
   * Amazon Linux 2023（AL2023）AMI
 
 ---
+
 ## 附录 (Appendix)
 
 * **常用 AWS CLI 命令模板**：
@@ -435,4 +439,6 @@
   kubectl get pod -A -owide
   ```
 
-**参考资料：** 以上内容参考了 AWS 官方文档及社区经验，如 \[EKS IRSA 使用指南]、Terraform 官方文档、Kubernetes `kubectl` 文档、Cluster Autoscaler 参数说明等。
+**参考资料：**
+
+以上内容参考了 AWS 官方文档及社区经验，如 \[EKS IRSA 使用指南]、Terraform 官方文档、Kubernetes `kubectl` 文档、Cluster Autoscaler 参数说明等。
