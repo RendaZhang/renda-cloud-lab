@@ -75,7 +75,6 @@ renda-cloud-lab/
   * DynamoDB Lock Table: `tf-state-lock`
 * Default domain name (for ALB): `lab.rendazhang.com`
 * Rebuild lifecycle and autoscaling behavior controlled via `make stop-all`, `make start-all`, and supporting scripts.
-* Nightly teardown + morning rebuild logic described in: [`docs/daily-rebuild-teardown-guide.md`](docs/daily-rebuild-teardown-guide.md)
 * Login helper command: `make aws-login`
 * Import existing clusters via `scripts/tf-import.sh`
 * Post-recreate automation script: `scripts/post-recreate.sh` (updates kubeconfig & installs autoscaler)
