@@ -2,7 +2,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 目录 (Table of Contents)
 
-- [旧版指引 - eksctl](#%E6%97%A7%E7%89%88%E6%8C%87%E5%BC%95---eksctl)
+- [eksctl 指引](#eksctl-%E6%8C%87%E5%BC%95)
   - [说明](#%E8%AF%B4%E6%98%8E)
   - [1. 创建集群](#1-%E5%88%9B%E5%BB%BA%E9%9B%86%E7%BE%A4)
   - [2. 导入 Terraform](#2-%E5%AF%BC%E5%85%A5-terraform)
@@ -11,9 +11,9 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# 旧版指引 - eksctl
+# eksctl 指引
 
-* **Last Updated:** July 6, 2025, 15:20 (UTC+8)
+* **Last Updated:** July 18, 2025, 18:50 (UTC+8)
 * **作者:** 张人大（Renda Zhang）
 
 ---
