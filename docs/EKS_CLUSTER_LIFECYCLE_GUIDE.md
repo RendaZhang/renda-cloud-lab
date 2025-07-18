@@ -189,5 +189,4 @@ scripts/logs/*
 
 ## 后续规划（可选）
 
-- 支持通知绑定覆盖多个 NodeGroup
 - 整合 GitHub Actions 自动执行 `make start-all`

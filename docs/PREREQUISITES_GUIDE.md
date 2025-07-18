@@ -14,8 +14,8 @@
 
 # 前置条件操作指南
 
-* **Last Updated:** July 18, 2025, 20:40 (UTC+8)
-* **作者:** 张人大（Renda Zhang）
+- **Last Updated:** July 18, 2025, 21:20 (UTC+8)
+- **作者:** 张人大（Renda Zhang）
 
 本文档整理了部署 **Renda Cloud Lab** 之前需要完成的准备工作，以便顺利运行 Terraform 与脚本。
 
@@ -26,6 +26,8 @@
 1. 安装 [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)。
 2. 通过 `aws configure sso` 或 `aws configure` 配置凭证，推荐使用 AWS SSO。
 3. 创建名为 `phase2-sso` 的默认 Profile，并设置 Region `us-east-1`。
+
+---
 
 ## Terraform 后端设置
 
@@ -48,18 +50,26 @@
    - 其余保持默认，点击 **Create table**
 3. 在 `infra/aws/backend.tf` 中填入上述 Bucket 与表名后再执行 `terraform init`。
 
+---
+
 ## DNS 域名（可选）
 
 若希望使用自定义域名访问服务，请在 Route 53 创建 Hosted Zone，
 并在 Terraform 配置中将默认域 `lab.rendazhang.com` 改为你的域名。未设置时可直接使用 ALB 自动分配的域名。
 
+---
+
 ## 本地环境准备
 
 安装以下工具：Terraform (≥1.8)、kubectl、Helm、Git、Make。可运行 `make check-auto` 自动安装缺失工具。
 
+---
+
 ## 运行预检脚本
 
 执行 `bash scripts/preflight.sh` 或 `make preflight`，检查 AWS 配额及工具链是否满足要求。
+
+---
 
 ## AWS SSO 登录
 
