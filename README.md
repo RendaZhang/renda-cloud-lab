@@ -161,10 +161,10 @@ docs/
 
 ### 前置条件
 
-在开始部署之前，请确保满足以下前置条件（完整步骤参见 📄 [前置条件操作指南](docs/prerequisites-guide.md)）：
+在开始部署之前，请确保满足以下前置条件（完整步骤参见 📄 [前置条件操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/PREREQUISITES_GUIDE.md#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%E6%93%8D%E4%BD%9C%E6%8C%87%E5%8D%97)）：
 
 - **AWS 账户及权限**：拥有可用的 AWS 账户，并已安装并配置 AWS CLI（例如通过 `aws configure` 或 AWS SSO 登录）。**本项目默认使用 AWS CLI 的 SSO Profile 名称 `phase2-sso`，默认区域为 `us-east-1`**，如与你的配置不同请相应调整后续命令。
-- **Terraform 后端**：提前创建用于 Terraform 状态存储的 S3 Bucket 及 DynamoDB 锁定表，并在 `infra/aws/backend.tf` 中相应配置名称。默认假定 S3 Bucket 名为 `phase2-tf-state-us-east-1`，DynamoDB 表名为 `tf-state-lock`（可根据需要修改）。详见 📄 [前置条件操作指南](docs/prerequisites-guide.md#terraform-%E5%90%8E%E7%AB%AF%E8%AE%BE%E7%BD%AE-terraform-backend-setup)。
+- **Terraform 后端**：提前创建用于 Terraform 状态存储的 S3 Bucket 及 DynamoDB 锁定表，并在 `infra/aws/backend.tf` 中相应配置名称。默认假定 S3 Bucket 名为 `phase2-tf-state-us-east-1`，DynamoDB 表名为 `tf-state-lock`（可根据需要修改）。
 - **DNS 域名**（可选）：若希望使用自定义域名访问集群服务，请在 Route 53 中预先创建相应 Hosted Zone（当前默认使用的子域为 `lab.rendazhang.com`）。将 Terraform 配置中的域名更新为你的域名，以便将 ALB 地址映射到固定域名。否则，可忽略 DNS 配置，直接使用自动分配的 ALB 域名访问服务。
 - **本地环境**：安装 Terraform (~1.8+)、kubectl 以及 Helm 等必要的命令行工具，同时安装 Git 和 Make 等基础工具。
 - **预检脚本**：可运行 `preflight.sh` 来检查关键 Service Quota 配额和环境依赖（未来将扩展检查 AWS CLI / Terraform / Helm 等工具链的版本与状态）。执行 `bash scripts/preflight.sh` 或 `make preflight` 可开始预检。
@@ -390,7 +390,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 通过以上措施，实验集群在确保功能完整的同时，将日常运行成本控制在低水平。
 
-如需了解每天晚上关机、早上重建的具体操作步骤及故障排查，请参阅 📄 [每日 EKS 重建与销毁操作指南](docs/daily-rebuild-teardown-guide.md)。
+如需了解每天晚上关机、早上重建的具体操作步骤及故障排查，请参阅 📄 [每日 EKS 重建与销毁操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)。
 
 下表为启用成本控制策略下的主要资源月度费用估算：
 
@@ -451,12 +451,12 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 ### 文档
 
-- 📄 [EKS 云原生集群生命周期流程](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/lifecycle.md#%EF%B8%8F-eks-%E4%BA%91%E5%8E%9F%E7%94%9F%E9%9B%86%E7%BE%A4%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E6%B5%81%E7%A8%8B%E6%96%87%E6%A1%A3-eks-cluster-lifecycle-guide)
-- 📄 [每日 Terraform 重建与销毁流程操作文档](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/daily-rebuild-teardown-guide.md#%E6%AF%8F%E6%97%A5-terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
-- 📄 [集群故障排查指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/TROUBLESHOOTING.md#%E9%9B%86%E7%BE%A4%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97-troubleshooting-guide)
+- 📄 [EKS 云原生集群生命周期流程](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/EKS_CLUSTER_LIFECYCLE_GUIDE.md#eks-%E4%BA%91%E5%8E%9F%E7%94%9F%E9%9B%86%E7%BE%A4%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E6%B5%81%E7%A8%8B%E6%96%87%E6%A1%A3)
+- 📄 [每日 Terraform 重建与销毁流程操作文档](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
+- 📄 [集群故障排查指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/TROUBLESHOOTING.md#%E9%9B%86%E7%BE%A4%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97)
 - 📄 [AGENTS 智能体操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/AGENTS.md#guidance-for-ai-agents)
 - 📄 [eksctl 遗留指引](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/LEGACY_EKSCTL.md#eksctl-%E6%8C%87%E5%BC%95)
-- 📄 [前置条件操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/prerequisites-guide.md#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%E6%93%8D%E4%BD%9C%E6%8C%87%E5%8D%97-prerequisites-setup-guide)
+- 📄 [前置条件操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/PREREQUISITES_GUIDE.md#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%E6%93%8D%E4%BD%9C%E6%8C%87%E5%8D%97)
 
 
 ### 检查清单
