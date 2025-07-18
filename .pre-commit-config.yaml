@@ -10,13 +10,11 @@ repos:
         # 排除子模块目录
         exclude: modules/
       - id: terraform_tflint
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
-
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.35.1
     hooks:
@@ -24,3 +22,10 @@ repos:
         # 优化：简化正则表达式（原写法也正确）
         files: \.(ya?ml)$
         # 修正：移除冗余依赖（yamllint 已内置）
+  - repo: local
+    hooks:
+      - id: update-doctoc
+        name: Update Doctoc
+        entry: scripts/run-doctoc.sh
+        language: script
+        pass_filenames: false

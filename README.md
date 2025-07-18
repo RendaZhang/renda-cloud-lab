@@ -508,6 +508,7 @@ Renda Cloud Lab 仍在持续演进中，未来规划包括但不限于：
    pre-commit install
    ```
 - 在每次提交前，钩子会自动运行。
+- README 和 docs 下的文档会自动更新 Doctoc 目录（若本地未安装则跳过）。
 - 你也可以手动触发：
   ```bash
   pre-commit run --all-files
