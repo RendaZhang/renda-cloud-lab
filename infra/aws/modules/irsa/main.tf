@@ -1,6 +1,11 @@
+// ---------------------------
+// IRSA 模块：为 Kubernetes ServiceAccount 绑定 IAM 角色
+// 用于 EKS Cluster Autoscaler 访问 AWS API
+// ---------------------------
+
 resource "aws_iam_role" "eks_cluster_autoscaler" {
-  name        = var.name
-  description = "IRSA role for Cluster Autoscaler in ${var.cluster_name}"
+  name        = var.name                                                  # IAM 角色名称
+  description = "IRSA role for Cluster Autoscaler in ${var.cluster_name}" # 角色描述
   assume_role_policy = jsonencode(
     {
       Version = "2012-10-17"
@@ -9,7 +14,7 @@ resource "aws_iam_role" "eks_cluster_autoscaler" {
           Action = "sts:AssumeRoleWithWebIdentity"
           Effect = "Allow"
           Principal = {
-            Federated = var.oidc_provider_arn
+            Federated = var.oidc_provider_arn # EKS OIDC Provider ARN
           }
           Condition = {
             StringEquals = {
@@ -22,7 +27,7 @@ resource "aws_iam_role" "eks_cluster_autoscaler" {
   )
 
   lifecycle {
-    create_before_destroy = true
+    create_before_destroy = true # 先创建新角色再销毁旧角色
   }
 }
 
@@ -56,8 +61,8 @@ resource "aws_iam_policy" "cluster_autoscaler" {
 }
 
 resource "aws_iam_role_policy_attachment" "cluster_autoscaler_attach" {
-  role       = aws_iam_role.eks_cluster_autoscaler.name
-  policy_arn = aws_iam_policy.cluster_autoscaler.arn
+  role       = aws_iam_role.eks_cluster_autoscaler.name # 关联的 IAM 角色
+  policy_arn = aws_iam_policy.cluster_autoscaler.arn    # IAM 策略 ARN
 
   depends_on = [
     aws_iam_role.eks_cluster_autoscaler,

@@ -1,3 +1,4 @@
+// IRSA 模块所需的变量定义
 variable "name" {
   description = "Name of the IRSA Role"
   type        = string

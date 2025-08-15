@@ -1,20 +1,20 @@
-region = "us-east-1"
+region = "us-east-1" # 部署区域
 
-profile = "phase2-sso"
+profile = "phase2-sso" # 本地 AWS CLI profile
 
-cluster_name = "dev"
+cluster_name = "dev" # EKS 集群名称
 
-nodegroup_capacity_type = "ON_DEMAND"
+nodegroup_capacity_type = "ON_DEMAND" # 节点组容量类型：ON_DEMAND 或 SPOT
 
-nodegroup_name = "ng-mixed"
+nodegroup_name = "ng-mixed" # 节点组名称
 
-irsa_role_name = "eks-cluster-autoscaler"
+irsa_role_name = "eks-cluster-autoscaler" # IRSA 角色名称
 
-service_account_name = "cluster-autoscaler"
+service_account_name = "cluster-autoscaler" # Kubernetes ServiceAccount 名称
 
-kubernetes_default_namespace = "kube-system"
+kubernetes_default_namespace = "kube-system" # 默认命名空间
 
-eksctl_version = "0.210.0"
+eksctl_version = "0.210.0" # eksctl 版本
 
 # Enable control plane logs for API server and authenticator
 cluster_log_types = ["api", "authenticator"]
@@ -23,7 +23,7 @@ cluster_log_types = ["api", "authenticator"]
 instance_types = ["t3.small", "t3.medium"]
 
 # --- Budget settings ---
-create_budget              = true
-budget_limit_usd           = 90
-budget_email               = "rendazhang@qq.com"
-budget_alert_threshold_pct = 80
+create_budget              = true                # 是否创建预算
+budget_limit_usd           = 90                  # 每月预算上限（美元）
+budget_email               = "rendazhang@qq.com" # 接收预算提醒的邮箱
+budget_alert_threshold_pct = 80                  # 超出预算百分比触发提醒

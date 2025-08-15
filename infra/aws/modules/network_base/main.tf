@@ -1,26 +1,30 @@
-data "aws_availability_zones" "available" {}
+// ---------------------------
+// 网络基础模块：创建 VPC、子网、路由表及 ALB 安全组等资源
+// ---------------------------
+
+data "aws_availability_zones" "available" {} # 查询可用区
 
 resource "aws_vpc" "this" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
+  cidr_block           = "10.0.0.0/16" # VPC 网段
+  enable_dns_hostnames = true          # 启用 DNS 主机名
   tags = {
     Name = "dev-vpc"
   }
 }
 
-# 2 public 子网
+# 2 个 public 子网
 resource "aws_subnet" "public" {
   count                   = 2
   vpc_id                  = aws_vpc.this.id
   cidr_block              = cidrsubnet(aws_vpc.this.cidr_block, 4, count.index) # 10.0.0.0/20, 10.0.16.0/20
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = true                                                # 实例启动分配公网 IP
   availability_zone       = element(data.aws_availability_zones.available.names, count.index)
   tags = {
     Name = "dev-public-${count.index}"
   }
 }
 
-# 2 private 子网
+# 2 个 private 子网
 resource "aws_subnet" "private" {
   count             = 2
   vpc_id            = aws_vpc.this.id
@@ -41,7 +45,7 @@ resource "aws_internet_gateway" "igw" {
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block = "0.0.0.0/0" # 指向公网
     gateway_id = aws_internet_gateway.igw.id
   }
   tags = {
@@ -88,5 +92,5 @@ resource "aws_security_group" "alb" {
 }
 
 data "aws_route53_zone" "lab" {
-  name = "lab.rendazhang.com"
+  name = "lab.rendazhang.com" # TODO: 根据实际域名修改
 }

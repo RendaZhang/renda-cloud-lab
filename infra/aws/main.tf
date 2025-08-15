@@ -1,62 +1,67 @@
+// ---------------------------
+// 主模块：组合各子模块形成完整的实验环境
+// 包含网络基础设施、NAT 网关、应用负载均衡、EKS 集群以及 IRSA 角色等
+// ---------------------------
+
 module "network_base" {
-  source = "./modules/network_base"
+  source = "./modules/network_base" # VPC、子网、路由表等基础网络资源
 }
 
 module "nat" {
-  source          = "./modules/nat"
-  create          = var.create_nat
-  public_subnet   = module.network_base.public_subnet_ids[0]
-  private_rtb_ids = module.network_base.private_route_table_ids
-  depends_on      = [module.network_base]
+  source          = "./modules/nat"                             # NAT 网关模块
+  create          = var.create_nat                              # 是否创建 NAT 资源
+  public_subnet   = module.network_base.public_subnet_ids[0]    # NAT 网关所在的公有子网
+  private_rtb_ids = module.network_base.private_route_table_ids # 需要关联的私有路由表
+  depends_on      = [module.network_base]                       # 依赖网络基础模块
 }
 
 module "alb" {
-  source            = "./modules/alb"
-  create            = var.create_alb
-  public_subnet_ids = module.network_base.public_subnet_ids
-  alb_sg_id         = module.network_base.alb_sg_id
-  vpc_id            = module.network_base.vpc_id
-  depends_on        = [module.network_base]
+  source            = "./modules/alb"                       # ALB 模块
+  create            = var.create_alb                        # 是否创建 ALB
+  public_subnet_ids = module.network_base.public_subnet_ids # ALB 使用的公有子网
+  alb_sg_id         = module.network_base.alb_sg_id         # ALB 专用安全组
+  vpc_id            = module.network_base.vpc_id            # 所属 VPC
+  depends_on        = [module.network_base]                 # 依赖网络基础模块
 }
 
 module "eks" {
-  source                  = "./modules/eks"
-  create                  = var.create_eks
-  cluster_name            = var.cluster_name
-  vpc_id                  = module.network_base.vpc_id
-  nodegroup_capacity_type = var.nodegroup_capacity_type
-  cluster_log_types       = var.cluster_log_types
-  public_subnet_ids       = module.network_base.public_subnet_ids
-  private_subnet_ids      = module.network_base.private_subnet_ids
-  nodegroup_name          = var.nodegroup_name
-  instance_types          = var.instance_types
-  ssh_cidrs               = var.ssh_cidrs
-  nodeport_cidrs          = var.nodeport_cidrs
-  eksctl_version          = var.eksctl_version
-  depends_on              = [module.network_base]
+  source                  = "./modules/eks"                        # EKS 集群模块
+  create                  = var.create_eks                         # 是否创建 EKS
+  cluster_name            = var.cluster_name                       # 集群名称
+  vpc_id                  = module.network_base.vpc_id             # 集群所在 VPC
+  nodegroup_capacity_type = var.nodegroup_capacity_type            # 节点组容量类型
+  cluster_log_types       = var.cluster_log_types                  # 控制平面日志类型
+  public_subnet_ids       = module.network_base.public_subnet_ids  # 公有子网
+  private_subnet_ids      = module.network_base.private_subnet_ids # 私有子网
+  nodegroup_name          = var.nodegroup_name                     # 节点组名称
+  instance_types          = var.instance_types                     # 节点实例类型
+  ssh_cidrs               = var.ssh_cidrs                          # 允许 SSH 的 CIDR
+  nodeport_cidrs          = var.nodeport_cidrs                     # NodePort 访问 CIDR
+  eksctl_version          = var.eksctl_version                     # eksctl 版本
+  depends_on              = [module.network_base]                  # 依赖网络基础模块
 }
 
 module "irsa" {
-  source                          = "./modules/irsa"
-  count                           = var.create_eks ? 1 : 0
-  name                            = var.irsa_role_name
-  namespace                       = var.kubernetes_default_namespace
-  cluster_name                    = var.cluster_name
-  service_account_name            = var.service_account_name
-  oidc_provider_arn               = module.eks.oidc_provider_arn
-  oidc_provider_url_without_https = module.eks.oidc_provider_url_without_https
-  depends_on                      = [module.eks]
+  source                          = "./modules/irsa"                           # IRSA 模块，创建服务账户角色
+  count                           = var.create_eks ? 1 : 0                     # 仅在创建 EKS 时启用
+  name                            = var.irsa_role_name                         # IAM 角色名称
+  namespace                       = var.kubernetes_default_namespace           # Kubernetes 命名空间
+  cluster_name                    = var.cluster_name                           # 集群名称
+  service_account_name            = var.service_account_name                   # ServiceAccount 名称
+  oidc_provider_arn               = module.eks.oidc_provider_arn               # OIDC Provider ARN
+  oidc_provider_url_without_https = module.eks.oidc_provider_url_without_https # OIDC URL（无 https）
+  depends_on                      = [module.eks]                               # 依赖 EKS 模块
 }
 
 resource "aws_route53_record" "lab_alias" {
-  count   = var.create_alb ? 1 : 0
-  zone_id = module.network_base.hosted_zone_id
-  name    = "" # 保留空
-  type    = "A"
+  count   = var.create_alb ? 1 : 0             # 仅在创建 ALB 时创建记录
+  zone_id = module.network_base.hosted_zone_id # DNS Hosted Zone ID
+  name    = ""                                 # TODO: 设置所需的子域名
+  type    = "A"                                # A 记录
   alias {
-    name                   = module.alb.alb_dns     # 动态 ALB DNS
-    zone_id                = module.alb.alb_zone_id # ALB 所属 Hosted-zone
-    evaluate_target_health = false
+    name                   = module.alb.alb_dns     # 指向 ALB 的 DNS
+    zone_id                = module.alb.alb_zone_id # ALB 所属的 Hosted Zone
+    evaluate_target_health = false                  # 不检查目标健康状况
   }
-  depends_on = [module.alb]
+  depends_on = [module.alb] # 等待 ALB 创建完成
 }

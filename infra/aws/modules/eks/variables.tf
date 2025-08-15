@@ -1,21 +1,26 @@
 variable "create" {
-  type = bool
+  description = "是否创建 EKS 相关资源"
+  type        = bool
 }
 
 variable "cluster_name" {
-  type = string
+  description = "EKS 集群名称"
+  type        = string
 }
 
 variable "private_subnet_ids" {
-  type = list(string)
+  description = "集群使用的私有子网 ID 列表"
+  type        = list(string)
 }
 
 variable "public_subnet_ids" {
-  type = list(string)
+  description = "集群使用的公有子网 ID 列表"
+  type        = list(string)
 }
 
 variable "nodegroup_name" {
-  type = string
+  description = "节点组名称"
+  type        = string
 }
 
 variable "nodegroup_capacity_type" {

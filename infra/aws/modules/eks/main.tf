@@ -1,30 +1,35 @@
-resource "aws_eks_cluster" "this" {
-  count                         = var.create ? 1 : 0
-  name                          = var.cluster_name
-  bootstrap_self_managed_addons = true
-  role_arn                      = aws_iam_role.eks_cluster_role[0].arn
+// ---------------------------
+// EKS 集群及相关资源
+// 包含集群本身、IAM 角色、安全组、节点组等配置
+// ---------------------------
 
-  enabled_cluster_log_types = var.cluster_log_types
+resource "aws_eks_cluster" "this" {
+  count                         = var.create ? 1 : 0                   # 当 create 为 true 时创建集群
+  name                          = var.cluster_name                     # 集群名称
+  bootstrap_self_managed_addons = true                                 # 启用自管理组件
+  role_arn                      = aws_iam_role.eks_cluster_role[0].arn # 集群 IAM 角色
+
+  enabled_cluster_log_types = var.cluster_log_types # 控制平面日志类型
 
   access_config {
-    authentication_mode                         = "API_AND_CONFIG_MAP"
-    bootstrap_cluster_creator_admin_permissions = true
+    authentication_mode                         = "API_AND_CONFIG_MAP" # API 与 ConfigMap 双重认证
+    bootstrap_cluster_creator_admin_permissions = true                 # 创建者获得管理员权限
   }
 
   kubernetes_network_config {
-    ip_family         = "ipv4"
-    service_ipv4_cidr = "172.20.0.0/16"
+    ip_family         = "ipv4"          # 集群使用 IPv4
+    service_ipv4_cidr = "172.20.0.0/16" # Service 网段
     elastic_load_balancing {
-      enabled = false
+      enabled = false # 禁止自动创建经典负载均衡
     }
   }
 
   upgrade_policy {
-    support_type = "EXTENDED"
+    support_type = "EXTENDED" # 扩展支持策略
   }
 
   vpc_config {
-    subnet_ids = concat(var.private_subnet_ids, var.public_subnet_ids)
+    subnet_ids = concat(var.private_subnet_ids, var.public_subnet_ids) # 使用公私子网
   }
 
   tags = {

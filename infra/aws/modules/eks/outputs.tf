@@ -1,3 +1,4 @@
+// 输出与 EKS OIDC 相关的信息，供 IRSA 模块使用
 output "oidc_provider_arn" {
   description = "OIDC provider ARN for the EKS cluster"
   value       = try(aws_iam_openid_connect_provider.oidc[0].arn, null)

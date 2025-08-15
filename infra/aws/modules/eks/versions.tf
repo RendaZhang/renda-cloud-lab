@@ -1,3 +1,4 @@
+// Module 版本约束，确保各依赖版本一致
 terraform {
   required_version = "~> 1.12"
 

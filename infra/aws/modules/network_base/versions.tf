@@ -1,3 +1,4 @@
+// 模块版本约束
 terraform {
   required_version = "~> 1.12"
 

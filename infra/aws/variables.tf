@@ -1,3 +1,4 @@
+# -------- 基础配置 --------
 variable "region" {
   description = "AWS region"
   type        = string
@@ -9,6 +10,7 @@ variable "profile" {
   default     = "phase2-sso" # 本机使用的 profile
 }
 
+# -------- EKS 相关配置 --------
 variable "cluster_name" {
   description = "Name of the EKS cluster"
   type        = string
@@ -58,18 +60,21 @@ variable "cluster_log_types" {
 }
 
 variable "create_nat" {
-  type    = bool
-  default = true
+  description = "Whether to create NAT Gateway"
+  type        = bool
+  default     = true
 }
 
 variable "create_alb" {
-  type    = bool
-  default = true
+  description = "Whether to create Application Load Balancer"
+  type        = bool
+  default     = true
 }
 
 variable "create_eks" {
-  type    = bool
-  default = true
+  description = "Whether to create EKS cluster"
+  type        = bool
+  default     = true
 }
 
 variable "instance_types" {
@@ -90,6 +95,7 @@ variable "nodeport_cidrs" {
   default     = ["0.0.0.0/0"]
 }
 
+# -------- 预算配置 --------
 variable "create_budget" {
   description = "Whether to create AWS Budgets via Terraform"
   type        = bool
