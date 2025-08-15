@@ -27,6 +27,21 @@ NODEGROUP_NAME="ng-mixed"
 KUBE_DEFAULT_NAMESPACE="kube-system"
 ASG_PREFIX="eks-${NODEGROUP_NAME}"
 
+# === 应用部署参数（可被环境变量覆盖）===
+# k8s 命名空间（需与 k8s.yaml 中 metadata.namespace 一致）
+NS="${NS:-svc-task}"
+# Deployment/Service 的名称与容器名
+APP="${APP:-task-api}"
+# ECR 仓库名
+ECR_REPO="${ECR_REPO:-task-api}"
+# 要部署的镜像 tag（也可用 latest）。若设置 IMAGE_DIGEST 则优先生效。
+IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
+# 仓库根目录的 k8s.yaml 路径（可通过 K8S_FILE 覆盖）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+K8S_FILE="${K8S_FILE:-${ROOT_DIR}/k8s.yaml}"
+# 若你想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
+
 TOPIC_NAME="spot-interruption-topic"
 TOPIC_ARN="arn:${CLOUD_PROVIDER}:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
 STATE_FILE="scripts/.last-asg-bound"
@@ -38,8 +53,14 @@ DEPLOYMENT_AUTOSCALER_NAME="${AUTOSCALER_RELEASE_NAME}-${CLOUD_PROVIDER}-${AUTOS
 POD_AUTOSCALER_LABEL="app.kubernetes.io/name=${AUTOSCALER_RELEASE_NAME}"
 
 # === 函数定义 ===
+# log() {
+#   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+# }
 log() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+  printf "[%s] %s\n" "$(date '+%H:%M:%S')" "$*";
+}
+abort() {
+  printf "[%s] ❌ %s\n" "$(date '+%H:%M:%S')" "$*" >&2; exit 1;
 }
 
 # 判断 EKS 集群是否存在
@@ -233,6 +254,64 @@ perform_health_checks() {
   log "SNS bindings for ASG [$asg_name]: $sns_bound"
 }
 
+# === 部署 task-api 到 EKS（幂等）===
+deploy_task_api() {
+  # ===== 前置：AWS 身份与 kubeconfig =====
+  log "🔐 使用 profile=${PROFILE} region=${REGION}"
+  ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text --profile "${PROFILE}")" || abort "无法获取 AWS 账号 ID"
+  log "👤 AWS Account: ${ACCOUNT_ID}"
+
+  log "🔧 配置 kubeconfig（cluster=${CLUSTER}）"
+  aws eks update-kubeconfig --name "${CLUSTER}" --region "${REGION}" --profile "${PROFILE}" >/dev/null
+
+  # ===== 命名空间幂等创建 =====
+  if ! kubectl get ns "${NS}" >/dev/null 2>&1; then
+    log "📦 创建命名空间: ${NS}"
+    kubectl create ns "${NS}"
+  fi
+
+  # ===== 应用仓库根目录的 k8s.yaml =====
+  if [[ ! -f "${K8S_FILE}" ]]; then
+    abort "未找到 k8s 清单文件：${K8S_FILE}（请确认它在仓库根目录）"
+  fi
+  log "🗂️  apply 清单：${K8S_FILE}"
+  kubectl apply -f "${K8S_FILE}"
+
+  # ===== 解析镜像（优先使用固定 digest）=====
+  if [[ -n "${IMAGE_DIGEST:-}" ]]; then
+    DIGEST="${IMAGE_DIGEST}"
+    log "📌 使用固定 digest：${DIGEST}"
+  else
+    log "🔎 从 ECR 获取 ${ECR_REPO}:${IMAGE_TAG} 的 digest"
+    set +e
+    DIGEST="$(aws ecr describe-images \
+      --repository-name "${ECR_REPO}" \
+      --image-ids imageTag="${IMAGE_TAG}" \
+      --query 'imageDetails[0].imageDigest' \
+      --output text --region "${REGION}" --profile "${PROFILE}")"
+    rc=$?
+    set -e
+    if [[ $rc -ne 0 || -z "${DIGEST}" || "${DIGEST}" == "None" ]]; then
+      abort "ECR 中未找到镜像 ${ECR_REPO}:${IMAGE_TAG} 的 digest，请先推送镜像或调整 IMAGE_TAG"
+    fi
+  fi
+  IMAGE="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}@${DIGEST}"
+  log "🖼️  将部署镜像：${IMAGE}"
+
+  # ===== 用 set image 覆盖 k8s.yaml 中的镜像，并记录 rollout 历史 =====
+  log "♻️  更新 Deployment 镜像并等待滚动完成"
+  kubectl -n "${NS}" set image deploy/"${APP}" "${APP}"="${IMAGE}" --record
+  kubectl -n "${NS}" rollout status deploy/"${APP}" --timeout=180s
+
+  # ===== 集群内冒烟测试 =====
+  log "🧪 集群内冒烟测试：/api/hello 与 /actuator/health"
+  kubectl -n "${NS}" run curl --image=curlimages/curl:8.8.0 -i --rm -q --restart=Never -- \
+    sh -lc "set -e; \
+      curl -sf http://${APP}.${NS}.svc.cluster.local:8080/api/hello?name=Renda >/dev/null; \
+      curl -sf http://${APP}.${NS}.svc.cluster.local:8080/actuator/health | grep -q '\"status\":\"UP\"'"
+  log "✅ 部署与冒烟测试完成"
+}
+
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
 
@@ -255,3 +334,5 @@ install_autoscaler
 ensure_sns_binding "$asg_name"
 
 perform_health_checks "$asg_name"
+
+deploy_task_api

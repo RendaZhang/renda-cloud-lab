@@ -15,13 +15,6 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
-  - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
-    hooks:
-      - id: yamllint
-        # 优化：简化正则表达式（原写法也正确）
-        files: \.(ya?ml)$
-        # 修正：移除冗余依赖（yamllint 已内置）
   - repo: local
     hooks:
       - id: update-doctoc
