@@ -37,8 +37,8 @@
 
 # Renda Cloud Lab
 
-* **Last Updated:** July 18, 2025, 19:00 (UTC+8)
-* **作者:** 张人大（Renda Zhang）
+- **最后更新**: August 16, 2025, 03:54 (UTC+08:00)
+- **作者**: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
 
@@ -243,41 +243,44 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 
 ### 应用部署
 
-基础设施就绪后，即可在集群上部署示例应用和云原生组件：
+> 本仓库示例应用为 **task-api（Spring Boot 3 + Actuator）**。
+> 镜像存放在 **Amazon ECR**，清单位于仓库根目录 `k8s.yaml`，一键部署脚本为 `scripts/post-recreate.sh`。
 
-**部署示例应用**：
-
-使用 Helm 将提供的示例应用 Chart 安装到集群中。请根据 `charts/` 目录中的实际内容选择相应子目录并执行安装命令。
-
-例如：
+**快速部署：**
 
 ```bash
-helm install my-app charts/my-app -n default --create-namespace
+# 默认使用：PROFILE=phase2-sso, REGION=us-east-1, CLUSTER=dev, NS=svc-task, APP=task-api, ECR_REPO=task-api, IMAGE_TAG=0.1.0
+bash scripts/post-recreate.sh
 ```
 
-上述命令会将示例应用部署至 Kubernetes 默认命名空间。部署完成后，可通过 `kubectl get pods` 查看应用 Pod 状态。应用对外暴露的服务将通过 AWS ALB 及 Route 53 自定义域名访问（默认域名为 `lab.rendazhang.com`，可根据需要替换为你的域名）。
+**可覆盖参数：**
 
-**GitOps 持续部署**：
+```bash
+# 例如使用 latest 标签；或固定某个 digest
+IMAGE_TAG=latest bash scripts/post-recreate.sh
+IMAGE_DIGEST=sha256:... bash scripts/post-recreate.sh
+```
 
-推荐安装 Argo CD 至集群（可参考官方文档）。
+**脚本做了什么（幂等 & 可重跑）：**
 
-将本仓库（或你的 Fork）配置为 Argo CD 的应用来源后，Argo CD 将持续监视 `charts/` 下的清单变更并自动同步部署到集群。
+1. `aws eks update-kubeconfig` 切到目标集群
+2. 若 `svc-task` 不存在则创建
+3. `kubectl apply -f k8s.yaml` 应用/更新 Deployment 与 Service
+4. 从 ECR 解析 `IMAGE_TAG` → **digest**，或直接使用 `IMAGE_DIGEST`
+5. `kubectl set image` 覆盖 Deployment 镜像（digest 固定，避免 tag 漂移）并等待 `rollout status` 成功
+6. 启动一次**集群内冒烟测试**（`/api/hello`、`/actuator/health`），通过即视为上线成功
 
-这实现了 Git 提交到集群配置的自动部署流程。
+**部署结果验证：**
 
-若偏好使用 AWS 原生 CI/CD，也可以结合 **AWS CodePipeline**，实现从代码变更到容器构建、再通过 Argo CD 或 Helm 完成部署的端到端流水线。
+```bash
+kubectl -n svc-task get deploy,svc
+kubectl -n svc-task port-forward svc/task-api 8080:8080
+curl -s "http://127.0.0.1:8080/api/hello?name=Renda"
+curl -s "http://127.0.0.1:8080/actuator/health"
+```
 
-**部署运维组件**：
-
-根据需要部署可观测性和混沌工程相关组件。
-
-例如，可以使用 Helm 安装 OpenTelemetry Collector、Chaos Mesh Operator 等到集群，以完善实验环境的运维功能。
-
-这些组件的示例配置可在 `charts/` 或 `scripts/` 中找到。
-
-部署后，可结合相应的仪表盘或工具验证其功能（例如访问 Grafana 查看指标数据，或触发 Chaos Mesh 实验观察集群表现）。
-
-> 完成上述步骤后，EKS 实验集群应已成功运行示例应用工作负载和所需的支撑组件。
+> 说明：`k8s.yaml` 中的 `metadata.namespace` 应与 `NS` 保持一致（默认 `svc-task`）。
+> TODO: 安装 AWS Load Balancer Controller 后，可新增 `Ingress` 以暴露公网入口（ALB）。
 
 ---
 
@@ -329,7 +332,7 @@ make preflight   # 等同于 bash scripts/preflight.sh
 ### 推荐完整重建流程
 
 ```bash
-# 一键启用 NAT/ALB + 创建/导入集群 + 刷新本地 kubeconfig + 使用 Helm 部署 + 绑定 Spot 通知
+# 一键启用 NAT/ALB + 创建/导入集群 + 刷新本地 kubeconfig + 使用 Helm 部署 + 绑定 Spot 通知 + 一键恢复应用（task-api）
 make start-all
 
 # ... coding ...
@@ -349,6 +352,8 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 ```
 
 随后在 AWS Console ➜ SNS ➜ Topics ➜ `spot-interruption-topic` 中确认订阅状态为 *Confirmed*。
+
+> 提示：ECR 不随每日销毁而删除，因此脚本可直接使用已有镜像；若需要新版本，先在本地构建并 `docker push` 到 ECR。
 
 ## 成本控制说明
 
@@ -391,6 +396,10 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 通过以上措施，实验集群在确保功能完整的同时，将日常运行成本控制在低水平。
 
 如需了解每天晚上关机、早上重建的具体操作步骤及故障排查，请参阅 📄 [每日 EKS 重建与销毁操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)。
+
+**版本与回滚建议**：
+
+生产/预发推荐 **固定镜像 digest**（`image: ...@sha256:...`），避免 `:latest` 漂移；ECR 生命周期策略建议至少保留最近 **5–10** 个 tag 或保留 **7 天** 的 untagged，以便快速回滚。
 
 下表为启用成本控制策略下的主要资源月度费用估算：
 
@@ -472,7 +481,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 | --------------------------| -----------------------------------|
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas  |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态   |
-| `post-recreate.sh`        | 刷新 kubeconfig，使用 Helm 进行部署，以及自动为最新 NodeGroup 绑定 Spot Interruption SNS |
+| `post-recreate.sh`        | 刷新 kubeconfig，安装/校验 Cluster Autoscaler，部署应用 task-api（k8s.yaml + ECR digest）并完成冒烟验证，以及自动为最新 NodeGroup 绑定 Spot 通知 |
 | `post-teardown.sh`        | 销毁集群后清理 CloudWatch 日志组并验证所有资源已删除 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本 |
 | `update-diagrams.sh`      | 图表生成脚本 |

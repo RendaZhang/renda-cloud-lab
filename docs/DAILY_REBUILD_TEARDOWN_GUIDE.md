@@ -19,8 +19,8 @@
 
 # Terraform 重建与销毁流程操作文档
 
-- **Last Updated:** July 18, 2025, 21:40 (UTC+8)
-- **作者:** 张人大（Renda Zhang）
+- **最后更新**: August 16, 2025, 03:54 (UTC+08:00)
+- **作者**: 张人大（Renda Zhang）
 
 ---
 
@@ -41,6 +41,8 @@
 重建流程旨在 快速自动恢复 停用期间 为节省成本而释放的云资源，以便开展实验或开发工作。
 
 通过自动部署必要的基础设施（如 NAT 网关、ALB 负载均衡）并确保 EKS 集群正常运行，我们可以在确保功能完整的同时，将不必要的云开销降至最低。
+
+> 提示：本项目 **ECR 仓库不随每日销毁**，镜像使用 **digest（@sha256）** 固定部署，避免 `:latest` 漂移；脚本会按 `IMAGE_TAG` 自动解析 digest，并用 `kubectl set image` 滚动更新后等待就绪。
 
 ### 步骤与命令详解
 
@@ -99,46 +101,43 @@
    - Terraform 执行完成后，建议再次运行 `terraform plan`，确保状态与实际资源无偏差。Plan 返回 *No changes* 即表示资源完全同步，可放心进入下一步。
       > 提示：在今后的日常流程中，若怀疑 Terraform 状态与实际资源不同步，可随时运行 `terraform plan` 进行检查。
       > 一旦发现 drift，应立即排查原因或通过 `terraform import` 等手段修正，以确保 Terraform 管理的资源与真实环境匹配。
-5. **运行 Post Recreate 脚本**：
-   - 该脚本自动记录日志、简化 AWS ASG 配置，并通过 Helm 确保 Cluster Autoscaler 与集群版本一致。
-   - 此外，它会检查 NAT 网关、ALB、EKS 控制平面、节点组、日志组等资源是否正常，并验证 SNS 告警订阅是否生效。
-   - **Makefile 命令**：
-     - 执行 `make post-recreate` 调用脚本会在控制台输出日志并保存到 scripts/logs/post-recreate.log 文件中。
-     - 它简化了 AWS 自动扩缩组（ASG）的通知配置，避免了手动使用 AWS CLI 的复杂操作。
-     - 此外，脚本会自动通过 Helm 安装 / 升级 Cluster Autoscaler，确保节点自动扩缩容组件与集群版本一致。
-     - 该脚本具有幂等性，可以多次执行。
-   - **手动 CLI 命令**：
-     - 亦可手动执行脚本或使用 AWS CLI 完成相同操作。
-     - 推荐直接运行仓库提供的脚本：
-        ```bash
-        bash scripts/post-recreate.sh
-        ```
-    - 该脚本执行后，会在控制台输出绑定和资源检查的日志，并将结果保存到 `scripts/logs/post-recreate.log` 文件。
-    - 手动方式亦可使用 AWS CLI 完成，但需手动查询最新 ASG 名称并验证各种资源状态。
-    - 脚本在更新 kubeconfig 后会自动通过 Helm 安装/升级 Cluster Autoscaler，并检查 NAT 网关、ALB、EKS 与节点组状态以及日志组与 SNS 通知配置，确保环境完全就绪。
-- **验证控制面日志与 Spot 通知**：
-   - **控制面日志**：
-     - 运行以下命令，确认 `api` 与 `authenticator` 日志已启用，且 CloudWatch 日志组 `/aws/eks/dev/cluster` 已创建：
-       ```bash
-       aws eks describe-cluster --name dev --profile phase2-sso --region us-east-1 --query "cluster.logging.clusterLogging[?enabled].types" --output table
-       aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group-name-prefix "/aws/eks/dev/cluster" --query 'logGroups[].logGroupName' --output text
-       ```
-       预期输出示例：
-       ```plaintext
-       --------------------------
-       |     DescribeCluster    |
-       +------+-----------------+
-       |  api |  authenticator  |
-       +------+-----------------+
-       /aws/eks/dev/cluster
-       ```
-     - 随后可在 **AWS Console ➜ CloudWatch ➜ Logs ➜ Log groups** 中看到 `api`、`authenticator` 等日志流。
-   - **Spot 通知订阅**：
-     - 登录 **AWS Console ➜ SNS ➜ Topics ➜ `spot-interruption-topic` ➜ Subscriptions**，
-     - 应看到状态为 `Confirmed`，并在绑定成功后收到邮件通知。
+5. **运行 Post Recreate 脚本（含应用自动恢复）**：
+   - 一键完成：刷新 kubeconfig、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定，
+     **并将应用 `task-api` 部署/更新到集群，最后做集群内冒烟测试**。
+   - **Make 命令**：
+     ```bash
+     make post-recreate
+     ```
+     日志保存到 `scripts/logs/post-recreate.log`。
+   - **可覆盖参数（可选）**：
+     ```bash
+     IMAGE_TAG=0.1.0  NS=svc-task  APP=task-api  ECR_REPO=task-api  make post-recreate
+     # 或固定 digest（更安全，可回滚）：
+     IMAGE_DIGEST=sha256:<your_digest>  make post-recreate
+     ```
+   - 该脚本**幂等且可重试**；镜像不变时不会触发滚动；失败修正后直接重跑即可。
+   - 脚本会从 ECR 以 tag 解析出 **digest**，并用 `kubectl set image` 覆盖到 Deployment，随后 `rollout status` 等待成功，最后在集群内用 `curlimages/curl` 进行 **/api/hello** 与 **/actuator/health** 冒烟校验。:contentReference[oaicite:1]{index=1}
+6. **端到端验活（本地）**：
+   - 使用 `kubectl port-forward` 在本机开 8080 端口，把流量“隧道”进集群的 Service：
+     ```bash
+     kubectl -n svc-task port-forward svc/task-api 8080:8080
+     ```
+   - 另开终端验证：
+     ```bash
+     curl -s "http://127.0.0.1:8080/api/hello?name=Renda"
+     curl -s "http://127.0.0.1:8080/actuator/health"
+     ```
+   - 看到业务响应与 `"status":"UP"` 即表示**已在 EKS 集群内正常运行**；该方法仅用于开发/验活，关闭命令窗口后转发即失效。
 
 ### 常见错误与排查指引
 
+- **ImagePullBackOff / ErrImagePull**：
+  - EKS 节点无法从 ECR 拉镜像。检查节点角色是否有最小化 ECR 读权限（ecr:GetAuthorizationToken 等），以及子网是否能出网（NAT 就绪）。
+  - 你也可以先在 **第 5 步脚本日志**里确认是否已解析出镜像 digest 并成功下发到 Deployment。
+- **CrashLoopBackOff（健康检查失败）**：
+  - 若 liveness/readiness 配置了 Actuator 路径，请核对应用端点是否为 `/actuator/health/liveness` 与 `/actuator/health/readiness`；必要时临时放宽阈值，确保先完成闭环，再逐步收紧。
+- **Pending（无可调度节点）**：
+  - 若节点组按空闲自动缩至 0，首次部署时需要几分钟冷启动；检查 Cluster Autoscaler 是否 `Running` 且 IRSA 生效，然后观察 `kubectl get events -A` 与 `kubectl get nodes`。
 - **Terraform 状态锁定**：
   - 如果在执行 Terraform 命令时遇到类似 `Error: Error acquiring the state lock` 的错误，
   - 说明先前的 Terraform 进程未正常解锁状态文件。
@@ -220,6 +219,16 @@
   - 应包含最新的 Auto Scaling Group（名称以 `eks-ng-mixed*` 开头）。
   - 或者检查脚本日志 `scripts/logs/post-recreate.log`，
   - 最后一行应显示 “已绑定最新 ASG” 且名称匹配当前集群节点组。
+- [x] **应用层（task-api）**
+  - `kubectl -n svc-task get deploy,svc` 中 `deploy/task-api` READY，`svc/task-api` 为 ClusterIP。
+  - 集群内冒烟（脚本已自动执行）：
+    ```bash
+    kubectl -n svc-task run curl- --generate-name --image=curlimages/curl:8.8.0 --restart=Never --attach --rm -- \
+      sh -lc "set -e; \
+        curl -sf http://task-api.svc-task.svc.cluster.local:8080/api/hello?name=Renda >/dev/null; \
+        curl -sf http://task-api.svc-task.svc.cluster.local:8080/actuator/health | grep -q '\"status\":\"UP\"'"
+    ```
+  - （可选）本地端到端：见上文“第 6 步 端到端验活（本地）”。
 
 ---
 
@@ -312,6 +321,7 @@
        - 可考虑使用 `make stop-hard` 实现“硬停机”：
        - 该命令在 `make stop` 基础上额外删除了 EKS 控制面，适用于连续多日不使用环境的情形。
      - 请根据实际需求选择合适的销毁程度，在成本优化与重建时间之间取得平衡。
+     - 若走“每日销毁/次日重建”的策略，**建议保留 ECR 仓库**（不计显著费用），并为回滚保留最近 **5–10 个 tag** 或保留 **7 天** 的 untagged；这样重建后可直接用脚本按 digest 恢复到任一可用版本。
 
 ### 常见错误与排查指引
 

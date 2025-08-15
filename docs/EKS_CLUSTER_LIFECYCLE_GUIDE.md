@@ -7,12 +7,14 @@
     - [本地依赖要求](#%E6%9C%AC%E5%9C%B0%E4%BE%9D%E8%B5%96%E8%A6%81%E6%B1%82)
     - [AWS SSO 登录](#aws-sso-%E7%99%BB%E5%BD%95)
   - [集群每日重建流程](#%E9%9B%86%E7%BE%A4%E6%AF%8F%E6%97%A5%E9%87%8D%E5%BB%BA%E6%B5%81%E7%A8%8B)
+    - [端到端验活（本地）](#%E7%AB%AF%E5%88%B0%E7%AB%AF%E9%AA%8C%E6%B4%BB%E6%9C%AC%E5%9C%B0)
   - [日常关闭资源以节省成本](#%E6%97%A5%E5%B8%B8%E5%85%B3%E9%97%AD%E8%B5%84%E6%BA%90%E4%BB%A5%E8%8A%82%E7%9C%81%E6%88%90%E6%9C%AC)
   - [一键彻底销毁所有资源](#%E4%B8%80%E9%94%AE%E5%BD%BB%E5%BA%95%E9%94%80%E6%AF%81%E6%89%80%E6%9C%89%E8%B5%84%E6%BA%90)
   - [查看日志与清理状态](#%E6%9F%A5%E7%9C%8B%E6%97%A5%E5%BF%97%E4%B8%8E%E6%B8%85%E7%90%86%E7%8A%B6%E6%80%81)
     - [查看最近执行日志](#%E6%9F%A5%E7%9C%8B%E6%9C%80%E8%BF%91%E6%89%A7%E8%A1%8C%E6%97%A5%E5%BF%97)
     - [清理状态缓存文件（可选）](#%E6%B8%85%E7%90%86%E7%8A%B6%E6%80%81%E7%BC%93%E5%AD%98%E6%96%87%E4%BB%B6%E5%8F%AF%E9%80%89)
   - [脚本自动化逻辑说明 post-recreate.sh](#%E8%84%9A%E6%9C%AC%E8%87%AA%E5%8A%A8%E5%8C%96%E9%80%BB%E8%BE%91%E8%AF%B4%E6%98%8E-post-recreatesh)
+  - [应用层生命周期（Deployment / Service / Ingress）](#%E5%BA%94%E7%94%A8%E5%B1%82%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9Fdeployment--service--ingress)
   - [推荐 gitignore 配置](#%E6%8E%A8%E8%8D%90-gitignore-%E9%85%8D%E7%BD%AE)
   - [后续规划（可选）](#%E5%90%8E%E7%BB%AD%E8%A7%84%E5%88%92%E5%8F%AF%E9%80%89)
 
@@ -20,8 +22,8 @@
 
 # EKS 云原生集群生命周期流程文档
 
-- **Last Updated:** July 18, 2025, 20:30 (UTC+8)
-- **作者:** 张人大（Renda Zhang）
+- **最后更新**: August 16, 2025, 03:54 (UTC+08:00)
+- **作者**: 张人大（Renda Zhang）
 
 本项目以 Terraform 为核心管理工具，配合 Bash 脚本完成 EKS 集群的每日销毁与重建，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。
 
@@ -99,12 +101,25 @@ make post-recreate
 
 该脚本具备：
 
-- 更新本地的 kubeconfig
-- 通过 Helm 安装或升级 cluster-autoscaler
+- 更新本地的 `kubeconfig`
+- 通过 Helm 安装或升级 `cluster-autoscaler`
 - 自动识别当前 ASG 名称并绑定 SNS 通知
 - 检查 NAT 网关、ALB、EKS 控制平面、节点组及日志组状态
 - 防重复绑定（本地记录 `.last-asg-bound`）
 - 日志输出到 `scripts/logs/post-recreate.log`
+- 部署/更新示例应用 `task-api`：使用仓库根目录 `k8s.yaml` 应用 Deployment/Service，并将 ECR `IMAGE_TAG` 解析为 `digest` 后下发到 Deployment（避免 `:latest` 漂移）。
+- 集群内冒烟测试：自动以 `curlimages/curl` 调用 `GET /api/hello` 与 `GET /actuator/health`，通过即视为上线成功。
+
+### 端到端验活（本地）
+
+用于人工可视化确认与截图留痕，关闭窗口即失效（开发/验证用途）。
+
+```bash
+kubectl -n svc-task port-forward svc/task-api 8080:8080
+# 另开终端：
+curl -s "http://127.0.0.1:8080/api/hello?name=Renda"
+curl -s "http://127.0.0.1:8080/actuator/health"
+```
 
 ---
 
@@ -123,6 +138,9 @@ make stop-all
 ```
 
 > 该操作不会删除 VPC、Route Table、KMS 等基础结构；`stop-all` 会在销毁集群后额外执行 `scripts/post-teardown.sh` 清理日志组并检查 NAT 网关、ALB、EKS 等资源是否完全移除
+
+> 提示：ECR 不随每日销毁；建议镜像以 **digest（@sha256）** 固定部署。遇到失败可通过保留的历史 tag/镜像快速回滚。
+
 
 ---
 
@@ -166,7 +184,7 @@ make clean
 核心路径：`scripts/post-recreate.sh`
 
 - 更新 kubeconfig 以连接 EKS 集群
-- 自动安装/升级 cluster-autoscaler (Helm)
+- 自动安装/升级 `cluster-autoscaler` (Helm)
 - 自动查找当前 ASG 名称（以 `eks-ng-mixed` 为前缀）并检查 SNS 通知绑定
 - 验证 NAT 网关、ALB、EKS 控制面、节点组和日志组状态
 - 若尚未绑定 SNS 通知，则绑定：
@@ -174,6 +192,17 @@ make clean
   - SNS Topic：`spot-interruption-topic`
 - 状态记录：`scripts/.last-asg-bound`
 - 日志：`scripts/logs/post-recreate.log`
+- 应用恢复：`kubectl apply -f k8s.yaml` 并以 `kubectl set image` 将镜像固定到 **ECR digest**，随后等待 `rollout status` 成功
+- 应用验活：在集群内发起 `/api/hello` 与 `/actuator/health` 冒烟请求（失败可重试，脚本幂等）
+
+---
+
+## 应用层生命周期（Deployment / Service / Ingress）
+
+- **声明来源**：仓库根目录的 `k8s.yaml`（Deployment + ClusterIP Service）。
+- **固定镜像**：脚本用 `IMAGE_TAG` → **ECR digest** 替换 Deployment 镜像，避免 `:latest` 漂移。
+- **回滚建议**：ECR 生命周期保留最近 **5–10** 个 tag（或保留 **7 天** untagged），以便出现回退需求时快速切换。
+- **对外暴露**：安装 **AWS Load Balancer Controller** 后，追加 `Ingress`（ALB）即可形成公网入口；未安装前可用 `port-forward` 验证服务可用性。
 
 ---
 
