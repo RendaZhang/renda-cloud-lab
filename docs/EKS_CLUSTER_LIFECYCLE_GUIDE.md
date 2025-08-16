@@ -107,7 +107,7 @@ make post-recreate
 - 检查 NAT 网关、ALB、EKS 控制平面、节点组及日志组状态
 - 防重复绑定（本地记录 `.last-asg-bound`）
 - 日志输出到 `scripts/logs/post-recreate.log`
-- 部署/更新示例应用 `task-api`：使用仓库根目录 `k8s.yaml` 应用 Deployment/Service，并将 ECR `IMAGE_TAG` 解析为 `digest` 后下发到 Deployment（避免 `:latest` 漂移）。
+- 部署/更新示例应用 `task-api`：依次应用 `task-api/k8s/base/ns-sa.yaml`、`task-api/k8s/base/configmap.yaml`、`task-api/k8s/base/deploy-svc.yaml`，并将 ECR `IMAGE_TAG` 解析为 `digest` 后下发到 Deployment（避免 `:latest` 漂移）。
 - 集群内冒烟测试：自动以 `curlimages/curl` 调用 `GET /api/hello` 与 `GET /actuator/health`，通过即视为上线成功。
 
 ### 端到端验活（本地）
@@ -192,14 +192,14 @@ make clean
   - SNS Topic：`spot-interruption-topic`
 - 状态记录：`scripts/.last-asg-bound`
 - 日志：`scripts/logs/post-recreate.log`
-- 应用恢复：`kubectl apply -f k8s.yaml` 并以 `kubectl set image` 将镜像固定到 **ECR digest**，随后等待 `rollout status` 成功
+- 应用恢复：依次 `kubectl apply -f task-api/k8s/base/ns-sa.yaml`、`task-api/k8s/base/configmap.yaml`、`task-api/k8s/base/deploy-svc.yaml`，并以 `kubectl set image` 将镜像固定到 **ECR digest**，随后等待 `rollout status` 成功
 - 应用验活：在集群内发起 `/api/hello` 与 `/actuator/health` 冒烟请求（失败可重试，脚本幂等）
 
 ---
 
 ## 应用层生命周期（Deployment / Service / Ingress）
 
-- **声明来源**：仓库根目录的 `k8s.yaml`（Deployment + ClusterIP Service）。
+- **声明来源**：`task-api/k8s/base/*.yaml`（Namespace + ServiceAccount + ConfigMap + Deployment + ClusterIP Service）。
 - **固定镜像**：脚本用 `IMAGE_TAG` → **ECR digest** 替换 Deployment 镜像，避免 `:latest` 漂移。
 - **回滚建议**：ECR 生命周期保留最近 **5–10** 个 tag（或保留 **7 天** untagged），以便出现回退需求时快速切换。
 - **对外暴露**：安装 **AWS Load Balancer Controller** 后，追加 `Ingress`（ALB）即可形成公网入口；未安装前可用 `port-forward` 验证服务可用性。

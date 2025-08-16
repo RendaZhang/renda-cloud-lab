@@ -32,7 +32,7 @@ KUBE_DEFAULT_NAMESPACE="kube-system"
 ASG_PREFIX="eks-${NODEGROUP_NAME}"
 
 # === 应用部署参数（可被环境变量覆盖）===
-# k8s 命名空间（需与 k8s.yaml 中 metadata.namespace 一致）
+# k8s 命名空间（需与清单中的 metadata.namespace 一致）
 NS="${NS:-svc-task}"
 # Deployment/Service 的名称与容器名
 APP="${APP:-task-api}"
@@ -40,10 +40,10 @@ APP="${APP:-task-api}"
 ECR_REPO="${ECR_REPO:-task-api}"
 # 要部署的镜像 tag（也可用 latest）。若设置 IMAGE_DIGEST 则优先生效。
 IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
-# 仓库根目录的 k8s.yaml 路径（可通过 K8S_FILE 覆盖）
+# k8s 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-K8S_FILE="${K8S_FILE:-${ROOT_DIR}/k8s.yaml}"
+K8S_BASE_DIR="${K8S_BASE_DIR:-${ROOT_DIR}/task-api/k8s/base}"
 # 若你想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
 
 TOPIC_NAME="spot-interruption-topic"
@@ -268,18 +268,16 @@ deploy_task_api() {
   log "🔧 配置 kubeconfig（cluster=${CLUSTER}）"
   aws eks update-kubeconfig --name "${CLUSTER}" --region "${REGION}" --profile "${PROFILE}" >/dev/null
 
-  # ===== 命名空间幂等创建 =====
-  if ! kubectl get ns "${NS}" >/dev/null 2>&1; then
-    log "📦 创建命名空间: ${NS}"
-    kubectl create ns "${NS}"
+  # ===== 应用 Kubernetes 清单 =====
+  if [[ ! -d "${K8S_BASE_DIR}" ]]; then
+    abort "未找到 k8s 清单目录：${K8S_BASE_DIR}"
   fi
-
-  # ===== 应用仓库根目录的 k8s.yaml =====
-  if [[ ! -f "${K8S_FILE}" ]]; then
-    abort "未找到 k8s 清单文件：${K8S_FILE}（请确认它在仓库根目录）"
-  fi
-  log "🗂️  apply 清单：${K8S_FILE}"
-  kubectl apply -f "${K8S_FILE}"
+  log "🗂️  apply 清单：ns-sa.yaml"
+  kubectl -n "${NS}" apply -f "${K8S_BASE_DIR}/ns-sa.yaml"
+  log "🗂️  apply 清单：configmap.yaml"
+  kubectl -n "${NS}" apply -f "${K8S_BASE_DIR}/configmap.yaml"
+  log "🗂️  apply 清单：deploy-svc.yaml"
+  kubectl -n "${NS}" apply -f "${K8S_BASE_DIR}/deploy-svc.yaml"
 
   # ===== 解析镜像（优先使用固定 digest）=====
   if [[ -n "${IMAGE_DIGEST:-}" ]]; then
@@ -302,10 +300,11 @@ deploy_task_api() {
   IMAGE="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}@${DIGEST}"
   log "🖼️  将部署镜像：${IMAGE}"
 
-  # ===== 用 set image 覆盖 k8s.yaml 中的镜像，并记录 rollout 历史 =====
+  # ===== 用 set image 覆盖镜像，并记录 rollout 历史 =====
   log "♻️  更新 Deployment 镜像并等待滚动完成"
   kubectl -n "${NS}" set image deploy/"${APP}" "${APP}"="${IMAGE}" --record
   kubectl -n "${NS}" rollout status deploy/"${APP}" --timeout=180s
+  kubectl -n "${NS}" get deploy,svc -o wide
 
   # ===== 集群内冒烟测试 =====
   log "🧪 集群内冒烟测试：/api/hello 与 /actuator/health"

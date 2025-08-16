@@ -244,7 +244,7 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 ### 应用部署
 
 > 本仓库示例应用为 **task-api（Spring Boot 3 + Actuator）**。
-> 镜像存放在 **Amazon ECR**，清单位于仓库根目录 `k8s.yaml`，一键部署脚本为 `scripts/post-recreate.sh`。
+> 镜像存放在 **Amazon ECR**，清单位于 `task-api/k8s/base/`（`ns-sa.yaml`、`configmap.yaml`、`deploy-svc.yaml`），一键部署脚本为 `scripts/post-recreate.sh`。
 
 **快速部署：**
 
@@ -264,11 +264,10 @@ IMAGE_DIGEST=sha256:... bash scripts/post-recreate.sh
 **脚本做了什么（幂等 & 可重跑）：**
 
 1. `aws eks update-kubeconfig` 切到目标集群
-2. 若 `svc-task` 不存在则创建
-3. `kubectl apply -f k8s.yaml` 应用/更新 Deployment 与 Service
-4. 从 ECR 解析 `IMAGE_TAG` → **digest**，或直接使用 `IMAGE_DIGEST`
-5. `kubectl set image` 覆盖 Deployment 镜像（digest 固定，避免 tag 漂移）并等待 `rollout status` 成功
-6. 启动一次**集群内冒烟测试**（`/api/hello`、`/actuator/health`），通过即视为上线成功
+2. 依次 `kubectl apply -f task-api/k8s/base/ns-sa.yaml`、`task-api/k8s/base/configmap.yaml`、`task-api/k8s/base/deploy-svc.yaml`
+3. 从 ECR 解析 `IMAGE_TAG` → **digest**，或直接使用 `IMAGE_DIGEST`
+4. `kubectl set image` 覆盖 Deployment 镜像（digest 固定，避免 tag 漂移）并等待 `rollout status` 成功
+5. 启动一次**集群内冒烟测试**（`/api/hello`、`/actuator/health`），通过即视为上线成功
 
 **部署结果验证：**
 
@@ -279,7 +278,7 @@ curl -s "http://127.0.0.1:8080/api/hello?name=Renda"
 curl -s "http://127.0.0.1:8080/actuator/health"
 ```
 
-> 说明：`k8s.yaml` 中的 `metadata.namespace` 应与 `NS` 保持一致（默认 `svc-task`）。
+> 说明：`task-api/k8s/base/*.yaml` 中的 `metadata.namespace` 应与 `NS` 保持一致（默认 `svc-task`）。
 > TODO: 安装 AWS Load Balancer Controller 后，可新增 `Ingress` 以暴露公网入口（ALB）。
 
 ---
@@ -481,7 +480,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 | --------------------------| -----------------------------------|
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas  |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态   |
-| `post-recreate.sh`        | 刷新 kubeconfig，安装/校验 Cluster Autoscaler，部署应用 task-api（k8s.yaml + ECR digest）并完成冒烟验证，以及自动为最新 NodeGroup 绑定 Spot 通知 |
+| `post-recreate.sh`        | 刷新 kubeconfig，安装/校验 Cluster Autoscaler，部署应用 task-api（多清单 + ECR digest）并完成冒烟验证，以及自动为最新 NodeGroup 绑定 Spot 通知 |
 | `post-teardown.sh`        | 销毁集群后清理 CloudWatch 日志组并验证所有资源已删除 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本 |
 | `update-diagrams.sh`      | 图表生成脚本 |
