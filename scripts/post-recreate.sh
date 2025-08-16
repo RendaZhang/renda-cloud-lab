@@ -69,8 +69,10 @@ ALBC_IMAGE_REPO="602401143452.dkr.ecr.${REGION}.amazonaws.com/amazon/aws-load-ba
 ALBC_HELM_REPO_NAME="eks"
 ALBC_HELM_REPO_URL="https://aws.github.io/eks-charts"
 POD_ALBC_LABEL="app.kubernetes.io/name=${ALBC_RELEASE_NAME}"
-# ---- Ingress for task-api ----
+# ---- Ingress ----
 ING_FILE="${ROOT_DIR}/task-api/k8s/ingress.yaml"
+# ---- HPA ----
+HPA_FILE="${ROOT_DIR}/task-api/k8s/hpa.yaml"
 
 # === 函数定义 ===
 # log() {
@@ -440,6 +442,26 @@ deploy_taskapi_ingress() {
   curl -s "http://${dns}/actuator/health" | sed -n '1p'
 }
 
+### ---- metrics-server (Helm) ----
+deploy_metrics_server() {
+  log "📦 Installing metrics-server ..."
+  helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ >/dev/null 2>&1 || true
+  helm repo update >/dev/null
+  helm upgrade --install metrics-server metrics-server/metrics-server \
+    --namespace $KUBE_DEFAULT_NAMESPACE \
+    --version 3.12.1 \
+    --set args={--kubelet-insecure-tls}
+  kubectl -n $KUBE_DEFAULT_NAMESPACE rollout status deploy/metrics-server --timeout=180s
+}
+
+### ---- HPA for task-api ----
+deploy_taskapi_hpa() {
+  log "📦 Apply HPA for task-api ..."
+  kubectl apply -f "$HPA_FILE"
+  log "🔎 Describe HPA"
+  kubectl -n svc-task describe hpa task-api | sed -n '1,60p' || true
+}
+
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
 
@@ -468,3 +490,7 @@ perform_health_checks "$asg_name"
 deploy_task_api
 
 deploy_taskapi_ingress
+
+deploy_metrics_server
+
+deploy_taskapi_hpa
