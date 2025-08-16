@@ -6,16 +6,17 @@
   - [简介](#%E7%AE%80%E4%BB%8B)
     - [BUG 记录格式要求](#bug-%E8%AE%B0%E5%BD%95%E6%A0%BC%E5%BC%8F%E8%A6%81%E6%B1%82)
   - [BUG 详情](#bug-%E8%AF%A6%E6%83%85)
-    - [Helm 部署 cluster-autoscaler 时 IRSA 注解配置错误导致 CrashLoopBackOff](#helm-%E9%83%A8%E7%BD%B2-cluster-autoscaler-%E6%97%B6-irsa-%E6%B3%A8%E8%A7%A3%E9%85%8D%E7%BD%AE%E9%94%99%E8%AF%AF%E5%AF%BC%E8%87%B4-crashloopbackoff)
-    - [Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}](#helm-%E5%AE%89%E8%A3%85-cluster-autoscaler-%E6%8A%A5%E9%94%99wrong-type-for-value-expected-string-got-mapstringinterface-)
-    - [Terraform `aws.billing` alias 报 “No valid credential sources found”](#terraform-awsbilling-alias-%E6%8A%A5-no-valid-credential-sources-found)
-    - [Terraform 导入 IAM Role Policy Attachment 使用短名失败（需使用完整 ARN）](#terraform-%E5%AF%BC%E5%85%A5-iam-role-policy-attachment-%E4%BD%BF%E7%94%A8%E7%9F%AD%E5%90%8D%E5%A4%B1%E8%B4%A5%E9%9C%80%E4%BD%BF%E7%94%A8%E5%AE%8C%E6%95%B4-arn)
-    - [OIDC Provider 的 URL 固定写死导致重建失败隐患](#oidc-provider-%E7%9A%84-url-%E5%9B%BA%E5%AE%9A%E5%86%99%E6%AD%BB%E5%AF%BC%E8%87%B4%E9%87%8D%E5%BB%BA%E5%A4%B1%E8%B4%A5%E9%9A%90%E6%82%A3)
-    - [创建 Deployment 失败 – 错误地将 `--requests=cpu=400m` 写在 `kubectl create` 命令中](#%E5%88%9B%E5%BB%BA-deployment-%E5%A4%B1%E8%B4%A5--%E9%94%99%E8%AF%AF%E5%9C%B0%E5%B0%86---requestscpu400m-%E5%86%99%E5%9C%A8-kubectl-create-%E5%91%BD%E4%BB%A4%E4%B8%AD)
-    - [无法找到 Deployment 名称（Helm 安装时名称自动拼接）](#%E6%97%A0%E6%B3%95%E6%89%BE%E5%88%B0-deployment-%E5%90%8D%E7%A7%B0helm-%E5%AE%89%E8%A3%85%E6%97%B6%E5%90%8D%E7%A7%B0%E8%87%AA%E5%8A%A8%E6%8B%BC%E6%8E%A5)
-    - [Auto-Scaling 未触发/触发后未缩容（如冷却时间问题）](#auto-scaling-%E6%9C%AA%E8%A7%A6%E5%8F%91%E8%A7%A6%E5%8F%91%E5%90%8E%E6%9C%AA%E7%BC%A9%E5%AE%B9%E5%A6%82%E5%86%B7%E5%8D%B4%E6%97%B6%E9%97%B4%E9%97%AE%E9%A2%98)
-    - [NodeCreationFailure：实例未能加入集群（AL2023 nodeadm 变更）](#nodecreationfailure%E5%AE%9E%E4%BE%8B%E6%9C%AA%E8%83%BD%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4al2023-nodeadm-%E5%8F%98%E6%9B%B4)
-    - [NodeCreationFailure：CNI 插件未初始化导致节点无法加入集群](#nodecreationfailurecni-%E6%8F%92%E4%BB%B6%E6%9C%AA%E5%88%9D%E5%A7%8B%E5%8C%96%E5%AF%BC%E8%87%B4%E8%8A%82%E7%82%B9%E6%97%A0%E6%B3%95%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4)
+    - [BUG-001: Helm 部署 cluster-autoscaler 时 IRSA 注解配置错误导致 CrashLoopBackOff](#bug-001-helm-%E9%83%A8%E7%BD%B2-cluster-autoscaler-%E6%97%B6-irsa-%E6%B3%A8%E8%A7%A3%E9%85%8D%E7%BD%AE%E9%94%99%E8%AF%AF%E5%AF%BC%E8%87%B4-crashloopbackoff)
+    - [BUG-002: Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}](#bug-002-helm-%E5%AE%89%E8%A3%85-cluster-autoscaler-%E6%8A%A5%E9%94%99wrong-type-for-value-expected-string-got-mapstringinterface-)
+    - [BUG-003: Terraform `aws.billing` alias 报 “No valid credential sources found”](#bug-003-terraform-awsbilling-alias-%E6%8A%A5-no-valid-credential-sources-found)
+    - [BUG-004: Terraform 导入 IAM Role Policy Attachment 使用短名失败（需使用完整 ARN）](#bug-004-terraform-%E5%AF%BC%E5%85%A5-iam-role-policy-attachment-%E4%BD%BF%E7%94%A8%E7%9F%AD%E5%90%8D%E5%A4%B1%E8%B4%A5%E9%9C%80%E4%BD%BF%E7%94%A8%E5%AE%8C%E6%95%B4-arn)
+    - [BUG-005: OIDC Provider 的 URL 固定写死导致重建失败隐患](#bug-005-oidc-provider-%E7%9A%84-url-%E5%9B%BA%E5%AE%9A%E5%86%99%E6%AD%BB%E5%AF%BC%E8%87%B4%E9%87%8D%E5%BB%BA%E5%A4%B1%E8%B4%A5%E9%9A%90%E6%82%A3)
+    - [BUG-006: 创建 Deployment 失败 – 错误地将 `--requests=cpu=400m` 写在 `kubectl create` 命令中](#bug-006-%E5%88%9B%E5%BB%BA-deployment-%E5%A4%B1%E8%B4%A5--%E9%94%99%E8%AF%AF%E5%9C%B0%E5%B0%86---requestscpu400m-%E5%86%99%E5%9C%A8-kubectl-create-%E5%91%BD%E4%BB%A4%E4%B8%AD)
+    - [BUG-007: 无法找到 Deployment 名称（Helm 安装时名称自动拼接）](#bug-007-%E6%97%A0%E6%B3%95%E6%89%BE%E5%88%B0-deployment-%E5%90%8D%E7%A7%B0helm-%E5%AE%89%E8%A3%85%E6%97%B6%E5%90%8D%E7%A7%B0%E8%87%AA%E5%8A%A8%E6%8B%BC%E6%8E%A5)
+    - [BUG-008: Auto-Scaling 未触发/触发后未缩容（如冷却时间问题）](#bug-008-auto-scaling-%E6%9C%AA%E8%A7%A6%E5%8F%91%E8%A7%A6%E5%8F%91%E5%90%8E%E6%9C%AA%E7%BC%A9%E5%AE%B9%E5%A6%82%E5%86%B7%E5%8D%B4%E6%97%B6%E9%97%B4%E9%97%AE%E9%A2%98)
+    - [BUG-009: NodeCreationFailure：实例未能加入集群（AL2023 nodeadm 变更）](#bug-009-nodecreationfailure%E5%AE%9E%E4%BE%8B%E6%9C%AA%E8%83%BD%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4al2023-nodeadm-%E5%8F%98%E6%9B%B4)
+    - [BUG-010: NodeCreationFailure：CNI 插件未初始化导致节点无法加入集群](#bug-010-nodecreationfailurecni-%E6%8F%92%E4%BB%B6%E6%9C%AA%E5%88%9D%E5%A7%8B%E5%8C%96%E5%AF%BC%E8%87%B4%E8%8A%82%E7%82%B9%E6%97%A0%E6%B3%95%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4)
+    - [BUG-011: Terraform 初始化时因缓存问题导致 Registry 连接失败](#bug-011-terraform-%E5%88%9D%E5%A7%8B%E5%8C%96%E6%97%B6%E5%9B%A0%E7%BC%93%E5%AD%98%E9%97%AE%E9%A2%98%E5%AF%BC%E8%87%B4-registry-%E8%BF%9E%E6%8E%A5%E5%A4%B1%E8%B4%A5)
   - [附录](#%E9%99%84%E5%BD%95)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -56,7 +57,7 @@
 
 ## BUG 详情
 
-### Helm 部署 cluster-autoscaler 时 IRSA 注解配置错误导致 CrashLoopBackOff
+### BUG-001: Helm 部署 cluster-autoscaler 时 IRSA 注解配置错误导致 CrashLoopBackOff
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-06-29
@@ -90,7 +91,7 @@
 - **适用版本**：
   - EKS 版本 ≥1.18，Cluster Autoscaler Chart v9.x（具体版本根据使用情况）。
 
-### Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}
+### BUG-002: Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-06-29
@@ -122,7 +123,7 @@
 - **适用版本**：
   - Helm v3.x，Cluster Autoscaler Chart v9.x 及以上。
 
-### Terraform `aws.billing` alias 报 “No valid credential sources found”
+### BUG-003: Terraform `aws.billing` alias 报 “No valid credential sources found”
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-04
@@ -174,7 +175,7 @@
   - AWS Provider ≥ 5.x
   - AWS CLI v2 + SSO
 
-### Terraform 导入 IAM Role Policy Attachment 使用短名失败（需使用完整 ARN）
+### BUG-004: Terraform 导入 IAM Role Policy Attachment 使用短名失败（需使用完整 ARN）
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-04
@@ -206,7 +207,7 @@
 - **适用版本**：
   - Terraform AWS Provider v2.x 及以上，Terraform v0.12+。
 
-### OIDC Provider 的 URL 固定写死导致重建失败隐患
+### BUG-005: OIDC Provider 的 URL 固定写死导致重建失败隐患
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-04
@@ -250,7 +251,7 @@
 - **适用版本**：
   - Terraform AWS Provider v3.x 以上，EKS 及 eksctl 版本无特殊要求。
 
-### 创建 Deployment 失败 – 错误地将 `--requests=cpu=400m` 写在 `kubectl create` 命令中
+### BUG-006: 创建 Deployment 失败 – 错误地将 `--requests=cpu=400m` 写在 `kubectl create` 命令中
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-04
@@ -296,7 +297,7 @@
 - **适用版本**：
   - kubectl v1.18+，Kubernetes 集群 v1.18+。
 
-### 无法找到 Deployment 名称（Helm 安装时名称自动拼接）
+### BUG-007: 无法找到 Deployment 名称（Helm 安装时名称自动拼接）
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-04
@@ -324,7 +325,7 @@
   - Helm 安装示例：`helm install cluster-autoscaler k8s-cluster-autoscaler/cluster-autoscaler --namespace kube-system --version 9.10.7`，默认名称会是 `cluster-autoscaler-cluster-autoscaler`。
 - **适用版本**：Helm v3.x；Cluster Autoscaler Chart 最新版。
 
-### Auto-Scaling 未触发/触发后未缩容（如冷却时间问题）
+### BUG-008: Auto-Scaling 未触发/触发后未缩容（如冷却时间问题）
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-05
@@ -363,7 +364,7 @@
   - Cluster Autoscaler v1.19+，EKS + AWS Auto Scaling Group 环境。
   - AWS 每秒计费场景下缩短冷却更有意义。
 
-### NodeCreationFailure：实例未能加入集群（AL2023 nodeadm 变更）
+### BUG-009: NodeCreationFailure：实例未能加入集群（AL2023 nodeadm 变更）
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-05
@@ -382,7 +383,7 @@
 - **适用版本**：
   - EKS Optimized AL2023 AMI 及以上版本。
 
-### NodeCreationFailure：CNI 插件未初始化导致节点无法加入集群
+### BUG-010: NodeCreationFailure：CNI 插件未初始化导致节点无法加入集群
 
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-05
@@ -430,11 +431,72 @@
   - EKS Kubernetes 版本 ≥ v1.29
   - Amazon Linux 2023（AL2023）AMI
 
+### BUG-011: Terraform 初始化时因缓存问题导致 Registry 连接失败
+
+- **问题状态**：已关闭 (Closed)
+- **发现日期**：2025-07-06
+- **问题现象**：
+  执行 `terraform init` 时出现以下错误：
+  ```
+  Error: Failed to query available provider packages
+  Could not retrieve the list of available versions for provider hashicorp/time:
+  could not connect to registry.terraform.io: failed to request discovery document:
+  Get "https://registry.terraform.io/.well-known/terraform.json": EOF
+  ```
+- **背景场景**：
+  - Terraform 版本：>=1.5.0
+  - 操作环境：Linux/macOS 终端
+  - 触发条件：长期运行的 Terraform 项目或多次切换分支后
+- **复现方式**：
+  1. 在包含 `.terraform` 缓存目录的项目中
+  2. 执行 `terraform init -reconfigure`
+  3. 网络正常但出现 EOF 错误
+- **根因分析**：
+  Terraform 本地缓存（`.terraform` 目录）损坏或状态锁定文件（`terraform.tfstate*`）异常，导致：
+  - Provider 元数据缓存过期但未自动清理
+  - 锁文件冲突阻止新网络连接
+  - 索引文件损坏导致 Registry 查询失败
+- **修复方法**：
+  **清理缓存并强制重建**：
+  ```bash
+  # 删除缓存目录和状态锁文件
+  rm -rf .terraform* terraform.tfstate*
+
+  # 重新初始化
+  terraform init -reconfigure
+  ```
+- **相关命令**：
+  ```bash
+  # 诊断命令（网络检查）
+  curl -v https://registry.terraform.io/.well-known/terraform.json
+
+  # 替代修复（仅清理插件缓存）
+  rm -rf ~/.terraform.d/plugin-cache/*
+  ```
+- **适用版本**：
+  - Terraform >=1.0.0
+  - 所有官方 Provider（aws/time/tls/helm 等）
+- **经验总结**：
+  > 💡 **缓存管理黄金法则**：
+  > 1. Terraform 的 `.terraform` 不是版本控制内容，应随时可删除重建
+  > 2. 频繁切换项目分支时，建议在 `.gitignore` 添加：
+  >    ```gitignore
+  >    # Terraform
+  >    .terraform*
+  >    *.tfstate*
+  >    ```
+  > 3. 对于团队协作，使用远程状态存储（如 S3）避免本地状态文件冲突
+
 ---
 
 ## 附录
 
-- **常用 AWS CLI 命令模板**：
+- **常用 Terraform 命令**：
+  - 删除缓存目录和状态锁文件
+    ```bash
+    rm -rf .terraform* terraform.tfstate*
+    ```
+- **常用 AWS CLI 命令**：
   - 列出角色关联的策略：
     ```bash
     aws iam list-attached-role-policies --role-name MyRole --query "AttachedPolicies[].PolicyArn"
