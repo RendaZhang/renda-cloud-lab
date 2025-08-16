@@ -1,0 +1,17 @@
+k8s/
+scripts/
+target/
+.gitignore
+.gitattributes
+.git
+.pre-commit-config.yaml
+requirements.txt
+LICENSE
+venv/
+.venv/
+**/*.iml
+.mvn/
+.idea/
+.vscode/
+Dockerfile
+README*

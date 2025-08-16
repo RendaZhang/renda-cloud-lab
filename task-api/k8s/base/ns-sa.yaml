@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: svc-task
+  labels:
+    app.kubernetes.io/part-of: task-platform
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: task-api
+  namespace: svc-task
+  labels:
+    app.kubernetes.io/name: task-api
+# 预留 IRSA 注解位（Day 4 再填上 role-arn）
+#  annotations:
+#    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>

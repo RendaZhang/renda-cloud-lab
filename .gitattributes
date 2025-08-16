@@ -3,11 +3,24 @@
 ###############################################################################
 * text=auto eol=lf
 * -crlf
+# Platform specific scripts
+*.sh text eol=lf
+mvnw text eol=lf
 # PowerShell 仍用 LF
 *.ps1 text eol=lf
 # Windows 批处理保持 CRLF
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Source code
+*.java text diff=java
+*.py text
+*.xml text
+*.yml text
+*.yaml text
+*.properties text
+Dockerfile text
+*.md text
 
 ###############################################################################
 # ② 常见二进制 / 生成物：关闭行尾转换与 diff
@@ -43,3 +56,4 @@
 ###############################################################################
 # linguist-language=Terraform
 terraform/** linguist-vendored
+docs/** linguist-documentation
