@@ -178,7 +178,7 @@ docs/
 | ------------------------- | ---------- | --------------- |
 | macOS (Intel/ARM) | ✅ 支持 | Homebrew 自动安装 |
 | Windows WSL2 (Ubuntu) | ✅ 支持 | apt / curl 自动安装 |
-| Ubuntu/Debian Linux | 🟡 支持（实验性） | apt 安装已验证 |
+| Ubuntu/Debian Linux | ✅ 支持 | apt / curl 自动安装 |
 | 原生 Windows CMD/Powershell | ❌ 不支持 | 请使用 WSL 运行 |
 | Arch/Fedora 等 | ❌ 不支持 | 需手动安装所有工具 |
 

@@ -60,7 +60,7 @@ case "$PLATFORM" in
     log "✅ Detected Windows WSL (Ubuntu). apt 或 curl 安装."
     ;;
   ubuntu)
-    log "🟡 Detected Ubuntu/Debian. Supported but experimental."
+    log "✅ Detected Ubuntu/Debian. apt 或 curl 将被用于安装缺失工具。"
     ;;
   other-linux)
     log "❌ Unsupported Linux distribution. Please install tools manually."; exit 1 ;;
@@ -68,6 +68,30 @@ case "$PLATFORM" in
     log "❌ Windows 原生终端暂不支持，请在 WSL 中运行。"; exit 1 ;;
   *) log "❌ 未识别的平台，脚本退出。"; exit 1 ;;
 esac
+
+# --- 输出工具版本 ---
+print_tool_info(){
+  local tool="$1" version path
+  case "$tool" in
+    aws) version=$(aws --version 2>&1 | head -n1) ;;
+    terraform) version=$(terraform version | head -n1) ;;
+    eksctl) version=$(eksctl version) ;;
+    kubectl)
+      if kubectl version --client --short >/dev/null 2>&1; then
+        version=$(kubectl version --client --short)
+      else
+        version=$(kubectl version --client | head -n1)
+      fi
+      ;;
+    helm) version=$(helm version --short) ;;
+    jq) version=$(jq --version) ;;
+    bc) version=$(bc -v 2>&1 | head -n1) ;;
+    dot) version=$(dot -V 2>&1 | head -n1) ;;
+    unzip) version=$(unzip -v | head -n1) ;;
+  esac
+  path=$(command -v "$tool")
+  log "✅ $tool: $version ($path)"
+}
 
 # --- 安装函数 ---
 install_tool(){
@@ -88,6 +112,7 @@ install_tool(){
       sudo apt-get update -y
       local pkg="$tool"
       case "$tool" in
+        aws) pkg="awscli" ;;
         dot) pkg="graphviz" ;;
       esac
       if sudo apt-get install -y "$pkg" 2>/dev/null; then
@@ -107,6 +132,19 @@ install_tool(){
           sudo mv /tmp/eksctl /usr/local/bin/
           rm -f /tmp/eksctl.tar.gz
           ;;
+        kubectl)
+          curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          sudo chmod +x /usr/local/bin/kubectl
+          ;;
+        helm)
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          ;;
+        aws)
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -o /tmp/awscliv2.zip -d /tmp
+          sudo /tmp/aws/install
+          rm -rf /tmp/aws /tmp/awscliv2.zip
+          ;;
         dot)
           log "无法自动安装 graphviz，请手动安装。"
           ;;
@@ -121,35 +159,26 @@ install_tool(){
 check_tool(){
   local tool="$1"
   if command -v "$tool" >/dev/null 2>&1; then
-    local version path
-    case "$tool" in
-      aws) version=$(aws --version 2>&1 | head -n1) ;;
-      terraform) version=$(terraform version | head -n1) ;;
-      eksctl) version=$(eksctl version) ;;
-      kubectl)
-        if kubectl version --client --short >/dev/null 2>&1; then
-          version=$(kubectl version --client --short)
-        else
-          version=$(kubectl version --client | head -n1)
-        fi
-        ;;
-      helm) version=$(helm version --short) ;;
-      jq) version=$(jq --version) ;;
-      bc) version=$(bc -v 2>&1 | head -n1) ;;
-      dot) version=$(dot -V 2>&1 | head -n1) ;;
-      unzip) version=$(unzip -v | head -n1) ;;
-    esac
-    path=$(command -v "$tool")
-    log "✅ $tool: $version ($path)"
+    print_tool_info "$tool"
   else
     log "❌ 未检测到 $tool 工具"
     if [ $AUTO -eq 1 ]; then
       install_tool "$tool"
+      if command -v "$tool" >/dev/null 2>&1; then
+        print_tool_info "$tool"
+      else
+        log "⚠️ 自动安装 $tool 失败，请手动安装。"
+      fi
     else
       if [ $DRY_RUN -eq 0 ]; then
         read -r -p "是否现在自动安装？(y/N): " ans
         if [ "${ans}" = "y" ] || [ "${ans}" = "Y" ]; then
           install_tool "$tool"
+          if command -v "$tool" >/dev/null 2>&1; then
+            print_tool_info "$tool"
+          else
+            log "⚠️ 自动安装 $tool 失败，请手动安装。"
+          fi
         fi
       fi
     fi
