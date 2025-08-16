@@ -6,12 +6,13 @@
 # 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
 # 功能：
 #   1. 更新本地 kubeconfig 以连接最新创建的集群
-#   2. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
-#   3. 检查 NAT 网关、ALB、EKS 控制面和节点组等状态
-#   4. 获取最新的 EKS NodeGroup 生成的 ASG 名称
-#   5. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
-#   6. 自动写入绑定日志，避免重复执行
-#   7. 自动部署 task-api 到 EKS
+#   2. 通过 Helm 安装或升级 AWS Load Balancer Controller
+#   3. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
+#   4. 检查 NAT 网关、ALB、EKS 控制面和节点组等状态
+#   5. 获取最新的 EKS NodeGroup 生成的 ASG 名称
+#   6. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
+#   7. 自动写入绑定日志，避免重复执行
+#   8. 自动部署 task-api 到 EKS
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
@@ -56,6 +57,17 @@ AUTOSCALER_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${AUTOSCALER_
 DEPLOYMENT_AUTOSCALER_NAME="${AUTOSCALER_RELEASE_NAME}-${CLOUD_PROVIDER}-${AUTOSCALER_CHART_NAME}"
 POD_AUTOSCALER_LABEL="app.kubernetes.io/name=${AUTOSCALER_RELEASE_NAME}"
 
+# AWS Load Balancer Controller settings
+ALBC_CHART_NAME="aws-load-balancer-controller"
+ALBC_RELEASE_NAME=${ALBC_CHART_NAME}
+ALBC_SERVICE_ACCOUNT_NAME=${ALBC_CHART_NAME}
+ALBC_CHART_VERSION="1.8.1"
+ALBC_IMAGE_TAG="v2.8.1"
+ALBC_IMAGE_REPO="602401143452.dkr.ecr.${REGION}.amazonaws.com/amazon/aws-load-balancer-controller"
+ALBC_HELM_REPO_NAME="eks"
+ALBC_HELM_REPO_URL="https://aws.github.io/eks-charts"
+POD_ALBC_LABEL="app.kubernetes.io/name=${ALBC_RELEASE_NAME}"
+
 # === 函数定义 ===
 # log() {
 #   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -96,6 +108,71 @@ check_autoscaler_status() {
   else
     echo "healthy"
   fi
+}
+
+# 检查 AWS Load Balancer Controller 部署状态
+check_albc_status() {
+  if ! kubectl -n $KUBE_DEFAULT_NAMESPACE get deployment $ALBC_RELEASE_NAME >/dev/null 2>&1; then
+    echo "missing"
+    return
+  fi
+  if kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_ALBC_LABEL \
+      --no-headers 2>/dev/null | grep -v Running >/dev/null; then
+    echo "unhealthy"
+  else
+    echo "healthy"
+  fi
+}
+
+# 安装或升级 AWS Load Balancer Controller
+install_albc_controller() {
+  local status
+  status=$(check_albc_status)
+  case "$status" in
+    healthy)
+      log "✅ AWS Load Balancer Controller 已正常运行, 执行 Helm 升级以确保版本一致"
+      ;;
+    missing)
+      log "⚙️  检测到 AWS Load Balancer Controller 未部署, 开始安装"
+      ;;
+    unhealthy)
+      log "❌ 检测到 AWS Load Balancer Controller 状态异常, 删除旧 Pod 后重新部署"
+      kubectl -n $KUBE_DEFAULT_NAMESPACE delete pod -l $POD_ALBC_LABEL --ignore-not-found
+      ;;
+    *)
+      log "⚠️  未知的 AWS Load Balancer Controller 状态, 继续尝试安装"
+      ;;
+  esac
+
+  if ! helm repo list | grep -q "^${ALBC_HELM_REPO_NAME}\b"; then
+    log "🔧 添加 ${ALBC_HELM_REPO_NAME} Helm 仓库"
+    helm repo add ${ALBC_HELM_REPO_NAME} ${ALBC_HELM_REPO_URL}
+  fi
+  helm repo update
+
+  log "📦 应用 AWS Load Balancer Controller CRDs (version ${ALBC_CHART_VERSION})"
+  tmp_dir=$(mktemp -d)
+  helm pull ${ALBC_HELM_REPO_NAME}/${ALBC_CHART_NAME} --version ${ALBC_CHART_VERSION} --untar -d "$tmp_dir"
+  kubectl apply -f "$tmp_dir/${ALBC_CHART_NAME}/crds"
+  rm -rf "$tmp_dir"
+
+  VPC_ID=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" --profile "$PROFILE" --query "cluster.resourcesVpcConfig.vpcId" --output text)
+
+  log "🚀 正在通过 Helm 安装或升级 AWS Load Balancer Controller..."
+  helm upgrade --install ${ALBC_RELEASE_NAME} ${ALBC_HELM_REPO_NAME}/${ALBC_CHART_NAME} \
+    -n $KUBE_DEFAULT_NAMESPACE \
+    --version ${ALBC_CHART_VERSION} \
+    --set clusterName=$CLUSTER_NAME \
+    --set region=$REGION \
+    --set vpcId=$VPC_ID \
+    --set serviceAccount.create=false \
+    --set serviceAccount.name=${ALBC_SERVICE_ACCOUNT_NAME} \
+    --set image.repository=${ALBC_IMAGE_REPO} \
+    --set image.tag=${ALBC_IMAGE_TAG}
+
+  log "🔍 等待 AWS Load Balancer Controller 就绪"
+  kubectl -n $KUBE_DEFAULT_NAMESPACE rollout status deployment/${ALBC_RELEASE_NAME} --timeout=180s
+  kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_ALBC_LABEL
 }
 
 # 安装或升级 Cluster Autoscaler
@@ -251,6 +328,9 @@ perform_health_checks() {
   log "🔍 检查 LogGroup 是否存在"
   log_group=$(check_log_group)
   log "LogGroup: $log_group"
+  log "🔍 检查 AWS Load Balancer Controller 部署状态"
+  albc_status=$(check_albc_status)
+  log "AWS Load Balancer Controller status: $albc_status"
   log "🔍 检查 Cluster Autoscaler 部署状态"
   autoscaler_status=$(check_autoscaler_status)
   log "Cluster Autoscaler status: $autoscaler_status"
@@ -332,6 +412,8 @@ if [[ -z "$asg_name" ]]; then
 fi
 
 update_kubeconfig
+
+install_albc_controller
 
 install_autoscaler
 
