@@ -141,6 +141,7 @@ install_autoscaler() {
     --set image.tag=$AUTOSCALER_VERSION
   log "✅ Helm install completed"
   log "🔍 检查 Cluster Autoscaler Pod 状态"
+  kubectl -n $KUBE_DEFAULT_NAMESPACE rollout status deployment/${DEPLOYMENT_AUTOSCALER_NAME} --timeout=180s
   kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_AUTOSCALER_LABEL
   log "如果 Helm 部署失败，重新部署后，需要执行如下命令删除旧 Pod 让 Deployment 拉新配置: "
   log "kubectl -n $KUBE_DEFAULT_NAMESPACE delete pod -l $POD_AUTOSCALER_LABEL"

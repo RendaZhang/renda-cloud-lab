@@ -69,6 +69,7 @@
 - **生成式 AI Sidecar** — 基于 `Spring Boot + Spring AI` 框架，集成 AWS Bedrock (如 Titan 大模型) / GCP Vertex AI 等生成式 AI 服务，实现应用智能化
 - **成本 & 安全护栏** — 利用 Spot 实例、IRSA、AWS Budgets 控制成本，并通过 Trivy 镜像扫描、OPA Gatekeeper 策略等保障集群安全
 - **自动扩缩容 (Cluster Autoscaler)** — 通过脚本式 `Helm` 安装 `cluster-autoscaler`，实现节点数量根据负载弹性伸缩
+- **负载均衡控制器 (AWS Load Balancer Controller)** — Terraform 预置 IRSA 与 ServiceAccount，Helm 安装后即可管理 ALB Ingress
 
 上述模块相互协作，构成了一个完整的云原生实验环境。
 
@@ -279,7 +280,8 @@ curl -s "http://127.0.0.1:8080/actuator/health"
 ```
 
 > 说明：`task-api/k8s/base/*.yaml` 中的 `metadata.namespace` 应与 `NS` 保持一致（默认 `svc-task`）。
-> TODO: 安装 AWS Load Balancer Controller 后，可新增 `Ingress` 以暴露公网入口（ALB）。
+>
+> Terraform 已预置 `aws-load-balancer-controller` 的 IRSA；安装控制器后可通过 `Ingress` 暴露公网入口（ALB）。
 
 ---
 
