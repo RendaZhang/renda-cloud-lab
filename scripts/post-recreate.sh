@@ -47,9 +47,11 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 K8S_BASE_DIR="${K8S_BASE_DIR:-${ROOT_DIR}/task-api/k8s/base}"
 # 若你想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
 
+# 为 ASG 配置 Spot Interruption 通知的参数
 TOPIC_NAME="spot-interruption-topic"
 TOPIC_ARN="arn:${CLOUD_PROVIDER}:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
-STATE_FILE="scripts/.last-asg-bound"
+STATE_FILE="${SCRIPT_DIR}/.last-asg-bound"
+# ASG 相关参数
 AUTOSCALER_CHART_NAME="cluster-autoscaler"
 AUTOSCALER_RELEASE_NAME=${AUTOSCALER_CHART_NAME}
 AUTOSCALER_ROLE_NAME="eks-cluster-autoscaler"
@@ -67,6 +69,8 @@ ALBC_IMAGE_REPO="602401143452.dkr.ecr.${REGION}.amazonaws.com/amazon/aws-load-ba
 ALBC_HELM_REPO_NAME="eks"
 ALBC_HELM_REPO_URL="https://aws.github.io/eks-charts"
 POD_ALBC_LABEL="app.kubernetes.io/name=${ALBC_RELEASE_NAME}"
+# ---- Ingress for task-api ----
+ING_FILE="${ROOT_DIR}/task-api/k8s/ingress.yaml"
 
 # === 函数定义 ===
 # log() {
@@ -130,7 +134,8 @@ install_albc_controller() {
   status=$(check_albc_status)
   case "$status" in
     healthy)
-      log "✅ AWS Load Balancer Controller 已正常运行, 执行 Helm 升级以确保版本一致"
+      log "✅ AWS Load Balancer Controller 已正常运行, 跳过 Helm 部署"
+      return 0
       ;;
     missing)
       log "⚙️  检测到 AWS Load Balancer Controller 未部署, 开始安装"
@@ -396,6 +401,45 @@ deploy_task_api() {
   log "✅ 部署与冒烟测试完成"
 }
 
+# 部署 taskapi ingress
+deploy_taskapi_ingress() {
+  set -euo pipefail
+  local outdir="${SCRIPT_DIR}/.out"; mkdir -p "$outdir"
+
+  log "📦 Apply Ingress (${APP}) ..."
+  # 若无变更就不 apply（0=无差异，1=有差异，>1=出错）
+  if kubectl -n "$NS" diff -f "$ING_FILE" >/dev/null 2>&1; then
+    log "≡ No changes"
+  else
+    kubectl apply -f "$ING_FILE"
+  fi
+
+  # 如果已经有 ALB，就直接复用并返回
+  local dns
+  dns=$(kubectl -n "$NS" get ing "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+  if [[ -n "${dns}" ]]; then
+    log "✅ ALB ready: http://${dns}"
+    echo "${dns}" > "${outdir}/alb_${APP}_dns"
+    return 0
+  fi
+
+  log "⏳ Waiting for ALB to be provisioned ..."
+  local t=0; local timeout=600
+  while [[ $t -lt $timeout ]]; do
+    dns=$(kubectl -n "$NS" get ing "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+    [[ -n "${dns}" ]] && break
+    sleep 5; t=$((t+5))
+  done
+  [[ -z "${dns}" ]] && { log "❌ Timeout waiting ALB"; return 1; }
+
+  log "✅ ALB ready: http://${dns}"
+  echo "${dns}" > "${outdir}/alb_${APP}_dns"
+
+  log "🧪 Smoke"
+  curl -s "http://${dns}/api/hello?name=Renda" | sed -n '1p'
+  curl -s "http://${dns}/actuator/health" | sed -n '1p'
+}
+
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
 
@@ -422,3 +466,5 @@ ensure_sns_binding "$asg_name"
 perform_health_checks "$asg_name"
 
 deploy_task_api
+
+deploy_taskapi_ingress
