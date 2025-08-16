@@ -139,7 +139,7 @@ infra/
 scripts/
 ├── post-recreate.sh        # 集群创建后，刷新 kubeconfig 并部署 core service
 ├── post-teardown.sh        # 完全销毁后清理日志组并确认资源删除
-├── deploy-service-a.sh     # 部署业务微服务 A（未来）
+├── deploy-service-a.sh     # 部署业务微服务 A（计划中）
 helm-charts/
 ├── cluster-autoscaler/
 ├── service-a/

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Renda Cloud Lab · post-recreate.sh
+# 需要使用 Terraform 成功启动了基础设施（NAT + ALB + EKS + IRSA）后，
+# 再使用本脚本进行部署层的自动化操作。
+# 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
 # 功能：
 #   1. 更新本地 kubeconfig 以连接最新创建的集群
 #   2. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
@@ -8,6 +11,7 @@
 #   4. 获取最新的 EKS NodeGroup 生成的 ASG 名称
 #   5. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
 #   6. 自动写入绑定日志，避免重复执行
+#   7. 自动部署 task-api 到 EKS
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
