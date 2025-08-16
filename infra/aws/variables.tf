@@ -47,6 +47,24 @@ variable "kubernetes_default_namespace" {
   default     = "kube-system"
 }
 
+variable "albc_irsa_role_name" {
+  description = "Name of the IRSA role for AWS Load Balancer Controller"
+  type        = string
+  default     = "aws-load-balancer-controller"
+}
+
+variable "albc_service_account_name" {
+  description = "Kubernetes ServiceAccount name for AWS Load Balancer Controller"
+  type        = string
+  default     = "aws-load-balancer-controller"
+}
+
+variable "albc_namespace" {
+  description = "Namespace for AWS Load Balancer Controller ServiceAccount"
+  type        = string
+  default     = "kube-system"
+}
+
 variable "eksctl_version" {
   description = "Version of eksctl to use"
   type        = string

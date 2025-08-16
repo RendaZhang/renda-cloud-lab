@@ -23,3 +23,8 @@ output "autoscaler_role_arn" {
   description = "EKS Cluster Autoscaler 使用的 IAM 角色 ARN"
   value       = var.create_eks ? module.irsa[0].autoscaler_role_arn : null
 }
+
+output "albc_role_arn" {
+  description = "AWS Load Balancer Controller 使用的 IAM 角色 ARN"
+  value       = var.create_eks ? module.irsa_albc[0].albc_role_arn : null
+}

@@ -19,3 +19,7 @@ provider "helm" {
     config_path = "~/.kube/config" # 本地 kubeconfig 路径
   }
 }
+
+provider "kubernetes" {
+  config_path = "~/.kube/config" # 与 helm 共用 kubeconfig
+}

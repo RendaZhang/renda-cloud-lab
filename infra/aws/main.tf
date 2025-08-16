@@ -53,6 +53,30 @@ module "irsa" {
   depends_on                      = [module.eks]                               # 依赖 EKS 模块
 }
 
+module "irsa_albc" {
+  source                          = "./modules/irsa_albc"                      # IRSA 模块，为 ALBC 创建角色
+  count                           = var.create_eks ? 1 : 0                     # 仅在创建 EKS 时启用
+  name                            = var.albc_irsa_role_name                    # ALBC IAM 角色名称
+  namespace                       = var.albc_namespace                         # ALBC 所在命名空间
+  cluster_name                    = var.cluster_name                           # 集群名称
+  service_account_name            = var.albc_service_account_name              # ALBC ServiceAccount 名称
+  oidc_provider_arn               = module.eks.oidc_provider_arn               # OIDC Provider ARN
+  oidc_provider_url_without_https = module.eks.oidc_provider_url_without_https # OIDC URL（无 https）
+  depends_on                      = [module.eks]                               # 依赖 EKS 模块
+}
+
+resource "kubernetes_service_account" "aws_load_balancer_controller" {
+  count = var.create_eks ? 1 : 0
+
+  metadata {
+    name      = var.albc_service_account_name
+    namespace = var.albc_namespace
+    annotations = {
+      "eks.amazonaws.com/role-arn" = module.irsa_albc[0].albc_role_arn
+    }
+  }
+}
+
 resource "aws_route53_record" "lab_alias" {
   count   = var.create_alb ? 1 : 0             # 仅在创建 ALB 时创建记录
   zone_id = module.network_base.hosted_zone_id # DNS Hosted Zone ID
