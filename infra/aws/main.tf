@@ -4,7 +4,8 @@
 // ---------------------------
 
 module "network_base" {
-  source = "./modules/network_base" # VPC、子网、路由表等基础网络资源
+  source       = "./modules/network_base" # VPC、子网、路由表等基础网络资源
+  cluster_name = var.cluster_name
 }
 
 module "nat" {

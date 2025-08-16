@@ -18,12 +18,13 @@
     - [BUG-010: NodeCreationFailure：CNI 插件未初始化导致节点无法加入集群](#bug-010-nodecreationfailurecni-%E6%8F%92%E4%BB%B6%E6%9C%AA%E5%88%9D%E5%A7%8B%E5%8C%96%E5%AF%BC%E8%87%B4%E8%8A%82%E7%82%B9%E6%97%A0%E6%B3%95%E5%8A%A0%E5%85%A5%E9%9B%86%E7%BE%A4)
     - [BUG-011: Terraform 初始化时因缓存问题导致 Registry 连接失败](#bug-011-terraform-%E5%88%9D%E5%A7%8B%E5%8C%96%E6%97%B6%E5%9B%A0%E7%BC%93%E5%AD%98%E9%97%AE%E9%A2%98%E5%AF%BC%E8%87%B4-registry-%E8%BF%9E%E6%8E%A5%E5%A4%B1%E8%B4%A5)
   - [附录](#%E9%99%84%E5%BD%95)
+    - [BUG-012: Ingress 无法自动创建 ALB – 子网缺少 AWS Load Balancer Controller 所需标签](#bug-012-ingress-%E6%97%A0%E6%B3%95%E8%87%AA%E5%8A%A8%E5%88%9B%E5%BB%BA-alb--%E5%AD%90%E7%BD%91%E7%BC%BA%E5%B0%91-aws-load-balancer-controller-%E6%89%80%E9%9C%80%E6%A0%87%E7%AD%BE)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # 集群故障排查指南
 
-- **Last Updated:** July 18, 2025, 20:10 (UTC+8)
+- **Last Updated:** August 17, 2025, 05:30 (UTC+08:00)
 - **作者:** 张人大（Renda Zhang）
 
 --
@@ -567,3 +568,44 @@
   kubectl get events --sort-by=.lastTimestamp
   kubectl get pod -A -owide
   ```
+
+### BUG-012: Ingress 无法自动创建 ALB – 子网缺少 AWS Load Balancer Controller 所需标签
+
+- **问题状态**：已解决 (Resolved)
+- **发现日期**：2025-08-17
+- **问题现象**：
+  - 通过 Ingress 暴露服务后，AWS Load Balancer Controller 长时间未创建 ALB。
+  - Controller 日志提示 `failed to resolve subnets` 或 `no suitable subnets found`。
+- **背景场景**：
+  - 使用 Terraform 自建 VPC/子网，但未为子网添加 K8s/ALB Controller 标准标签。
+- **复现方式**：
+  1. 在缺少标签的子网中部署 EKS 集群并安装 AWS Load Balancer Controller。
+  2. 创建 Ingress 资源并等待 ALB 自动创建。
+  3. 观察到 ALB 未生成，控制器日志出现上述错误。
+- **根因分析**：
+  - 公有与私有子网均缺少 `kubernetes.io/cluster/<cluster_name> = shared` 标签。
+  - 公有子网缺少 `kubernetes.io/role/elb = 1`；私有子网缺少 `kubernetes.io/role/internal-elb = 1`。
+- **修复方法**：
+  - 在 Terraform 中为子网添加如下标签示例：
+    ```hcl
+    # 公有子网
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                    = "1"
+
+    # 私有子网
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"           = "1"
+    ```
+- **相关命令**：
+  - 查看子网标签：
+    ```bash
+    aws ec2 describe-subnets --filters "Name=tag:kubernetes.io/cluster/dev,Values=shared"
+    ```
+  - 应用 Terraform 配置：
+    ```bash
+    terraform apply
+    ```
+- **适用版本**：
+  - AWS Load Balancer Controller v2.x，EKS ≥1.29
+- **经验总结**：
+  - ALB 控制器依赖子网标签进行自动发现。自建 VPC 时务必为公有/私有子网打上标准标签。

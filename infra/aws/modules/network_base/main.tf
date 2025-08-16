@@ -8,7 +8,7 @@ resource "aws_vpc" "this" {
   cidr_block           = "10.0.0.0/16" # VPC 网段
   enable_dns_hostnames = true          # 启用 DNS 主机名
   tags = {
-    Name = "dev-vpc"
+    Name = "${var.cluster_name}-vpc"
   }
 }
 
@@ -20,7 +20,9 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true                                                # 实例启动分配公网 IP
   availability_zone       = element(data.aws_availability_zones.available.names, count.index)
   tags = {
-    Name = "dev-public-${count.index}"
+    Name                                        = "${var.cluster_name}-public-${count.index}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                    = "1"
   }
 }
 
@@ -31,14 +33,16 @@ resource "aws_subnet" "private" {
   cidr_block        = cidrsubnet(aws_vpc.this.cidr_block, 4, count.index + 8) # 10.0.128.0/20, 10.0.144.0/20
   availability_zone = element(data.aws_availability_zones.available.names, count.index)
   tags = {
-    Name = "dev-private-${count.index}"
+    Name                                        = "${var.cluster_name}-private-${count.index}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"           = "1"
   }
 }
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.this.id
   tags = {
-    Name = "dev-igw"
+    Name = "${var.cluster_name}-igw"
   }
 }
 
