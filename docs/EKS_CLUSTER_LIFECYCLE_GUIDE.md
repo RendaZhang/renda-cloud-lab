@@ -102,6 +102,7 @@ make post-recreate
 该脚本具备：
 
 - 更新本地的 `kubeconfig`
+- 应用 AWS Load Balancer Controller CRDs，并通过 Helm 安装/升级控制器
 - 通过 Helm 安装或升级 `cluster-autoscaler`
 - 自动识别当前 ASG 名称并绑定 SNS 通知
 - 检查 NAT 网关、ALB、EKS 控制平面、节点组及日志组状态
@@ -184,6 +185,7 @@ make clean
 核心路径：`scripts/post-recreate.sh`
 
 - 更新 kubeconfig 以连接 EKS 集群
+- 应用 AWS Load Balancer Controller CRDs，并通过 Helm 安装/升级控制器
 - 自动安装/升级 `cluster-autoscaler` (Helm)
 - 自动查找当前 ASG 名称（以 `eks-ng-mixed` 为前缀）并检查 SNS 通知绑定
 - 验证 NAT 网关、ALB、EKS 控制面、节点组和日志组状态
@@ -202,7 +204,7 @@ make clean
 - **声明来源**：`task-api/k8s/base/*.yaml`（Namespace + ServiceAccount + ConfigMap + Deployment + ClusterIP Service）。
 - **固定镜像**：脚本用 `IMAGE_TAG` → **ECR digest** 替换 Deployment 镜像，避免 `:latest` 漂移。
 - **回滚建议**：ECR 生命周期保留最近 **5–10** 个 tag（或保留 **7 天** untagged），以便出现回退需求时快速切换。
-- **对外暴露**：安装 **AWS Load Balancer Controller** 后，追加 `Ingress`（ALB）即可形成公网入口；未安装前可用 `port-forward` 验证服务可用性。
+- **对外暴露**：脚本已安装 **AWS Load Balancer Controller**，追加 `Ingress`（ALB）即可形成公网入口；若无需对外公开，可用 `port-forward` 验证服务可用性。
 
 ---
 

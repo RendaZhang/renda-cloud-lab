@@ -102,7 +102,7 @@
       > 提示：在今后的日常流程中，若怀疑 Terraform 状态与实际资源不同步，可随时运行 `terraform plan` 进行检查。
       > 一旦发现 drift，应立即排查原因或通过 `terraform import` 等手段修正，以确保 Terraform 管理的资源与真实环境匹配。
 5. **运行 Post Recreate 脚本（含应用自动恢复）**：
-   - 一键完成：刷新 kubeconfig、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定，
+   - 一键完成：刷新 kubeconfig、应用 ALB 控制器 CRDs 并安装/升级 AWS Load Balancer Controller、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定，
      **并将应用 `task-api` 部署/更新到集群，最后做集群内冒烟测试**。
    - **Make 命令**：
      ```bash
@@ -116,6 +116,7 @@
      IMAGE_DIGEST=sha256:<your_digest>  make post-recreate
      ```
    - 该脚本**幂等且可重试**；镜像不变时不会触发滚动；失败修正后直接重跑即可。
+   - 脚本会预先应用 AWS Load Balancer Controller CRDs，并使用 Helm 安装/升级控制器与 `cluster-autoscaler`（等待 Pod 就绪）。
    - 脚本会从 ECR 以 tag 解析出 **digest**，并用 `kubectl set image` 覆盖到 Deployment，随后 `rollout status` 等待成功，最后在集群内用 `curlimages/curl` 进行 **/api/hello** 与 **/actuator/health** 冒烟校验。:contentReference[oaicite:1]{index=1}
 6. **端到端验活（本地）**：
    - 使用 `kubectl port-forward` 在本机开 8080 端口，把流量“隧道”进集群的 Service：

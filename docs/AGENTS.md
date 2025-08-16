@@ -16,7 +16,7 @@
 # Guidance for AI Agents
 
 - **Purpose:** This file describes how an AI agent (e.g. OpenAI Codex, DevAgent, etc.) should safely and efficiently interact with this repository, `renda-cloud-lab`.
-- **Last Updated:** July 18, 2025, 22:00 (UTC+08:00)
+- **Last Updated:** August 17, 2025, 04:46 (UTC+08:00)
 - **Maintainer:** Renda Zhang (张人大)
 - **Environment:** AWS Cloud, Terraform, EKS, Helm, GitOps
 
@@ -79,7 +79,7 @@ renda-cloud-lab/
 - Rebuild lifecycle and autoscaling behavior controlled via `make stop-all`, `make start-all`, and supporting scripts.
 - Login helper command: `make aws-login`
 - Import existing clusters via `scripts/tf-import.sh`
-- Post-recreate automation script: `scripts/post-recreate.sh` (updates kubeconfig & installs autoscaler)
+- Post-recreate automation script: `scripts/post-recreate.sh` (updates kubeconfig & installs AWS Load Balancer Controller & autoscaler)
 
 ---
 
