@@ -42,7 +42,7 @@ need jq
 log "🔗 配置 kubeconfig：cluster=${CLUSTER_NAME}, region=${REGION}, profile=${PROFILE}"
 run "aws eks update-kubeconfig --name \"$CLUSTER_NAME\" --region \"$REGION\""
 if [[ "$DRY_RUN" != "true" ]]; then
-  kubectl version --short >/dev/null || die "kubectl 无法连接到集群（请检查 EKS 状态与凭证）"
+  kubectl version >/dev/null || die "kubectl 无法连接到集群（请检查 EKS 状态与凭证）"
 fi
 
 # ====== 自动发现 ALB 类型的 Ingress ======
