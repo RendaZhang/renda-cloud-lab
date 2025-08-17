@@ -66,19 +66,6 @@ module "irsa_albc" {
   depends_on                      = [module.eks]                               # 依赖 EKS 模块
 }
 
-resource "kubernetes_service_account" "aws_load_balancer_controller" {
-  count = var.create_eks ? 1 : 0
-
-  metadata {
-    name      = var.albc_service_account_name
-    namespace = var.albc_namespace
-    annotations = {
-      "eks.amazonaws.com/role-arn" = module.irsa_albc[0].albc_role_arn
-    }
-  }
-  depends_on = [module.eks] # 依赖 EKS 模块
-}
-
 resource "aws_route53_record" "lab_alias" {
   count   = var.create_alb ? 1 : 0             # 仅在创建 ALB 时创建记录
   zone_id = module.network_base.hosted_zone_id # DNS Hosted Zone ID

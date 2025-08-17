@@ -86,7 +86,7 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 
 ### Makefile 命令 - start-all
 
-`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：刷新 kubeconfig、应用 ALB 控制器 CRDs 并安装/升级 AWS Load Balancer Controller、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定，**并将应用 `task-api` 部署/更新到集群，最后做集群内冒烟测试**。
+`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：刷新 kubeconfig 并创建 AWS Load Balancer Controller ServiceAccount、应用 ALB 控制器 CRDs 并安装/升级 AWS Load Balancer Controller、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定，并将应用 `task-api` 部署/更新到集群，最后做集群内冒烟测试。
 
 ### 常见错误与排查指引
 
@@ -97,6 +97,12 @@ EKS 节点无法从 ECR 拉镜像。
 检查节点角色是否有最小化 ECR 读权限（ecr:GetAuthorizationToken 等），以及子网是否能出网（NAT 就绪）。
 
 可以先确认是否已解析出镜像 digest 并成功下发到 Deployment。
+
+**Terraform 创建 ServiceAccount TLS 超时**：
+
+若在 `terraform apply` 阶段通过 Kubernetes Provider 创建 AWS Load Balancer Controller 的 ServiceAccount 时出现 `context deadline exceeded` 或 TLS 握手超时，原因通常是 kubeconfig 仍指向旧集群。
+
+解决方式：先执行 `aws eks update-kubeconfig` 刷新凭证，或直接使用 `make start-all`，该命令会在 `post-recreate` 脚本中自动创建并注解该 ServiceAccount。
 
 **CrashLoopBackOff（健康检查失败）**：
 

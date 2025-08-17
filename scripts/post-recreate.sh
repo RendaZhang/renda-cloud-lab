@@ -6,16 +6,17 @@
 # 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
 # 功能：
 #   1. 更新本地 kubeconfig 以连接最新创建的集群
-#   2. 通过 Helm 安装或升级 AWS Load Balancer Controller
-#   3. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
-#   4. 检查 NAT 网关、ALB、EKS 控制面和节点组等状态
-#   5. 获取最新的 EKS NodeGroup 生成的 ASG 名称
-#   6. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
-#   7. 自动写入绑定日志，避免重复执行
-#   8. 部署 task-api（固定 ECR digest，配置探针/资源）并在集群内冒烟
-#   9. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
-#  10. 安装 metrics-server（--kubelet-insecure-tls）
-#  11. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
+#   2. 创建/更新 AWS Load Balancer Controller 所需的 ServiceAccount（IRSA）
+#   3. 通过 Helm 安装或升级 AWS Load Balancer Controller
+#   4. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
+#   5. 检查 NAT 网关、ALB、EKS 控制面和节点组等状态
+#   6. 获取最新的 EKS NodeGroup 生成的 ASG 名称
+#   7. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
+#   8. 自动写入绑定日志，避免重复执行
+#   9. 部署 task-api（固定 ECR digest，配置探针/资源）并在集群内冒烟
+#  10. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
+#  11. 安装 metrics-server（--kubelet-insecure-tls）
+#  12. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
@@ -72,6 +73,8 @@ ALBC_IMAGE_REPO="602401143452.dkr.ecr.${REGION}.amazonaws.com/amazon/aws-load-ba
 ALBC_HELM_REPO_NAME="eks"
 ALBC_HELM_REPO_URL="https://aws.github.io/eks-charts"
 POD_ALBC_LABEL="app.kubernetes.io/name=${ALBC_RELEASE_NAME}"
+ALBC_ROLE_NAME="${ALBC_ROLE_NAME:-aws-load-balancer-controller}"
+ALBC_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ALBC_ROLE_NAME}"
 # ---- Ingress ----
 ING_FILE="${ROOT_DIR}/task-api/k8s/ingress.yaml"
 # ---- HPA ----
@@ -131,6 +134,16 @@ check_albc_status() {
   else
     echo "healthy"
   fi
+}
+
+# 确保 AWS Load Balancer Controller 的 ServiceAccount 存在并带注解
+ensure_albc_service_account() {
+  log "🛠️ 确保 ServiceAccount ${ALBC_SERVICE_ACCOUNT_NAME} 存在"
+  if ! kubectl -n $KUBE_DEFAULT_NAMESPACE get sa ${ALBC_SERVICE_ACCOUNT_NAME} >/dev/null 2>&1; then
+    kubectl -n $KUBE_DEFAULT_NAMESPACE create serviceaccount ${ALBC_SERVICE_ACCOUNT_NAME}
+  fi
+  kubectl -n $KUBE_DEFAULT_NAMESPACE annotate sa ${ALBC_SERVICE_ACCOUNT_NAME} \
+    "eks.amazonaws.com/role-arn=${ALBC_ROLE_ARN}" --overwrite
 }
 
 # 安装或升级 AWS Load Balancer Controller
@@ -481,6 +494,8 @@ if [[ -z "$asg_name" ]]; then
 fi
 
 update_kubeconfig
+
+ensure_albc_service_account
 
 install_albc_controller
 
