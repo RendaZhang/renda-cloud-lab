@@ -73,7 +73,7 @@ scale-zero:
 	@echo "🌙 Scaling down all EKS node groups to zero..."
 	@bash scripts/scale-nodegroup-zero.sh
 
-## 🌙 销毁 NAT、ALB 以及 EKS 控制面（依旧采用你的“三开关”方式）
+## 🌙 销毁 NAT、ALB 以及 EKS 控制面（采用“三开关”方式）
 stop: scale-zero
 	@echo "Stopping all resources (NAT, ALB, EKS control plane)..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
@@ -98,10 +98,10 @@ post-teardown:
 		DRY_RUN=$(DRY_RUN) \
 		bash $(POST_TEARDOWN) | tee scripts/logs/post-teardown.log
 
-## 🧹 销毁集群后清理残留（加入 pre-teardown，优雅 → 销毁 → 兜底）
+## 🧹 销毁集群后清理残留（优雅 → 销毁 → 兜底）
 stop-all: pre-teardown stop post-teardown
 
-## 💣 一键彻底销毁所有资源（同样加入 pre-teardown）
+## 💣 一键彻底销毁所有资源
 destroy-all: pre-teardown stop
 	@echo "🔥 Destroying all Terraform-managed resources..."
 	terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
