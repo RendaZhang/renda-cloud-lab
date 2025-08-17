@@ -260,7 +260,7 @@
      - 执行 `make stop` 即可一键销毁所启用的外围资源。
      - 若希望连同 EKS 控制面一起关闭，可使用 `make stop-hard`，该命令会将 `create_eks=false` 一并销毁集群。
      - 此命令会在 `infra/aws` 目录下调用 Terraform，将 `create_nat`、`create_alb` 等变量置为 false（默认不修改 `create_eks`，集群控制面保持开启）后执行 `terraform apply`。
-     - 如需额外清理 CloudWatch 日志组并验证资源是否完全删除，可使用 `make stop-all`，它会在 `stop-hard` 基础上调用 `post-teardown.sh`。
+     - 如需额外清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组并验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除，可使用 `make stop-all`，它会在 `stop-hard` 基础上调用 `post-teardown.sh`（支持 `DRY_RUN=true` 预演）。
      - **手动 Terraform 命令**：
        - 也可以手动执行 Terraform 实现相同效果。
        - 在 `infra/aws` 目录下运行如下命令关闭相关组件：
@@ -294,7 +294,7 @@
    - **Makefile 命令 - destroy-all**：
      - 执行 `make destroy-all` 触发一键完全销毁流程。
      - 该命令会先调用 `make stop-hard` 删除 EKS 控制面，再运行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源。
-     - 最后会自动执行 `post-teardown.sh` 清理 CloudWatch 日志组并再次验证所有资源均已删除。
+     - 最后会自动执行 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
      - `make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。
      - 执行前请再次确认 AWS 凭证有效且无重要资源遗漏在状态外。
      - **手动销毁命令**：
@@ -371,11 +371,14 @@
     ```bash
     aws ec2 describe-nat-gateways --region us-east-1 --profile phase2-sso
     ```
-- [x] **ALB 已删除**：
+- [x] **ALB 与 TargetGroup 已删除**：
   - 运行以下命令检查，预期不再包含实验负载均衡：
     ```bash
     aws elbv2 describe-load-balancers --region us-east-1 --profile phase2-sso
     ```
+  - `post-teardown.sh` 亦会清理无负载均衡器关联的孤立 TargetGroup。
+- [x] **ALB Controller 安全组已删除**：
+  - 脚本会删除带有集群标签的安全组，可额外在 EC2 控制台或命令行确认。
 - [x] **EKS 集群状态**：
   - 如执行 `make stop-hard`，则如下运行命令检查，预期集群名称不出现：
     ```bash

@@ -138,7 +138,7 @@ make stop-hard
 make stop-all
 ```
 
-> 该操作不会删除 VPC、Route Table、KMS 等基础结构；`stop-all` 会在销毁集群后额外执行 `scripts/post-teardown.sh` 清理日志组并检查 NAT 网关、ALB、EKS 等资源是否完全移除
+> 该操作不会删除 VPC、Route Table、KMS 等基础结构；`stop-all` 会在销毁集群后额外执行 `scripts/post-teardown.sh`（支持 `DRY_RUN=true` 预演），清理日志组、ALB/TargetGroup 及相关安全组，并检查 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全移除
 
 > 提示：ECR 不随每日销毁；建议镜像以 **digest（@sha256）** 固定部署。遇到失败可通过保留的历史 tag/镜像快速回滚。
 
@@ -153,7 +153,7 @@ make stop-all
 make destroy-all
 ```
 
-> 将先运行 `make stop-hard` 删除 EKS 控制面，随后执行 `terraform destroy` 清理所有基础设施，并在最后调用 `post-teardown.sh` 删除日志组并验证资源删除情况 (first runs `make stop-hard` to remove the EKS control plane, then calls `terraform destroy` followed by `post-teardown.sh` to delete the log group and run final checks)
+> 将先运行 `make stop-hard` 删除 EKS 控制面，随后执行 `terraform destroy` 清理所有基础设施，并在最后调用 `post-teardown.sh`（同样支持 `DRY_RUN=true` 预演）删除日志组、ALB/TargetGroup 与安全组并验证资源删除情况 (first runs `make stop-hard` to remove the EKS control plane, then calls `terraform destroy` followed by `post-teardown.sh`—which also supports `DRY_RUN=true`—to delete the log group, ALBs and security groups, and run final checks)
 
 ---
 

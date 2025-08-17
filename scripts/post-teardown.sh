@@ -1,27 +1,34 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Renda Cloud Lab · post-teardown.sh
-# 功能: 在 IaC 销毁后兜底清理仍可能计费的资源（ALB/TargetGroup/SG 等）
+# 功能:
+#   - 在 IaC 销毁后兜底清理仍可能计费的资源
+#     * CloudWatch Log Group
+#     * 与集群关联的 ALB / TargetGroup / 安全组
+#   - 验证 NAT 网关、EKS 集群和 ASG SNS 通知是否已移除
+#   - 通过 `DRY_RUN=true` 预演脚本执行过程
 # Usage:
 #   bash scripts/post-teardown.sh
 #   DRY_RUN=true bash scripts/post-teardown.sh   # 预演，不执行删除
 # ------------------------------------------------------------
 set -euo pipefail
 
-# ===== 可通过环境变量覆盖 =====
-REGION="${REGION:-us-east-1}"
-PROFILE="${PROFILE:-phase2-sso}"
-CLUSTER_NAME="${CLUSTER_NAME:-dev}"
+# ===== 默认参数，可通过环境变量覆盖 =====
+REGION="${REGION:-us-east-1}"        # AWS 区域
+PROFILE="${PROFILE:-phase2-sso}"     # AWS CLI Profile 名称
+CLUSTER_NAME="${CLUSTER_NAME:-dev}"  # EKS 集群名称
 
-# 可选：名称/前缀（保留你的原有变量）
-LOG_GROUP="${LOG_GROUP:-/aws/eks/${CLUSTER_NAME}/cluster}"
-NAT_NAME="${NAT_NAME:-lab-nat}"
-ASG_PREFIX="${ASG_PREFIX:-eks-ng-mixed}"
+# 可选：名称/前缀
+LOG_GROUP="${LOG_GROUP:-/aws/eks/${CLUSTER_NAME}/cluster}"  # 控制面日志组
+NAT_NAME="${NAT_NAME:-lab-nat}"                              # NAT 网关 Name 标签
+ASG_PREFIX="${ASG_PREFIX:-eks-ng-mixed}"                     # ASG 前缀用于检查通知
 
 # 预演模式（只打印不删）
 DRY_RUN="${DRY_RUN:-false}"
 
+# 标准化日志输出
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+# 包装命令执行，支持 DRY_RUN
 run() {
   if [[ "$DRY_RUN" == "true" ]]; then
     log "DRY-RUN: $*"
@@ -31,12 +38,14 @@ run() {
 }
 
 # ---------- 基础探测 ----------
+# 判断集群是否仍存在，存在则终止后续清理以避免误删
 cluster_exists() {
   aws eks describe-cluster \
     --name "$CLUSTER_NAME" --region "$REGION" --profile "$PROFILE" >/dev/null 2>&1
 }
 
 # ---------- CloudWatch 日志组 ----------
+# 删除由 EKS 控制面创建的日志组
 delete_log_group() {
   log "🧹 清理 CloudWatch Log Group: $LOG_GROUP"
   if aws logs describe-log-groups \
@@ -51,8 +60,8 @@ delete_log_group() {
 }
 
 # ---------- 兜底删除：ALB / TargetGroup / SG ----------
-# 说明：
-# - 依据标签删除，避免误伤。匹配以下两类标签任意其一即视为本集群资源：
+# 根据标签匹配删除属于本集群的 ALB 及 TargetGroup，避免误删其它资源。
+# 匹配以下任一标签即视为集群资源：
 #   * elbv2.k8s.aws/cluster = $CLUSTER_NAME
 #   * kubernetes.io/cluster/$CLUSTER_NAME = (owned|shared)
 delete_alb_and_tg_for_cluster() {
@@ -150,6 +159,7 @@ delete_alb_and_tg_for_cluster() {
 }
 
 delete_alb_security_groups() {
+  # 删除由 AWS Load Balancer Controller 创建并打上集群标签的安全组
   log "🧹 清理由 ALB Controller 创建、并打了集群标签的安全组 ..."
 
   # 1) 通过 elbv2.k8s.aws/cluster=<cluster> 标签筛选
@@ -194,6 +204,7 @@ delete_alb_security_groups() {
 }
 
 # ---------- 只做检查（不删）的保留项 ----------
+# 验证关键资源是否已完全删除
 check_nat_gateway_deleted() {
   log "🔍 检查 NAT 网关 ${NAT_NAME} 是否已删除"
   local count
@@ -246,6 +257,7 @@ check_sns_unbound() {
 }
 
 # ========== 主流程 ==========
+# 若集群仍存在，则退出以避免误删
 if cluster_exists; then
   log "⚠️ 检测到 EKS 集群 ${CLUSTER_NAME} 仍存在，疑似未执行销毁操作；为避免误删，脚本退出。"
   exit 0
