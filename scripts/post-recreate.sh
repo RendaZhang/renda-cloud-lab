@@ -356,8 +356,8 @@ deploy_task_api() {
   ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text --profile "${PROFILE}")" || abort "无法获取 AWS 账号 ID"
   log "👤 AWS Account: ${ACCOUNT_ID}"
 
-  log "🔧 配置 kubeconfig（cluster=${CLUSTER}）"
-  aws eks update-kubeconfig --name "${CLUSTER}" --region "${REGION}" --profile "${PROFILE}" >/dev/null
+  log "🔧 配置 kubeconfig（cluster=${CLUSTER_NAME}）"
+  aws eks update-kubeconfig --name "${CLUSTER_NAME}" --region "${REGION}" --profile "${PROFILE}" >/dev/null
 
   # ===== 应用 Kubernetes 清单 =====
   if [[ ! -d "${K8S_BASE_DIR}" ]]; then

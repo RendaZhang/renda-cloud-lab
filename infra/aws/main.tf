@@ -76,6 +76,7 @@ resource "kubernetes_service_account" "aws_load_balancer_controller" {
       "eks.amazonaws.com/role-arn" = module.irsa_albc[0].albc_role_arn
     }
   }
+  depends_on = [module.eks] # 依赖 EKS 模块
 }
 
 resource "aws_route53_record" "lab_alias" {
