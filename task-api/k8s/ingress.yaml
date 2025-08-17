@@ -1,3 +1,4 @@
+# 通过 AWS Load Balancer Controller 创建公网 ALB
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

@@ -37,7 +37,7 @@
 
 # Renda Cloud Lab
 
-- **最后更新**: August 17, 2025, 04:45 (UTC+08:00)
+- **最后更新**: August 17, 2025, 07:52 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -138,7 +138,7 @@ Terraform 目标：**纯声明式 Infra、幂等、稳定、易重建、适合�
 infra/
 ├── terraform/              # 管理集群 Infra（VPC/EKS/IAM/NodeGroup）
 scripts/
-├── post-recreate.sh        # 集群创建后，刷新 kubeconfig，安装 ALB Controller/Autoscaler 并部署 core service 等等
+├── post-recreate.sh        # 集群创建后，刷新 kubeconfig，安装 ALB Controller/Autoscaler/metrics-server/HPA，并部署核心服务与 Ingress
 ├── post-teardown.sh        # 完全销毁后清理日志组并确认资源删除
 ├── deploy-service-a.sh     # 部署业务微服务 A（计划中）
 helm-charts/
@@ -236,9 +236,16 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 
 ### 集群后置部署
 
-在基础设施创建完成后，运行 `make post-recreate` 可以刷新本地 kubeconfig、安装 Cluster Autoscaler，并自动检查 NAT 网关、ALB、EKS 控制面及节点组、日志组等资源状态。
+在基础设施创建完成后，运行 `make post-recreate` 会自动完成部署层初始化：
 
-同时脚本会绑定 Spot 通知，确保节点回收告警生效。
+- 刷新本地 kubeconfig；
+- 应用 AWS Load Balancer Controller CRDs 并通过 Helm 安装/升级控制器；
+- 通过 Helm 安装/升级 Cluster Autoscaler；
+- 部署示例应用（以 **ECR Digest** 固定镜像）并配置 `/actuator/health/{readiness,liveness}` 探针与 `cpu/mem` 资源；
+- 发布 Ingress 获取公网 ALB；
+- 安装 `metrics-server`（`--kubelet-insecure-tls`）；
+- 发布 `HPA`（CPU 60%，`min=2/max=10`，自定义 `behavior`）；
+- 自动检查 NAT 网关、ALB、EKS 控制面及节点组、日志组等资源状态并绑定 Spot 通知。
 
 此脚本属于 **部署层**，与 Terraform 管理的 **基础设施层** 解耦，便于在不修改 Infra 的情况下迭代集群内组件。
 
@@ -267,10 +274,16 @@ IMAGE_DIGEST=sha256:... bash scripts/post-recreate.sh
 1. `aws eks update-kubeconfig` 切到目标集群
 2. 应用 AWS Load Balancer Controller CRDs，并通过 Helm 安装/升级控制器（等待就绪）
 3. 通过 Helm 安装/升级 `cluster-autoscaler`
-4. 依次 `kubectl apply -f task-api/k8s/base/ns-sa.yaml`、`task-api/k8s/base/configmap.yaml`、`task-api/k8s/base/deploy-svc.yaml`
-5. 从 ECR 解析 `IMAGE_TAG` → **digest**，或直接使用 `IMAGE_DIGEST`
-6. `kubectl set image` 覆盖 Deployment 镜像（digest 固定，避免 tag 漂移）并等待 `rollout status` 成功
-7. 启动一次**集群内冒烟测试**（`/api/hello`、`/actuator/health`），通过即视为上线成功
+4. 依次 `kubectl apply -f task-api/k8s/base/ns-sa.yaml`、`configmap.yaml`、`deploy-svc.yaml`
+5. 从 ECR 解析 `IMAGE_TAG` → **digest**（或使用 `IMAGE_DIGEST`），`kubectl set image` 更新并等待 `rollout status`
+6. 发布 Ingress 等待公网 ALB 就绪
+7. 安装 `metrics-server`（`--kubelet-insecure-tls`）并等待部署完成
+8. 应用 `HPA`（CPU 60%，`min=2/max=10`，含 `behavior`）
+9. 执行集群内 `/api/hello` 与 `/actuator/health` 冒烟测试
+
+> 环境锚点：`AWS_REGION=us-east-1`、`CLUSTER=dev`、`NS=svc-task`、`ECR_REPO=task-api`
+>
+> 当前 ECR 生命周期策略仅保留 **1 个 tag** 与 **1 天** 未打标签镜像，回滚空间极小，建议调整为保留最近 5–10 个 tag。
 
 **部署结果验证：**
 
@@ -390,7 +403,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 **重建后脚本**：
 
-`post-recreate.sh` 会刷新本地 kubeconfig，应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller 与 Cluster Autoscaler，然后把最新 NodeGroup 的 ASG 订阅到 `spot-interruption-topic`，确保节点被回收前 2 分钟触发 SNS → 邮件/ChatOps，方便预留时间将应用流量疏散或触发自动化操作。
+`post-recreate.sh` 会刷新本地 kubeconfig，应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server 与 HPA，部署示例应用并发布 Ingress，随后把最新 NodeGroup 的 ASG 订阅到 `spot-interruption-topic`，确保节点被回收前 2 分钟触发 SNS → 邮件/ChatOps，方便预留时间将应用流量疏散或触发自动化操作。
 
 **成本预算提醒**：
 
@@ -484,7 +497,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 | --------------------------| -----------------------------------|
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas  |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态   |
-| `post-recreate.sh`        | 刷新 kubeconfig，应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller 与 Cluster Autoscaler，部署应用 task-api（多清单 + ECR digest）并完成冒烟验证，以及自动为最新 NodeGroup 绑定 Spot 通知 |
+| `post-recreate.sh`        | 刷新 kubeconfig，应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server 和 HPA；部署应用 task-api（多清单 + ECR digest）、发布 Ingress 并完成冒烟验证，以及自动为最新 NodeGroup 绑定 Spot 通知 |
 | `post-teardown.sh`        | 销毁集群后清理 CloudWatch 日志组并验证所有资源已删除 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本 |
 | `update-diagrams.sh`      | 图表生成脚本 |

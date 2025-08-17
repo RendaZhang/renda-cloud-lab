@@ -3,6 +3,7 @@ kind: ConfigMap
 metadata:
   name: task-api-config
   namespace: svc-task
+# 示例环境变量
 data:
   APP_NAME: "task-api"
   WELCOME_MSG: "hello from ${AWS_REGION}"

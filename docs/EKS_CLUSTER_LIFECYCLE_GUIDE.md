@@ -22,7 +22,7 @@
 
 # EKS 云原生集群生命周期流程文档
 
-- **最后更新**: August 16, 2025, 03:54 (UTC+08:00)
+- **最后更新**: August 17, 2025, 07:52 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 本项目以 Terraform 为核心管理工具，配合 Bash 脚本完成 EKS 集群的每日销毁与重建，并自动恢复关键运行时配置（如 Spot Interruption SNS 通知绑定）。
@@ -195,16 +195,34 @@ make clean
 - 状态记录：`scripts/.last-asg-bound`
 - 日志：`scripts/logs/post-recreate.log`
 - 应用恢复：依次 `kubectl apply -f task-api/k8s/base/ns-sa.yaml`、`task-api/k8s/base/configmap.yaml`、`task-api/k8s/base/deploy-svc.yaml`，并以 `kubectl set image` 将镜像固定到 **ECR digest**，随后等待 `rollout status` 成功
+- 发布 Ingress 暴露公网 ALB（健康检查 `/actuator/health/readiness`）
+- 安装 `metrics-server`（`--kubelet-insecure-tls`）
+- 部署 `task-api` 的 HPA（CPU 60%，`min=2/max=10`，含 `behavior`）
 - 应用验活：在集群内发起 `/api/hello` 与 `/actuator/health` 冒烟请求（失败可重试，脚本幂等）
 
 ---
 
 ## 应用层生命周期（Deployment / Service / Ingress）
 
-- **声明来源**：`task-api/k8s/base/*.yaml`（Namespace + ServiceAccount + ConfigMap + Deployment + ClusterIP Service）。
-- **固定镜像**：脚本用 `IMAGE_TAG` → **ECR digest** 替换 Deployment 镜像，避免 `:latest` 漂移。
+- **基础对象**：
+  - Namespace：`svc-task`
+  - ServiceAccount：`task-api`（预留 IRSA 注解位）
+  - ConfigMap：`task-api-config`（示例 `APP_NAME` / `WELCOME_MSG`）
+- **Deployment + Service**：
+  - 镜像以 **ECR Digest** 固定，避免 tag 漂移
+  - 探针：`/actuator/health/readiness`、`/actuator/health/liveness`
+  - 资源水位：`requests cpu=100m/mem=128Mi`，`limits cpu=500m/mem=512Mi`
+- **Ingress (ALB)**：
+  - `ingressClassName: alb`
+  - `alb.ingress.kubernetes.io/scheme: internet-facing`
+  - `alb.ingress.kubernetes.io/target-type: ip`
+  - `alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness`
+  - `alb.ingress.kubernetes.io/healthcheck-port: traffic-port`
+- **HPA & metrics-server**：
+  - `metrics-server` 以 Helm 安装，参数 `--kubelet-insecure-tls`
+  - `HPA`（`autoscaling/v2`）目标 CPU **60%**，`min=2/max=10`，自定义 `behavior` 加速扩缩
 - **回滚建议**：ECR 生命周期保留最近 **5–10** 个 tag（或保留 **7 天** untagged），以便出现回退需求时快速切换。
-- **对外暴露**：脚本已安装 **AWS Load Balancer Controller**，追加 `Ingress`（ALB）即可形成公网入口；若无需对外公开，可用 `port-forward` 验证服务可用性。
+- **对外暴露**：脚本已安装 **AWS Load Balancer Controller**；Ingress 创建后自动获得公网 ALB；如无需对外公开，可使用 `port-forward` 验证服务可用性。
 
 ---
 

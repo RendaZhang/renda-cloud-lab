@@ -5,6 +5,7 @@
 - [集群故障排查指南](#%E9%9B%86%E7%BE%A4%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97)
   - [简介](#%E7%AE%80%E4%BB%8B)
     - [BUG 记录格式要求](#bug-%E8%AE%B0%E5%BD%95%E6%A0%BC%E5%BC%8F%E8%A6%81%E6%B1%82)
+    - [常见坑与退路](#%E5%B8%B8%E8%A7%81%E5%9D%91%E4%B8%8E%E9%80%80%E8%B7%AF)
   - [BUG 详情](#bug-%E8%AF%A6%E6%83%85)
     - [BUG-001: Helm 部署 cluster-autoscaler 时 IRSA 注解配置错误导致 CrashLoopBackOff](#bug-001-helm-%E9%83%A8%E7%BD%B2-cluster-autoscaler-%E6%97%B6-irsa-%E6%B3%A8%E8%A7%A3%E9%85%8D%E7%BD%AE%E9%94%99%E8%AF%AF%E5%AF%BC%E8%87%B4-crashloopbackoff)
     - [BUG-002: Helm 安装 cluster-autoscaler 报错：wrong type for value; expected string; got map[string]interface {}](#bug-002-helm-%E5%AE%89%E8%A3%85-cluster-autoscaler-%E6%8A%A5%E9%94%99wrong-type-for-value-expected-string-got-mapstringinterface-)
@@ -24,7 +25,7 @@
 
 # 集群故障排查指南
 
-- **Last Updated:** August 17, 2025, 05:30 (UTC+08:00)
+- **Last Updated:** August 17, 2025, 07:52 (UTC+08:00)
 - **作者:** 张人大（Renda Zhang）
 
 --
@@ -53,6 +54,13 @@
 - **适用版本**：
 - **经验总结**：可选的额外说明
 ```
+
+### 常见坑与退路
+
+- **Ingress 没地址**：先确认 AWS Load Balancer Controller 是否就绪、子网/集群标签是否正确、ServiceAccount 注解的 IAM Role 是否匹配。
+- **ALB 健康检查失败**：核对探针路径与端口，应用冷启动时可适当增大 `initialDelaySeconds`。
+- **HPA 不触发**：临时降低 `averageUtilization`（如 30%）、下调 `requests.cpu`（如 50m），或加大压测并发与时长。
+- **镜像/架构不匹配**：ARM64 节点构建镜像时需指定 `--platform=linux/arm64`。
 
 ---
 

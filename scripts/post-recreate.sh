@@ -12,7 +12,10 @@
 #   5. 获取最新的 EKS NodeGroup 生成的 ASG 名称
 #   6. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
 #   7. 自动写入绑定日志，避免重复执行
-#   8. 自动部署 task-api 到 EKS
+#   8. 部署 task-api（固定 ECR digest，配置探针/资源）并在集群内冒烟
+#   9. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
+#  10. 安装 metrics-server（--kubelet-insecure-tls）
+#  11. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
