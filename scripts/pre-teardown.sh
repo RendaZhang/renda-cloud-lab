@@ -40,7 +40,7 @@ need jq
 
 # ====== 确认集群可连通 ======
 log "🔗 配置 kubeconfig：cluster=${CLUSTER_NAME}, region=${REGION}, profile=${PROFILE}"
-run "aws eks update-kubeconfig --name \"$CLUSTER_NAME\" --region \"$REGION\""
+aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION"
 if [[ "$DRY_RUN" != "true" ]]; then
   kubectl version >/dev/null || die "kubectl 无法连接到集群（请检查 EKS 状态与凭证）"
 fi
@@ -68,9 +68,9 @@ else
 
   for item in "${ING_LIST[@]}"; do
     ns="${item%/*}"; name="${item#*/}"
-    run "kubectl -n \"$ns\" delete ingress \"$name\" --ignore-not-found"
+    kubectl -n "$ns" delete ingress "$name" --ignore-not-found
     # 等待对象被 Kubernetes 删除（对象层面）；云侧 ALB 回收在下一步统一等待
-    run "kubectl -n \"$ns\" wait --for=delete ingress/\"$name\" --timeout=60s || true"
+    kubectl -n "$ns" wait --for=delete ingress/"$name" --timeout=60s || true
   done
 fi
 
@@ -121,16 +121,16 @@ fi
 
 # ====== 卸载 AWS Load Balancer Controller（Helm） ======
 log "🧹 卸载 Helm release: ${ALBC_RELEASE} (ns=${ALBC_NAMESPACE})"
-run "helm -n \"$ALBC_NAMESPACE\" uninstall \"$ALBC_RELEASE\" || true"
+helm -n "$ALBC_NAMESPACE" uninstall "$ALBC_RELEASE" || true
 
 # 保险起见，确保 Deployment 消失（在 Helm 卸载后通常已不存在）
-run "kubectl -n \"$ALBC_NAMESPACE\" delete deploy \"$ALBC_RELEASE\" --ignore-not-found"
+kubectl -n "$ALBC_NAMESPACE" delete deploy "$ALBC_RELEASE" --ignore-not-found
 
 # ====== （可选）卸载 metrics-server ======
 if [[ "$UNINSTALL_METRICS_SERVER" == "true" ]]; then
   log "🧹 卸载 metrics-server (可选)"
-  run "helm -n kube-system uninstall metrics-server || true"
-  run "kubectl -n kube-system delete deploy metrics-server --ignore-not-found"
+  helm -n kube-system uninstall metrics-server || true
+  kubectl -n kube-system delete deploy metrics-server --ignore-not-found
 else
   log "ℹ️ 未启用 UNINSTALL_METRICS_SERVER，跳过卸载 metrics-server"
 fi
