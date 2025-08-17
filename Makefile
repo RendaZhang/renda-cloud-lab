@@ -4,7 +4,17 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY: check preflight aws-login init plan start post-recreate start-all scale-zero stop post-teardown stop-all destroy-all logs clean update-diagrams lint
+# --- 新增：脚本路径与开关 ---
+SCRIPTS_DIR           ?= scripts
+PRE_TEARDOWN          ?= $(SCRIPTS_DIR)/pre-teardown.sh
+POST_TEARDOWN         ?= $(SCRIPTS_DIR)/post-teardown.sh
+POST_RECREATE         ?= $(SCRIPTS_DIR)/post-recreate.sh
+DRY_RUN               ?= false          # true 仅打印将执行的操作
+UNINSTALL_METRICS     ?= true           # pre-teardown 默认卸载 metrics-server
+
+.PHONY: check check-auto preflight aws-login init plan start post-recreate start-all \
+        scale-zero stop pre-teardown post-teardown stop-all destroy-all logs clean \
+        update-diagrams lint
 
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
@@ -52,7 +62,8 @@ start:
 post-recreate:
 	@echo "Running post-recreate tasks..."
 	@mkdir -p scripts/logs
-	@bash scripts/post-recreate.sh | tee scripts/logs/post-recreate.log
+	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
+		bash $(POST_RECREATE) | tee scripts/logs/post-recreate.log
 
 ## 🚀 一键全流程（重建集群 + 通知绑定）
 start-all: start post-recreate
@@ -62,7 +73,7 @@ scale-zero:
 	@echo "🌙 Scaling down all EKS node groups to zero..."
 	@bash scripts/scale-nodegroup-zero.sh
 
-## 🌙 销毁 NAT、ALB 以及 EKS 控制面
+## 🌙 销毁 NAT、ALB 以及 EKS 控制面（依旧采用你的“三开关”方式）
 stop: scale-zero
 	@echo "Stopping all resources (NAT, ALB, EKS control plane)..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
@@ -71,29 +82,41 @@ stop: scale-zero
 			-var="create_alb=false" \
 			-var="create_eks=false"
 
-## 🛠️ 清理残留日志组
+## 🧼 在销毁前先优雅释放：删除所有 ALB Ingress → 等待回收 ALB/TG → 卸载 ALB Controller + metrics-server
+pre-teardown:
+	@echo "🧹 [pre-teardown] 删除 Ingress & 卸载 ALB Controller (+ metrics-server)"
+	@mkdir -p scripts/logs
+	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
+		DRY_RUN=$(DRY_RUN) UNINSTALL_METRICS_SERVER=$(UNINSTALL_METRICS) \
+		bash $(PRE_TEARDOWN) | tee scripts/logs/pre-teardown.log
+
+## 🛠️ 清理残留日志组 + 兜底强删 ALB/TargetGroup/安全组（按标签）
 post-teardown:
 	@echo "Running post-teardown tasks..."
 	@mkdir -p scripts/logs
-	@bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
+	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
+		DRY_RUN=$(DRY_RUN) \
+		bash $(POST_TEARDOWN) | tee scripts/logs/post-teardown.log
 
-## 🧹 销毁集群后清理残留日志组
-stop-all: stop post-teardown
+## 🧹 销毁集群后清理残留（加入 pre-teardown，优雅 → 销毁 → 兜底）
+stop-all: pre-teardown stop post-teardown
 
-## 💣 一键彻底销毁所有资源
-destroy-all: stop
+## 💣 一键彻底销毁所有资源（同样加入 pre-teardown）
+destroy-all: pre-teardown stop
 	@echo "🔥 Destroying all Terraform-managed resources..."
 	terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
 			-var="region=$(REGION)"
 	@echo "Running post-teardown cleanup..."
 	@mkdir -p scripts/logs
-	@bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
+	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
+		DRY_RUN=$(DRY_RUN) \
+		bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
 
 ## 📜 查看日志
 logs:
 	@ls -lt scripts/logs | head -n 5
 	@echo "--- 最近日志内容 ---"
-	@for f in scripts/logs/post-recreate.log scripts/logs/preflight.txt scripts/logs/check-tools.log; do \
+	@for f in scripts/logs/pre-teardown.log scripts/logs/post-recreate.log scripts/logs/preflight.txt scripts/logs/check-tools.log; do \
 		if [ -f $$f ]; then \
 		echo "`basename $$f`"; \
 		echo "--------------------"; \

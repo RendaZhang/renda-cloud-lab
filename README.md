@@ -8,21 +8,12 @@
   - [目录结构](#%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84)
   - [项目结构与职责分层原则](#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84%E4%B8%8E%E8%81%8C%E8%B4%A3%E5%88%86%E5%B1%82%E5%8E%9F%E5%88%99)
     - [Terraform 仅负责 Infra 层（集群基础设施）](#terraform-%E4%BB%85%E8%B4%9F%E8%B4%A3-infra-%E5%B1%82%E9%9B%86%E7%BE%A4%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD)
-    - [Helm 脚本负责部署层（K8s 应用与控制器）](#helm-%E8%84%9A%E6%9C%AC%E8%B4%9F%E8%B4%A3%E9%83%A8%E7%BD%B2%E5%B1%82k8s-%E5%BA%94%E7%94%A8%E4%B8%8E%E6%8E%A7%E5%88%B6%E5%99%A8)
-    - [示例结构建议（当前 + 后续）](#%E7%A4%BA%E4%BE%8B%E7%BB%93%E6%9E%84%E5%BB%BA%E8%AE%AE%E5%BD%93%E5%89%8D--%E5%90%8E%E7%BB%AD)
+    - [Helm 脚本负责部署层](#helm-%E8%84%9A%E6%9C%AC%E8%B4%9F%E8%B4%A3%E9%83%A8%E7%BD%B2%E5%B1%82)
     - [实践总结](#%E5%AE%9E%E8%B7%B5%E6%80%BB%E7%BB%93)
   - [安装部署指南](#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2%E6%8C%87%E5%8D%97)
     - [前置条件](#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6)
-    - [本地环境检查工具](#%E6%9C%AC%E5%9C%B0%E7%8E%AF%E5%A2%83%E6%A3%80%E6%9F%A5%E5%B7%A5%E5%85%B7)
     - [基础设施部署](#%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD%E9%83%A8%E7%BD%B2)
-    - [首次创建 Spot Interruption SNS Topic](#%E9%A6%96%E6%AC%A1%E5%88%9B%E5%BB%BA-spot-interruption-sns-topic)
-    - [集群后置部署](#%E9%9B%86%E7%BE%A4%E5%90%8E%E7%BD%AE%E9%83%A8%E7%BD%B2)
-    - [应用部署](#%E5%BA%94%E7%94%A8%E9%83%A8%E7%BD%B2)
-  - [日常工作流](#%E6%97%A5%E5%B8%B8%E5%B7%A5%E4%BD%9C%E6%B5%81)
-    - [预检检查 Preflight](#%E9%A2%84%E6%A3%80%E6%A3%80%E6%9F%A5-preflight)
     - [集群启停管理](#%E9%9B%86%E7%BE%A4%E5%90%AF%E5%81%9C%E7%AE%A1%E7%90%86)
-    - [推荐完整重建流程](#%E6%8E%A8%E8%8D%90%E5%AE%8C%E6%95%B4%E9%87%8D%E5%BB%BA%E6%B5%81%E7%A8%8B)
-  - [成本控制说明](#%E6%88%90%E6%9C%AC%E6%8E%A7%E5%88%B6%E8%AF%B4%E6%98%8E)
   - [常见问题 (FAQ)](#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98-faq)
   - [附录](#%E9%99%84%E5%BD%95)
     - [文档](#%E6%96%87%E6%A1%A3)
@@ -51,6 +42,8 @@
 ---
 
 ## 简介
+
+**Renda Cloud Lab** 实践了一套“每日自动销毁 -> 次日重建”的基础设施生命周期策略，以最大化节约 AWS 费用。云资源按需高效利用是本项目的重要考量。
 
 **Renda Cloud Lab** 项目涵盖 **AWS 云服务、EKS、GitOps、可观测性、SRE 以及 AI Sidecar** 等前沿主题。
 
@@ -82,26 +75,21 @@
 │  ├─ aws/               # Terraform 配置（backend / providers / vars 等）
 │  └─ eksctl/            # eksctl YAML (legacy - optional)
 ├─ docs/                 # 设计与流程文档（如 lifecycle.md）
-├─ charts/               # Helm Charts（按功能拆分的应用和系统组件）
 ├─ scripts/              # 基础设施启停与自动化脚本（如一键部署、节点伸缩、清理等）
 │  └─ logs/              # 执行日志输出目录（已在 .gitignore 中排除）
 ├─ diagrams/             # 架构图表（Terraform graph 可视化图）
-│  ├─ *architecture.dot  # Terraform graph 原始输出
-│  ├─ *architecture.svg  # SVG 架构图（推荐）
-│  ├─ *architecture.png  # PNG 快速预览图
-│  └─ *architecture.md   # 图表生成与解读指南
 └─ README.md
 ```
 
-| 目录                     | 说明                                                                                 |
-| ---------------------- | ---------------------------------------------------------------------------------- |
+| 目录                     | 说明                                                               |
+| ---------------------- | ------------------------------------------------------------------- |
 | **infra/aws/**         | Terraform 模块（VPC、子网、NAT、ALB、EKS 等）和环境配置，远端状态保存在 S3/DynamoDB（默认 Region=`us-east-1`） |
 | **infra/eksctl/**      | eksctl 配置（Legacy，可选，`create_eks=false` 时使用） |
-| **docs/**              | 生命周期与流程说明文档，例如 `docs/lifecycle.md`（一键重建、Spot 绑定、清理指令等）                             |
-| **charts/**            | 应用和系统的 Helm Chart，遵循 OCI 制品规范，便于复用与扩展                                              |
-| **scripts/**           | 脚本：如 `preflight.sh`（预检检查）、`tf-import.sh`（Terraform 导入） 等                           |
-| **diagrams/**          | 系统架构和流量拓扑图，帮助理解基础设施与应用关系                                                           |
-| **.github/workflows/** | GitHub Actions 配置，用于 CI 流水线（格式检查、Terraform Plan 等）                                 |
+| **docs/**              | 生命周期与流程说明文档，例如 `docs/lifecycle.md`（一键重建、Spot 绑定、清理指令等）   |
+| **charts/**            | 应用和系统的 Helm Chart，遵循 OCI 制品规范，便于复用与扩展  |
+| **scripts/**           | 脚本：如 `preflight.sh`（预检检查）、`tf-import.sh`（Terraform 导入） 等   |
+| **diagrams/**          | 系统架构和流量拓扑图，帮助理解基础设施与应用关系   |
+| **.github/workflows/** | GitHub Actions 配置，用于 CI 流水线（格式检查、Terraform Plan 等）  |
 
 ---
 
@@ -117,37 +105,18 @@ Terraform 所管理的内容包括但不限于：
 
 - VPC、子网、NAT 网关、路由表等网络资源；
 - EKS 集群与托管 Node Group；
-- IAM 角色与 IRSA（包括 Cluster Autoscaler 所需的角色）；
+- IAM 角色与 IRSA；
 - 安全组规则、服务配额与相关依赖。
 
 Terraform 目标：**纯声明式 Infra、幂等、稳定、易重建、适合每日重建测试环境使用。**
 
-### Helm 脚本负责部署层（K8s 应用与控制器）
+### Helm 脚本负责部署层
 
-所有 Kubernetes 层的应用部署（包括但不限于 `cluster-autoscaler`、`metrics-server`、后续微服务），均由脚本 + Helm 完成，确保部署顺序清晰、调试灵活，避免 Terraform 状态污染。
+所有 Kubernetes 层的应用部署，均由脚本 + Helm 完成，确保部署顺序清晰、调试灵活，避免 Terraform 状态污染。
 
 - Helm Chart 管理 Kubernetes 原生控制器；
 - 每次重建后刷新 kubeconfig 并统一部署所有控制器；
 - 每个微服务都可以拥有独立 Chart 和 `values.yaml`，后期可切换至 Helmfile 或 ArgoCD。
-
-脚本示例：见 [`scripts/post-recreate.sh`](./scripts/post-recreate.sh)
-
-### 示例结构建议（当前 + 后续）
-
-```text
-infra/
-├── terraform/              # 管理集群 Infra（VPC/EKS/IAM/NodeGroup）
-scripts/
-├── post-recreate.sh        # 集群创建后，刷新 kubeconfig，安装 ALB Controller/Autoscaler/metrics-server/HPA，并部署核心服务与 Ingress
-├── post-teardown.sh        # 完全销毁后清理日志组/ALB/安全组并检查 NAT/EKS/SNS 状态
-├── deploy-service-a.sh     # 部署业务微服务 A（计划中）
-helm-charts/
-├── cluster-autoscaler/
-├── service-a/
-docs/
-├── lifecycle.md
-├── troubleshooting-guide.md
-```
 
 ### 实践总结
 
@@ -162,229 +131,30 @@ docs/
 
 ### 前置条件
 
-在开始部署之前，请确保满足以下前置条件（完整步骤参见 📄 [前置条件操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/PREREQUISITES_GUIDE.md#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%E6%93%8D%E4%BD%9C%E6%8C%87%E5%8D%97)）：
-
-- **AWS 账户及权限**：拥有可用的 AWS 账户，并已安装并配置 AWS CLI（例如通过 `aws configure` 或 AWS SSO 登录）。**本项目默认使用 AWS CLI 的 SSO Profile 名称 `phase2-sso`，默认区域为 `us-east-1`**，如与你的配置不同请相应调整后续命令。
-- **Terraform 后端**：提前创建用于 Terraform 状态存储的 S3 Bucket 及 DynamoDB 锁定表，并在 `infra/aws/backend.tf` 中相应配置名称。默认假定 S3 Bucket 名为 `phase2-tf-state-us-east-1`，DynamoDB 表名为 `tf-state-lock`（可根据需要修改）。
-- **DNS 域名**（可选）：若希望使用自定义域名访问集群服务，请在 Route 53 中预先创建相应 Hosted Zone（当前默认使用的子域为 `lab.rendazhang.com`）。将 Terraform 配置中的域名更新为你的域名，以便将 ALB 地址映射到固定域名。否则，可忽略 DNS 配置，直接使用自动分配的 ALB 域名访问服务。
-- **本地环境**：安装 Terraform (~1.8+)、kubectl 以及 Helm 等必要的命令行工具，同时安装 Git 和 Make 等基础工具。
-- **预检脚本**：可运行 `preflight.sh` 来检查关键 Service Quota 配额和环境依赖（未来将扩展检查 AWS CLI / Terraform / Helm 等工具链的版本与状态）。执行 `bash scripts/preflight.sh` 或 `make preflight` 可开始预检。
-- **AWS SSO 登录**：在运行 Terraform 或脚本前，请执行 `make aws-login` 获取临时凭证。
-
-### 本地环境检查工具
-
-本项目推荐在以下环境中运行：
-
-| 平台类型 | 是否支持 | 安装方式说明 |
-| ------------------------- | ---------- | --------------- |
-| macOS (Intel/ARM) | ✅ 支持 | Homebrew 自动安装 |
-| Windows WSL2 (Ubuntu) | ✅ 支持 | apt / curl 自动安装 |
-| Ubuntu/Debian Linux | ✅ 支持 | apt / curl 自动安装 |
-| 原生 Windows CMD/Powershell | ❌ 不支持 | 请使用 WSL 运行 |
-| Arch/Fedora 等 | ❌ 不支持 | 需手动安装所有工具 |
-
-执行环境初始化建议：
-
-```bash
-make check         # 交互式检查并安装 CLI 工具
-make check-auto    # 自动安装全部缺失工具（无提示）
-# 日志输出位于 scripts/logs/check-tools.log
-```
+完整步骤参见 📄 [前置条件操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/PREREQUISITES_GUIDE.md#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%E6%93%8D%E4%BD%9C%E6%8C%87%E5%8D%97)。
 
 ### 基础设施部署
 
-1. **克隆仓库**：下载代码库到本地环境。
-
-   ```bash
-   git clone https://github.com/RendaZhang/renda-cloud-lab.git
-   cd renda-cloud-lab
-   ```
-
-2. **初始化 Terraform**：切换到基础设施目录并初始化 Terraform 后端。
-
-   ```bash
-   cd infra/aws
-   terraform init -reconfigure
-   terraform plan  # 可选：查看将创建的资源计划
-   ```
-
-   确认无误后执行 apply 来部署 VPC、子网、NAT 网关、ALB 等基础网络资源：
-
-   ```bash
-   terraform apply -auto-approve
-   ```
-
-   *注意：Terraform 将根据 `terraform.tfvars` 中的配置在指定区域创建资。若未修改，本项目默认 Region 为 `us-east-1`。*
-
-### 首次创建 Spot Interruption SNS Topic
-
-如需接收节点被回收前两分钟的通知，请在第一次部署时手动创建并订阅 SNS 主题 `spot-interruption-topic`：
+**克隆仓库**：下载代码库到本地环境。
 
 ```bash
-aws sns create-topic --name spot-interruption-topic \
-  --profile phase2-sso --region us-east-1 \
-  --output text --query 'TopicArn'
-export SPOT_TOPIC_ARN=arn:aws:sns:us-east-1:123456789012:spot-interruption-topic
-aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
-  --protocol email --notification-endpoint you@example.com \
-  --profile phase2-sso --region us-east-1
+git clone https://github.com/RendaZhang/renda-cloud-lab.git
+cd renda-cloud-lab
 ```
 
-随后打开邮箱点击 **Confirm** 完成订阅。
-
-该 Topic 仅需创建一次，后续执行 `make post-recreate` 会自动将最新 NodeGroup 的 ASG 绑定到此主题。
-
-### 集群后置部署
-
-在基础设施创建完成后，运行 `make post-recreate` 会自动完成部署层初始化：
-
-- 刷新本地 kubeconfig；
-- 应用 AWS Load Balancer Controller CRDs 并通过 Helm 安装/升级控制器；
-- 通过 Helm 安装/升级 Cluster Autoscaler；
-- 部署示例应用（以 **ECR Digest** 固定镜像）并配置 `/actuator/health/{readiness,liveness}` 探针与 `cpu/mem` 资源；
-- 发布 Ingress 获取公网 ALB；
-- 安装 `metrics-server`（`--kubelet-insecure-tls`）；
-- 发布 `HPA`（CPU 60%，`min=2/max=10`，自定义 `behavior`）；
-- 自动检查 NAT 网关、ALB、EKS 控制面及节点组、日志组等资源状态并绑定 Spot 通知。
-
-此脚本属于 **部署层**，与 Terraform 管理的 **基础设施层** 解耦，便于在不修改 Infra 的情况下迭代集群内组件。
-
-### 应用部署
-
-> 本仓库示例应用为 **task-api（Spring Boot 3 + Actuator）**。
-> 镜像存放在 **Amazon ECR**，清单位于 `task-api/k8s/base/`（`ns-sa.yaml`、`configmap.yaml`、`deploy-svc.yaml`），一键部署脚本为 `scripts/post-recreate.sh`。
-
-**快速部署：**
-
-```bash
-# 默认使用：PROFILE=phase2-sso, REGION=us-east-1, CLUSTER=dev, NS=svc-task, APP=task-api, ECR_REPO=task-api, IMAGE_TAG=0.1.0
-bash scripts/post-recreate.sh
-```
-
-**可覆盖参数：**
-
-```bash
-# 例如使用 latest 标签；或固定某个 digest
-IMAGE_TAG=latest bash scripts/post-recreate.sh
-IMAGE_DIGEST=sha256:... bash scripts/post-recreate.sh
-```
-
-**脚本做了什么（幂等 & 可重跑）：**
-
-1. `aws eks update-kubeconfig` 切到目标集群
-2. 应用 AWS Load Balancer Controller CRDs，并通过 Helm 安装/升级控制器（等待就绪）
-3. 通过 Helm 安装/升级 `cluster-autoscaler`
-4. 依次 `kubectl apply -f task-api/k8s/base/ns-sa.yaml`、`configmap.yaml`、`deploy-svc.yaml`
-5. 从 ECR 解析 `IMAGE_TAG` → **digest**（或使用 `IMAGE_DIGEST`），`kubectl set image` 更新并等待 `rollout status`
-6. 发布 Ingress 等待公网 ALB 就绪
-7. 安装 `metrics-server`（`--kubelet-insecure-tls`）并等待部署完成
-8. 应用 `HPA`（CPU 60%，`min=2/max=10`，含 `behavior`）
-9. 执行集群内 `/api/hello` 与 `/actuator/health` 冒烟测试
-
-> 环境锚点：`AWS_REGION=us-east-1`、`CLUSTER=dev`、`NS=svc-task`、`ECR_REPO=task-api`
->
-> 当前 ECR 生命周期策略仅保留 **1 个 tag** 与 **1 天** 未打标签镜像，回滚空间极小，建议调整为保留最近 5–10 个 tag。
-
-**部署结果验证：**
-
-```bash
-kubectl -n svc-task get deploy,svc
-kubectl -n svc-task port-forward svc/task-api 8080:8080
-curl -s "http://127.0.0.1:8080/api/hello?name=Renda"
-curl -s "http://127.0.0.1:8080/actuator/health"
-```
-
-> 说明：`task-api/k8s/base/*.yaml` 中的 `metadata.namespace` 应与 `NS` 保持一致（默认 `svc-task`）。
->
-> Terraform 已预置 `aws-load-balancer-controller` 的 IRSA；脚本已安装 AWS Load Balancer Controller；追加 `Ingress` 即可暴露公网入口（ALB）。
-
----
-
-## 日常工作流
-
-### 预检检查 Preflight
-
-在首次部署或每次更换终端/电脑时，可先执行预检脚本：
-
-```bash
-# 一键预检环境和配额
-make preflight   # 等同于 bash scripts/preflight.sh
-```
-
-**该脚本将自动检查：**
-
-- 关键 AWS Service Quota 配额上限及当前使用量（如 ENI 数量、ALB 数量、vCPU 配额等），并计算剩余额度
-- 将结果输出到终端并写入 `preflight.txt` 以供存档参考
-
-备注：
-
-- 未来版本计划增加对本地工具链版本 (AWS CLI / Terraform / Helm) 的检查，以及 AWS SSO 登录有效性的验证。
-- 如果某项配额的使用量接近上限，脚本会以显眼颜色标记并附上申请提升配额的 AWS 控制台链接。
-- 若检测到本地缺少必要工具，脚本将提示安装命令（brew / apt / choco 等）。
-- Quota 检查中出现 `- used` 表示该配额无易于统计的实时使用量；出现 `N/A used` 则表示当前用量为 0。
+后续操作参考文档内容：📄 [云原生集群生命周期流程](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/EKS_CLUSTER_LIFECYCLE_GUIDE.md)
 
 ### 集群启停管理
 
-在日常使用中，可通过 Makefile 提供的命令快速启停集群的关键资源，以节约成本并保持环境可控：
-
- - `make start` — **启动基础设施资源**：执行 Terraform 将 NAT 网关、ALB 等高成本资源启用，并确保 EKS 集群（控制平面及节点组）处于运行状态（集群资源现已由 Terraform 统一管理）。通常在每天实验开始时运行，恢复网络出口和对外服务能力。
- - `make stop` — **停止基础设施资源**：执行 Terraform 同时销毁 NAT 网关、ALB 以及 EKS 控制面和节点组，实现完整环境的关停。适用于每日实验结束时释放高成本资源并暂停对外服务。
- - `make stop-all` — **硬停机并清理日志组与检查**：在 `stop` 的基础上，额外执行 `scripts/post-teardown.sh`，删除残留的 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并验证 NAT 网关、EKS 集群 与 ASG SNS 通知等资源均已正确移除，避免计费累积。
- - `make post-recreate` — 刷新本地 kubeconfig 并使用 Helm 部署，以及运行 Spot 通知自动绑定
- - `make start-all` — `start` → `post-recreate` 一键全流程
- - `make destroy-all` — **⚠️ 高危！** 先运行 `make stop`，再执行 Terraform 销毁所有资源并调用 `post-teardown.sh` 清理日志组/ALB/安全组并执行删除后检查
-- `make check` — 本地依赖工具链检测（aws / terraform / helm），并将结果写入 `scripts/logs/check-tools.log`
-- `make logs` — 查看 `scripts/logs/` 下各类日志，自动展示 `post-recreate.log`、`preflight.txt`、`check-tools.log`
-- `make clean` — 删除 Spot 绑定缓存文件并清空日志目录及计划文件
-- `make update-diagrams` — 一键生成最新的 Terraform 架构图，输出到 `diagrams/` 目录中
-
-以上命令提供了一键式的集群生命周期管理方案。
-
-你可以根据需要将它们加入定时任务，实现自动启停（详见下方成本控制说明）。
-
-请注意，在重新启动集群资源后，可能需要等待几分钟以恢复所有服务（例如新建的 NAT 网关和 ALB 就绪），应用才能重新通过域名访问。
-
-### 推荐完整重建流程
-
-```bash
-# 一键启用 NAT/ALB + 创建/导入集群 + 刷新本地 kubeconfig + 使用 Helm 部署 + 绑定 Spot 通知 + 一键恢复应用（task-api）
-make start-all
-
-# ... coding ...
-
-# 关闭高成本资源
-make stop-all
-```
-
-执行 `make start-all` 完成集群重建后，可用下列命令检查控制面日志和 NodeGroup Spot 订阅是否生效：
-
-```bash
-aws eks describe-cluster --name dev --profile phase2-sso --region us-east-1 --query "cluster.logging.clusterLogging[?enabled].types" --output table
-
-aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group-name-prefix "/aws/eks/dev/cluster" --query 'logGroups[].logGroupName' --output text
-
-# 输出应包含 `api`、`authenticator` 以及 `/aws/eks/dev/cluster`。
-```
-
-随后在 AWS Console ➜ SNS ➜ Topics ➜ `spot-interruption-topic` 中确认订阅状态为 *Confirmed*。
-
-> 提示：ECR 不随每日销毁而删除，因此脚本可直接使用已有镜像；若需要新版本，先在本地构建并 `docker push` 到 ECR。
-
-## 成本控制说明
-
-云资源按需高效利用是本项目的重要考量。
-
-**Renda Cloud Lab** 实践了一套“每日自动销毁 -> 次日重建”的基础设施生命周期策略，以最大化节约 AWS 费用：
+具体请参考文档内容：📄 [重建与销毁流程](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
 
 **日间启用，夜间销毁**：
 
-通过 Makefile 脚本在每天早晨自动部署必要资源（如 NAT 网关、ALB），夜间自动销毁这些非必要资源。
+通过 Makefile 脚本在每天早晨自动部署资源，夜间自动销毁计费资源。
 
 此策略确保在活跃实验时段集群具备完整的网络出口和访问能力，而在闲置时段释放高成本资源。
 
 基础设施的状态（如 VPC、数据存储和 Terraform 状态）会被保留，以便第二天快速重建。
-
-对于长假或暂停使用的情况，可以选择执行“硬停用”流程，销毁 EKS 控制平面及所有节点，以避免持续计费。
 
 **固定域名**：
 
@@ -396,25 +166,11 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 集群工作节点采用按需 **Spot 实例**（结合 Karpenter 或 Auto Scaling），根据负载自动伸缩。
 
-在无工作负载时可将节点数缩至 0 以节省开销（提供了 `scripts/scale-nodegroup-zero.sh` 脚本可一键将节点组缩容至 0）。
-
-恢复实验时，只需重新部署应用或产生新负载，节点便会按需启动。
-
-**重建后脚本**：
-
-`post-recreate.sh` 会刷新本地 kubeconfig，应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server 与 HPA，部署示例应用并发布 Ingress，随后把最新 NodeGroup 的 ASG 订阅到 `spot-interruption-topic`，确保节点被回收前 2 分钟触发 SNS → 邮件/ChatOps，方便预留时间将应用流量疏散或触发自动化操作。
-
 **成本预算提醒**：
 
 通过 Terraform 创建 AWS Budgets（默认 90 USD），当支出达到设定比例时会向指定邮箱发送警报。
 
 通过以上措施，实验集群在确保功能完整的同时，将日常运行成本控制在低水平。
-
-如需了解每天晚上关机、早上重建的具体操作步骤及故障排查，请参阅 📄 [每日 EKS 重建与销毁操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)。
-
-**版本与回滚建议**：
-
-生产/预发推荐 **固定镜像 digest**（`image: ...@sha256:...`），避免 `:latest` 漂移；ECR 生命周期策略建议至少保留最近 **5–10** 个 tag 或保留 **7 天** 的 untagged，以便快速回滚。
 
 下表为启用成本控制策略下的主要资源月度费用估算：
 
@@ -426,7 +182,6 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 > 上述费用为近似值，实际花费会因区域和使用情况有所不同。
 > 建议设置 AWS Budgets 并结合自动关停策略，及时提醒并规避意外账单。
-> 如果需要长时间连续运行集群，可暂时停用上述自动销毁策略，但务必留意由此产生的额外费用。
 
 ---
 
@@ -447,15 +202,15 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 **每天自动销毁和重建集群环境是如何实现的？可以自定义这个调度吗？**
 
-- 本项目通过 Makefile 脚本和 Terraform 模块实现资源的按日启停：早晨执行 `make start` 创建 NAT 网关、ALB 以及 EKS 集群，夜晚执行 `make stop` 完全销毁这些资源，仅保留 VPC 等基础设施状态。
-- 你可以利用 CI/CD 平台的定时任务实现全自动调度，例如使用 GitHub Actions 的 `cron` 定时触发 `make start/stop`，或通过 AWS CodePipeline 配合 EventBridge 定时事件触发。
+- 本项目通过 Makefile 脚本和 Terraform 模块实现资源的按日启停：早晨执行 `make start-all` 创建 NAT 网关、ALB 以及 EKS 集群，夜晚执行 `make stop-all` 完全销毁这些资源，仅保留 VPC 等基础设施状态。
+- 你可以利用 CI/CD 平台的定时任务实现全自动调度，例如使用 GitHub Actions 的 `cron` 定时触发 `make start-all/stop-all`，或通过 AWS CodePipeline 配合 EventBridge 定时事件触发。
 - 同样地，你也可以根据需要调整策略：例如，仅在工作日执行自动启停，周末保持关闭，甚至完全停用自动销毁（但需承担额外费用）。
 - 调度的灵活性完全取决于你的实验需求。
 
 **如果我希望集群长时间连续运行，是否可以不销毁资源？**
 
 - 可以。
-- 上述自动销毁策略主要用于节约成本，你可以选择不执行每日的 `make stop`，使集群和相关资源持续运行。
+- 上述自动销毁策略主要用于节约成本，你可以选择不执行每日的 `make stop-all`，使集群和相关资源持续运行。
 - 不过请注意，长时间运行将产生持续费用（特别是 EKS 控制平面和 NAT 网关等固定成本）。
 - 建议在持续运行时仍采用其他成本控制措施，例如缩减不必要的节点、监控预算消耗等。
 - 你也可以改为按需启停的方式，例如只在需要时手动运行脚本创建/删除集群。
@@ -485,7 +240,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 ### 检查清单
 
-- 检查 Terraform 版本 ≥ 1.8
+- 检查 Terraform 版本 ≥ 1.0
 - 验证 AWS SSO 登录 token 未过期
 - 检测 Helm 仓库是否就绪（如 Helm Repo 更新）
 - 检查 kubectl 的 kubeconfig 是否指向目标集群

@@ -100,7 +100,8 @@ EKS 节点无法从 ECR 拉镜像。
 若 liveness/readiness 配置了 Actuator 路径，请核对应用端点是否为 `/actuator/health/liveness` 与 `/actuator/health/readiness`；必要时临时放宽阈值，确保先完成闭环，再逐步收紧。
 
 **Pending（无可调度节点）**：
-  - 若节点组按空闲自动缩至 0，首次部署时需要几分钟冷启动；检查 Cluster Autoscaler 是否 `Running` 且 IRSA 生效，然后观察 `kubectl get events -A` 与 `kubectl get nodes`。
+
+若节点组按空闲自动缩至 0，首次部署时需要几分钟冷启动；检查 Cluster Autoscaler 是否 `Running` 且 IRSA 生效，然后观察 `kubectl get events -A` 与 `kubectl get nodes`。
 
 **Terraform 状态锁定**：
 
