@@ -5,7 +5,7 @@
 #   1) 删除所有 ALB 类型的 Ingress, 触发 ALBC 优雅回收云侧 ALB/TG
 #   2) 卸载 AWS Load Balancer Controller (Helm)
 #   3) (可选) 卸载 metrics-server
-# 设计: 幂等、安全、可预演(DRY_RUN)
+# 设计: 幂等、安全
 # ------------------------------------------------------------
 set -euo pipefail
 
@@ -17,20 +17,12 @@ ALBC_NAMESPACE="${ALBC_NAMESPACE:-kube-system}"
 ALBC_RELEASE="${ALBC_RELEASE:-aws-load-balancer-controller}"
 UNINSTALL_METRICS_SERVER="${UNINSTALL_METRICS_SERVER:-false}"   # true 则卸载 metrics-server
 WAIT_ALB_DELETION_TIMEOUT="${WAIT_ALB_DELETION_TIMEOUT:-180}"  # 最多等待 180s 让 ALB 被回收
-DRY_RUN="${DRY_RUN:-false}"                                    # true 仅打印将执行的操作
 
 export AWS_PROFILE="$PROFILE"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 die() { log "❌ $*"; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "未找到命令: $1"; }
-run() {
-  if [[ "$DRY_RUN" == "true" ]]; then
-    log "DRY-RUN: $*"
-  else
-    eval "$@"
-  fi
-}
 
 # ====== 依赖检查 ======
 need aws
@@ -41,9 +33,7 @@ need jq
 # ====== 确认集群可连通 ======
 log "🔗 配置 kubeconfig：cluster=${CLUSTER_NAME}, region=${REGION}, profile=${PROFILE}"
 aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION"
-if [[ "$DRY_RUN" != "true" ]]; then
-  kubectl version >/dev/null || die "kubectl 无法连接到集群（请检查 EKS 状态与凭证）"
-fi
+kubectl version >/dev/null || die "kubectl 无法连接到集群（请检查 EKS 状态与凭证）"
 
 # ====== 自动发现 ALB 类型的 Ingress ======
 discover_alb_ingress() {
@@ -97,26 +87,24 @@ count_cluster_albs() {
   echo "$cnt"
 }
 
-if [[ "$DRY_RUN" != "true" ]]; then
-  if [[ ${#ING_LIST[@]} -gt 0 ]]; then
-    log "⏳ 等待最多 ${WAIT_ALB_DELETION_TIMEOUT}s 以让 ALB Controller 回收云侧 ALB..."
-    SECONDS=0
-    while true; do
-      left=$(count_cluster_albs)
-      log "   剩余与集群(${CLUSTER_NAME})相关的 ALB 数量：$left"
-      if [[ "$left" -eq 0 ]]; then
-        log "✅ ALB 已回收完成"
-        break
-      fi
-      if (( SECONDS >= WAIT_ALB_DELETION_TIMEOUT )); then
-        log "⚠️ 超时未完全回收（后续由 post-teardown.sh 兜底强删），继续下一步"
-        break
-      fi
-      sleep 10
-    done
-  else
-    log "ℹ️ 无需等待 ALB 回收（未发现 ALB Ingress）"
-  fi
+if [[ ${#ING_LIST[@]} -gt 0 ]]; then
+  log "⏳ 等待最多 ${WAIT_ALB_DELETION_TIMEOUT}s 以让 ALB Controller 回收云侧 ALB..."
+  SECONDS=0
+  while true; do
+    left=$(count_cluster_albs)
+    log "   剩余与集群(${CLUSTER_NAME})相关的 ALB 数量：$left"
+    if [[ "$left" -eq 0 ]]; then
+      log "✅ ALB 已回收完成"
+      break
+    fi
+    if (( SECONDS >= WAIT_ALB_DELETION_TIMEOUT )); then
+      log "⚠️ 超时未完全回收（后续由 post-teardown.sh 兜底强删），继续下一步"
+      break
+    fi
+    sleep 10
+  done
+else
+  log "ℹ️ 无需等待 ALB 回收（未发现 ALB Ingress）"
 fi
 
 # ====== 卸载 AWS Load Balancer Controller（Helm） ======

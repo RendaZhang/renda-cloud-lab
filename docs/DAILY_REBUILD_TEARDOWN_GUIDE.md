@@ -86,7 +86,7 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 
 ### Makefile 命令 - start-all
 
-`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：刷新 kubeconfig 并创建 AWS Load Balancer Controller ServiceAccount、应用 ALB 控制器 CRDs 并安装/升级 AWS Load Balancer Controller、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定，并将应用 `task-api` 部署/更新到集群，最后做集群内冒烟测试。
+`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：刷新 kubeconfig 并等待集群就绪后创建 AWS Load Balancer Controller ServiceAccount、应用 ALB 控制器 CRDs 并安装/升级 AWS Load Balancer Controller、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定，并将应用 `task-api` 部署/更新到集群，最后做集群内冒烟测试。
 
 ### 常见错误与排查指引
 
@@ -102,7 +102,7 @@ EKS 节点无法从 ECR 拉镜像。
 
 若在 `terraform apply` 阶段通过 Kubernetes Provider 创建 AWS Load Balancer Controller 的 ServiceAccount 时出现 `context deadline exceeded` 或 TLS 握手超时，原因通常是 kubeconfig 仍指向旧集群。
 
-解决方式：先执行 `aws eks update-kubeconfig` 刷新凭证，或直接使用 `make start-all`，该命令会在 `post-recreate` 脚本中自动创建并注解该 ServiceAccount。
+解决方式：先执行 `aws eks update-kubeconfig` 刷新凭证，或直接使用 `make start-all`，该命令会在 `post-recreate` 脚本中等待集群就绪后自动创建并注解该 ServiceAccount。
 
 **CrashLoopBackOff（健康检查失败）**：
 
@@ -260,7 +260,7 @@ make aws-login
 
 ### Makefile 命令 - stop-all
 
-`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server，支持 `DRY_RUN=true` 预演），随后执行 `make stop` 一键销毁 NAT 网关、ALB 以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
+`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server），随后执行 `make stop` 一键销毁 NAT 网关、ALB 以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
 
 执行前请确认已登录 AWS 且后端状态配置正确，以免销毁过程因权限问题中断。
 

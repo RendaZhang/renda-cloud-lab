@@ -5,7 +5,7 @@
 # 再使用本脚本进行部署层的自动化操作。
 # 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
 # 功能：
-#   1. 更新本地 kubeconfig 以连接最新创建的集群
+#   1. 更新本地 kubeconfig 并等待集群 API 就绪
 #   2. 创建/更新 AWS Load Balancer Controller 所需的 ServiceAccount（IRSA）
 #   3. 通过 Helm 安装或升级 AWS Load Balancer Controller
 #   4. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
@@ -106,6 +106,20 @@ update_kubeconfig() {
     --region "$REGION" \
     --name "$CLUSTER_NAME" \
     --profile "$PROFILE"
+}
+
+# 等待集群 API Server 就绪，避免后续 kubectl 操作超时
+wait_cluster_ready() {
+  local timeout=180
+  log "⏳ 等待 EKS 集群 API 就绪..."
+  SECONDS=0
+  until kubectl get nodes >/dev/null 2>&1; do
+    if (( SECONDS >= timeout )); then
+      abort "EKS 集群 API 在 ${timeout}s 内未就绪"
+    fi
+    sleep 5
+  done
+  log "✅ EKS 集群 API 已就绪"
 }
 
 # 检查 Cluster Autoscaler 部署状态
@@ -494,6 +508,8 @@ if [[ -z "$asg_name" ]]; then
 fi
 
 update_kubeconfig
+
+wait_cluster_ready  # 确保集群 API 就绪，避免后续操作超时
 
 ensure_albc_service_account
 

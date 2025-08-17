@@ -62,7 +62,7 @@
 - **生成式 AI Sidecar** — 基于 `Spring Boot + Spring AI` 框架，集成 AWS Bedrock (如 Titan 大模型) / GCP Vertex AI 等生成式 AI 服务，实现应用智能化
 - **成本 & 安全护栏** — 利用 Spot 实例、IRSA、AWS Budgets 控制成本，并通过 Trivy 镜像扫描、OPA Gatekeeper 策略等保障集群安全
 - **自动扩缩容 (Cluster Autoscaler)** — 通过脚本式 `Helm` 安装 `cluster-autoscaler`，实现节点数量根据负载弹性伸缩
-- **负载均衡控制器 (AWS Load Balancer Controller)** — Terraform 仅预置 IRSA，ServiceAccount 由 `post-recreate.sh` 刷新 kubeconfig 后创建并注解，Helm 安装后即可管理 ALB Ingress
+- **负载均衡控制器 (AWS Load Balancer Controller)** — Terraform 仅预置 IRSA，ServiceAccount 由 `post-recreate.sh` 刷新 kubeconfig 并等待集群就绪后创建并注解，Helm 安装后即可管理 ALB Ingress
 
 上述模块相互协作，构成了一个完整的云原生实验环境。
 
@@ -251,8 +251,8 @@ cd renda-cloud-lab
 | --------------------------| -----------------------------------|
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas  |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态   |
-| `post-recreate.sh`        | 刷新 kubeconfig 并创建 AWS Load Balancer Controller 的 ServiceAccount（解决 Terraform kubeconfig 过期导致的 TLS 握手超时问题），应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server 和 HPA；部署应用 task-api（多清单 + ECR digest）、发布 Ingress 并完成冒烟验证，以及自动为最新 NodeGroup 绑定 Spot 通知 |
-| `pre-teardown.sh`         | 停止或销毁前删除 ALB 类型 Ingress、卸载 AWS Load Balancer Controller（可选卸载 metrics-server），等待 ALB/TG 回收，为后续资源销毁做准备；支持 `DRY_RUN=true` 预演 |
+| `post-recreate.sh`        | 刷新 kubeconfig 并等待集群就绪后创建 AWS Load Balancer Controller 的 ServiceAccount（解决 Terraform kubeconfig 过期导致的 TLS 握手超时问题），应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server 和 HPA；部署应用 task-api（多清单 + ECR digest）、发布 Ingress 并完成冒烟验证，以及自动为最新 NodeGroup 绑定 Spot 通知 |
+| `pre-teardown.sh`         | 停止或销毁前删除 ALB 类型 Ingress、卸载 AWS Load Balancer Controller（可选卸载 metrics-server），等待 ALB/TG 回收，为后续资源销毁做准备 |
 | `post-teardown.sh`        | 销毁集群后清理 CloudWatch 日志组、ALB/TargetGroup/安全组，并验证 NAT 网关、EKS 集群及 ASG SNS 通知等资源已删除；支持 `DRY_RUN=true` 预演 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本 |
 | `update-diagrams.sh`      | 图表生成脚本 |

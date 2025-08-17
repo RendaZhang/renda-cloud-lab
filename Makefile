@@ -86,9 +86,9 @@ stop: scale-zero
 pre-teardown:
 	@echo "🧹 [pre-teardown] 删除 Ingress & 卸载 ALB Controller (+ metrics-server)"
 	@mkdir -p scripts/logs
-	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
-		DRY_RUN=$(DRY_RUN) UNINSTALL_METRICS_SERVER=$(UNINSTALL_METRICS) \
-		bash $(PRE_TEARDOWN) | tee scripts/logs/pre-teardown.log
+       @REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
+               UNINSTALL_METRICS_SERVER=$(UNINSTALL_METRICS) \
+               bash $(PRE_TEARDOWN) | tee scripts/logs/pre-teardown.log
 
 ## 🛠️ 清理残留日志组 + 兜底强删 ALB/TargetGroup/安全组（按标签）
 post-teardown:
