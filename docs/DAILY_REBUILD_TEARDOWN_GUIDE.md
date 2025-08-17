@@ -257,7 +257,7 @@ make aws-login
 
 ### Makefile 命令 - stop-all
 
-`make stop-all` 命令先执行 `make stop` 一键销毁所启用的资源（销毁 NAT 网关、ALB 以及 EKS 控制面和节点组，同时保留基础网络框架，方便下一次重建），然后调用 `post-teardown.sh`（支持 `DRY_RUN=true` 预演）额外清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组并验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
+`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server，支持 `DRY_RUN=true` 预演），随后执行 `make stop` 一键销毁 NAT 网关、ALB 以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
 
 执行前请确认已登录 AWS 且后端状态配置正确，以免销毁过程因权限问题中断。
 
@@ -275,9 +275,7 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
 
 执行 `make destroy-all` 触发一键完全销毁流程。
 
-该命令会先调用 `make stop` 删除 EKS 控制面，再运行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源。
-
-最后会自动执行 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
+该命令首先运行 `pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
 
 `make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。
 
@@ -348,13 +346,14 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
     aws ec2 describe-nat-gateways --region us-east-1 --profile phase2-sso
     ```
 - [x] **ALB 与 TargetGroup 已删除**：
+  - `pre-teardown.sh` 会先删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller，以触发云侧 ALB/TG 优雅回收；
   - 运行以下命令检查，预期不再包含实验负载均衡：
     ```bash
     aws elbv2 describe-load-balancers --region us-east-1 --profile phase2-sso
     ```
-  - `post-teardown.sh` 亦会清理无负载均衡器关联的孤立 TargetGroup。
+  - `post-teardown.sh` 会兜底清理无负载均衡器关联的孤立 TargetGroup。
 - [x] **ALB Controller 安全组已删除**：
-  - 脚本会删除带有集群标签的安全组，可额外在 EC2 控制台或命令行确认。
+  - `pre-teardown.sh` 卸载 ALB Controller 后，脚本会删除带有集群标签的安全组，可额外在 EC2 控制台或命令行确认。
 - [x] **EKS 集群状态**：
   ```bash
   aws eks list-clusters --region us-east-1 --profile phase2-sso

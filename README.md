@@ -252,6 +252,7 @@ cd renda-cloud-lab
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas  |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态   |
 | `post-recreate.sh`        | 刷新 kubeconfig，应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server 和 HPA；部署应用 task-api（多清单 + ECR digest）、发布 Ingress 并完成冒烟验证，以及自动为最新 NodeGroup 绑定 Spot 通知 |
+| `pre-teardown.sh`         | 停止或销毁前删除 ALB 类型 Ingress、卸载 AWS Load Balancer Controller（可选卸载 metrics-server），等待 ALB/TG 回收，为后续资源销毁做准备；支持 `DRY_RUN=true` 预演 |
 | `post-teardown.sh`        | 销毁集群后清理 CloudWatch 日志组、ALB/TargetGroup/安全组，并验证 NAT 网关、EKS 集群及 ASG SNS 通知等资源已删除；支持 `DRY_RUN=true` 预演 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本 |
 | `update-diagrams.sh`      | 图表生成脚本 |
