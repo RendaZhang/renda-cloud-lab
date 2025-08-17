@@ -61,7 +61,7 @@ renda-cloud-lab/
 | `infra/aws/`     | **Use Terraform best practices**. Do not directly edit `.terraform` or state. Modules follow `create_*` toggle flags (e.g., `create_nat`). |
 | `infra/eksctl/`  | Legacy samples. Terraform now fully manages EKS. Only touch when `create_eks=false` workflows are discussed.   |
 | `scripts/`       | Keep shell scripts POSIX-compliant and idempotent. Side-effects must be logged to `scripts/logs/` if applicable.  |
-| `Makefile`       | Use existing patterns. Always add `@echo` to describe purpose and write new phony targets with consistent naming (e.g., `start`, `stop-hard`). |
+| `Makefile`       | Use existing patterns. Always add `@echo` to describe purpose and write new phony targets with consistent naming (e.g., `start`, `stop`). |
 | `docs/`          | All documentation follow `.md` formatting conventions.   |
 | `.gitignore`     | Do not track log/temp/cache/state files. Log outputs go to `scripts/logs/`.   |
 | Terraform `*.tf` | Variables defined in `variables.tf` must have default values unless required. Use modules inside `modules/` when possible.     |

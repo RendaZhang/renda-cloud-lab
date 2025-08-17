@@ -137,7 +137,7 @@
 - **问题状态**：已关闭 (Closed)
 - **发现日期**：2025-07-04
 - **问题现象**：
-  - 运行 `terraform plan` / `make stop-hard` 等命令时，初始化 `provider["registry.terraform.io/hashicorp/aws"].billing` 阶段失败。
+  - 运行 `terraform plan` / `make stop` 等命令时，初始化 `provider["registry.terraform.io/hashicorp/aws"].billing` 阶段失败。
   - 终端输出：
     ```bash
     Error: No valid credential sources found

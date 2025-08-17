@@ -4,7 +4,7 @@ REGION      = us-east-1
 EKSCTL_YAML = infra/eksctl/eksctl-cluster.yaml
 CLUSTER     = dev
 
-.PHONY: check preflight aws-login init plan start post-recreate start-all scale-zero stop stop-hard post-teardown stop-all destroy-all logs clean update-diagrams lint
+.PHONY: check preflight aws-login init plan start post-recreate start-all scale-zero stop post-teardown stop-all destroy-all logs clean update-diagrams lint
 
 ## 🛠️ 环境检查（工具版本、路径等）
 check:
@@ -62,23 +62,14 @@ scale-zero:
 	@echo "🌙 Scaling down all EKS node groups to zero..."
 	@bash scripts/scale-nodegroup-zero.sh
 
-## 🌙 销毁 NAT 和 ALB，保留 EKS 集群，缩容 EKS 节点组至 0
+## 🌙 销毁 NAT、ALB 以及 EKS 控制面
 stop: scale-zero
-	@echo "Stopping NAT and ALB (retain EKS control plane)..."
-	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
-		-var="region=$(REGION)" \
-		-var="create_nat=false" \
-		-var="create_alb=false" \
-		-var="create_eks=true"
-
-## 🛑 销毁 NAT 和 ALB 以及 EKS 集群
-stop-hard:
 	@echo "Stopping all resources (NAT, ALB, EKS control plane)..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
-		-var="region=$(REGION)" \
-		-var="create_nat=false" \
-		-var="create_alb=false" \
-		-var="create_eks=false"
+			-var="region=$(REGION)" \
+			-var="create_nat=false" \
+			-var="create_alb=false" \
+			-var="create_eks=false"
 
 ## 🛠️ 清理残留日志组
 post-teardown:
@@ -87,10 +78,10 @@ post-teardown:
 	@bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
 
 ## 🧹 销毁集群后清理残留日志组
-stop-all: stop-hard post-teardown
+stop-all: stop post-teardown
 
 ## 💣 一键彻底销毁所有资源
-destroy-all: stop-hard
+destroy-all: stop
 	@echo "🔥 Destroying all Terraform-managed resources..."
 	terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
 			-var="region=$(REGION)"

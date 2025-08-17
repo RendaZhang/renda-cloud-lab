@@ -327,13 +327,12 @@ make preflight   # 等同于 bash scripts/preflight.sh
 
 在日常使用中，可通过 Makefile 提供的命令快速启停集群的关键资源，以节约成本并保持环境可控：
 
-- `make start` — **启动基础设施资源**：执行 Terraform 将 NAT 网关、ALB 等高成本资源启用，并确保 EKS 集群（控制平面及节点组）处于运行状态（集群资源现已由 Terraform 统一管理）。通常在每天实验开始时运行，恢复网络出口和对外服务能力。
-- `make stop` — **停止基础设施资源**：执行 Terraform 关闭 NAT 网关、ALB 等非必要资源，并将 EKS 集群的节点组 (NodeGroup) 实例数缩容至 0，保留 EKS 控制平面和基础设施状态，但暂停对外网络访问。适用于每日实验结束时销毁高成本资源，降低支出。
-- `make stop-hard` — **硬停用完整环境**：通过 Terraform 同时销毁 NAT 网关、ALB 以及 EKS 控制平面和节点组，实现完整环境的彻底停止。用于长时间暂停实验时的彻底关停，避免持续产生任何费用（除了保留的 VPC 和状态存储等）。
-- `make stop-all` — **硬停机并清理日志组与检查**：在 `stop-hard` 的基础上，额外执行 `scripts/post-teardown.sh`，删除残留的 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源均已正确移除，避免计费累积。
-- `make post-recreate` — 刷新本地 kubeconfig 并使用 Helm 部署，以及运行 Spot 通知自动绑定
-- `make start-all` — `start` → `post-recreate` 一键全流程
-- `make destroy-all` — **⚠️ 高危！** 先运行 `make stop-hard`，再执行 Terraform 销毁所有资源并调用 `post-teardown.sh` 清理日志组/ALB/安全组并执行删除后检查
+ - `make start` — **启动基础设施资源**：执行 Terraform 将 NAT 网关、ALB 等高成本资源启用，并确保 EKS 集群（控制平面及节点组）处于运行状态（集群资源现已由 Terraform 统一管理）。通常在每天实验开始时运行，恢复网络出口和对外服务能力。
+ - `make stop` — **停止基础设施资源**：执行 Terraform 同时销毁 NAT 网关、ALB 以及 EKS 控制面和节点组，实现完整环境的关停。适用于每日实验结束时释放高成本资源并暂停对外服务。
+ - `make stop-all` — **硬停机并清理日志组与检查**：在 `stop` 的基础上，额外执行 `scripts/post-teardown.sh`，删除残留的 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并验证 NAT 网关、EKS 集群 与 ASG SNS 通知等资源均已正确移除，避免计费累积。
+ - `make post-recreate` — 刷新本地 kubeconfig 并使用 Helm 部署，以及运行 Spot 通知自动绑定
+ - `make start-all` — `start` → `post-recreate` 一键全流程
+ - `make destroy-all` — **⚠️ 高危！** 先运行 `make stop`，再执行 Terraform 销毁所有资源并调用 `post-teardown.sh` 清理日志组/ALB/安全组并执行删除后检查
 - `make check` — 本地依赖工具链检测（aws / terraform / helm），并将结果写入 `scripts/logs/check-tools.log`
 - `make logs` — 查看 `scripts/logs/` 下各类日志，自动展示 `post-recreate.log`、`preflight.txt`、`check-tools.log`
 - `make clean` — 删除 Spot 绑定缓存文件并清空日志目录及计划文件
@@ -448,7 +447,7 @@ aws logs describe-log-groups --profile phase2-sso --region us-east-1 --log-group
 
 **每天自动销毁和重建集群环境是如何实现的？可以自定义这个调度吗？**
 
-- 本项目通过 Makefile 脚本和 Terraform 模块实现资源的按日启停：早晨执行 `make start` 创建 NAT 网关、ALB 等资源，夜晚执行 `make stop` 销毁这些资源并保留基础设施状态。
+- 本项目通过 Makefile 脚本和 Terraform 模块实现资源的按日启停：早晨执行 `make start` 创建 NAT 网关、ALB 以及 EKS 集群，夜晚执行 `make stop` 完全销毁这些资源，仅保留 VPC 等基础设施状态。
 - 你可以利用 CI/CD 平台的定时任务实现全自动调度，例如使用 GitHub Actions 的 `cron` 定时触发 `make start/stop`，或通过 AWS CodePipeline 配合 EventBridge 定时事件触发。
 - 同样地，你也可以根据需要调整策略：例如，仅在工作日执行自动启停，周末保持关闭，甚至完全停用自动销毁（但需承担额外费用）。
 - 调度的灵活性完全取决于你的实验需求。
