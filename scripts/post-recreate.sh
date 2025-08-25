@@ -28,6 +28,7 @@
 #  11. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
 #  12. 安装 metrics-server（--kubelet-insecure-tls）
 #  13. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
+#  14. 检查 task-api
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
@@ -192,7 +193,29 @@ ensure_task_api_service_account() {
     "eks.amazonaws.com/role-arn=${TASK_API_ROLE_ARN}" --overwrite
 }
 
-# 检查 task-api 的 Pod 是否正常运行
+# ---- aws-cli IRSA smoke test ----
+# Launches a temporary aws-cli Job (serviceAccount=task-api) to:
+#   1) call STS get-caller-identity
+#   2) write/list/read under the allowed S3 prefix
+#   3) verify writes to a disallowed prefix are denied
+awscli_s3_smoke() {
+  log "🧪 aws-cli IRSA S3 smoke test"
+  local manifest="${ROOT_DIR}/task-api/k8s/awscli-smoke.yaml"
+
+  kubectl apply -f "$manifest"
+
+  if ! kubectl -n "$NS" wait --for=condition=complete job/awscli-smoke --timeout=180s; then
+    kubectl -n "$NS" logs job/awscli-smoke || true
+    kubectl -n "$NS" delete job awscli-smoke --ignore-not-found
+    abort "aws-cli smoke job failed"
+  fi
+
+  kubectl -n "$NS" logs job/awscli-smoke || true
+  kubectl -n "$NS" delete job awscli-smoke --ignore-not-found
+  log "✅ aws-cli smoke test finished"
+}
+
+# 检查 task-api
 check_task_api() {
   log "🔎 验证 IRSA 注入与运行时环境"
 
@@ -254,7 +277,7 @@ check_task_api() {
   log "✅ ALB ready: http://${dns}"
   echo "${dns}" > "${outdir}/alb_${APP}_dns"
 
-  log "🧪 Smoke test: "
+  log "🧪 ALB DNS Smoke test: "
   local smoke_retries=10
   local smoke_ok=0
   local smoke_wait=5
@@ -270,7 +293,9 @@ check_task_api() {
   [[ $smoke_ok -eq 0 ]] && abort "Smoke test failed: /api/hello (DNS may not be ready or network issue)"
   curl -s "http://${dns}/actuator/health" | grep '"status":"UP"' || { log "❌ Health check failed"; return 1; }
 
-  log "✅ Smoke test passed"
+  log "✅ ALB DNS Smoke test passed"
+
+  awscli_s3_smoke
 }
 
 # 安装或升级 AWS Load Balancer Controller
