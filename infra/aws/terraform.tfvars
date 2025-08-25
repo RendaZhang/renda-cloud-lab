@@ -27,6 +27,13 @@ albc_irsa_role_name       = "aws-load-balancer-controller" # ALBC IRSA 角色名
 albc_service_account_name = "aws-load-balancer-controller" # ALBC ServiceAccount 名称
 albc_namespace            = "kube-system"                  # ALBC 所在命名空间
 
+# --- task-api 应用配置 ---
+task_api_namespace      = "svc-task"
+task_api_sa_name        = "task-api"
+task_api_app_name       = "task-api"
+task_api_s3_bucket_name = null
+task_api_s3_prefix      = "task-api/"
+
 # --- Budget settings ---
 create_budget              = true                # 是否创建预算
 budget_limit_usd           = 90                  # 每月预算上限（美元）

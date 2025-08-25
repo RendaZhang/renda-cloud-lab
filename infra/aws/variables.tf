@@ -113,6 +113,37 @@ variable "nodeport_cidrs" {
   default     = ["0.0.0.0/0"]
 }
 
+# -------- Task API 应用配置 --------
+variable "task_api_namespace" {
+  description = "Namespace for task API ServiceAccount"
+  type        = string
+  default     = "svc-task"
+}
+
+variable "task_api_sa_name" {
+  description = "ServiceAccount name for task API"
+  type        = string
+  default     = "task-api"
+}
+
+variable "task_api_app_name" {
+  description = "Application name for task API"
+  type        = string
+  default     = "task-api"
+}
+
+variable "task_api_s3_bucket_name" {
+  description = "Optional S3 bucket name for task API"
+  type        = string
+  default     = null
+}
+
+variable "task_api_s3_prefix" {
+  description = "S3 prefix for task API objects"
+  type        = string
+  default     = "task-api/"
+}
+
 # -------- 预算配置 --------
 variable "create_budget" {
   description = "Whether to create AWS Budgets via Terraform"
