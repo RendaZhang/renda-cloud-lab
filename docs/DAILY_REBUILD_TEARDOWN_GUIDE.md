@@ -39,6 +39,7 @@
 > - 完成关停流程后，环境便仅剩下不计费或低成本的基础部分（如 VPC 等）。
 > - 若历史上曾使用 eksctl 创建过集群，可能在 CloudFormation 中留下 `eksctl-dev-cluster` 等栈。Terraform 删除集群后，请手动删除这些栈，以防资源残留。
 > - ECR 不随每日销毁而删除，因此脚本可直接使用已有镜像；若需要新版本，先在本地构建并 `docker push` 到 ECR。生产/预发推荐 **固定镜像 digest**（`image: ...@sha256:...`），避免 `:latest` 漂移；ECR 生命周期策略建议至少保留最近 **5–10** 个 tag 或保留 **7 天** 的 untagged，以便快速回滚。
+> - 应用级 S3 桶（如 task-api）设置了 `prevent_destroy`，不会在日常 `stop-all` / `destroy-all` 流程中删除；对应 IRSA Role 仅在 `create_eks=true` 时创建。
 > - Amazon Route 53 不包含在重建与销毁流程里面，如果有使用的话，仍然会每月固定扣费 0.5 美金。
 > - 需要重建的时候，即可按照流程步骤，通过 Terraform 一键重建所有资源，实现完整的 **一键销毁与重建** 循环，而无需额外手动干预 EKS 集群。
 
