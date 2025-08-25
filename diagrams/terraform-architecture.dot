@@ -42,6 +42,13 @@ digraph G {
     "module.irsa.aws_iam_role.eks_cluster_autoscaler" [label="aws_iam_role.eks_cluster_autoscaler"];
     "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach" [label="aws_iam_role_policy_attachment.cluster_autoscaler_attach"];
   }
+  subgraph "cluster_module.irsa_albc" {
+    label = "module.irsa_albc"
+    fontname = "sans-serif"
+    "module.irsa_albc.aws_iam_policy.albc" [label="aws_iam_policy.albc"];
+    "module.irsa_albc.aws_iam_role.aws_load_balancer_controller" [label="aws_iam_role.aws_load_balancer_controller"];
+    "module.irsa_albc.aws_iam_role_policy_attachment.albc_attach" [label="aws_iam_role_policy_attachment.albc_attach"];
+  }
   subgraph "cluster_module.nat" {
     label = "module.nat"
     fontname = "sans-serif"
@@ -120,6 +127,12 @@ digraph G {
   "module.irsa.aws_iam_role.eks_cluster_autoscaler" -> "module.eks.aws_iam_openid_connect_provider.oidc";
   "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach" -> "module.irsa.aws_iam_policy.cluster_autoscaler";
   "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach" -> "module.irsa.aws_iam_role.eks_cluster_autoscaler";
+  "module.irsa_albc.aws_iam_policy.albc" -> "module.eks.aws_eks_node_group.ng";
+  "module.irsa_albc.aws_iam_policy.albc" -> "module.eks.aws_iam_openid_connect_provider.oidc";
+  "module.irsa_albc.aws_iam_role.aws_load_balancer_controller" -> "module.eks.aws_eks_node_group.ng";
+  "module.irsa_albc.aws_iam_role.aws_load_balancer_controller" -> "module.eks.aws_iam_openid_connect_provider.oidc";
+  "module.irsa_albc.aws_iam_role_policy_attachment.albc_attach" -> "module.irsa_albc.aws_iam_policy.albc";
+  "module.irsa_albc.aws_iam_role_policy_attachment.albc_attach" -> "module.irsa_albc.aws_iam_role.aws_load_balancer_controller";
   "module.nat.aws_eip.nat" -> "module.network_base.data.aws_route53_zone.lab";
   "module.nat.aws_eip.nat" -> "module.network_base.aws_route_table_association.private";
   "module.nat.aws_eip.nat" -> "module.network_base.aws_route_table_association.public";
