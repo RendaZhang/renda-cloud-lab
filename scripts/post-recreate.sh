@@ -4,18 +4,28 @@
 # 需要使用 Terraform 成功启动了基础设施（NAT + ALB + EKS + IRSA）后，
 # 再使用本脚本进行部署层的自动化操作。
 # 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
+#
+# 必需的环境变量（需在运行前设置或由集群自动注入）：
+# 如下三个自定义变量需要在 ${ROOT_DIR}/task-api/k8s/base/configmap.yaml 中定义
+#   S3_BUCKET
+#   S3_PREFIX
+#   AWS_REGION
+# 如下两个会由 EKS 自动注入
+#   AWS_ROLE_ARN
+#   AWS_WEB_IDENTITY_TOKEN_FILE
+#
 # 功能：
 #   1. 更新本地 kubeconfig 并等待集群 API 就绪
 #   2. 创建/更新 AWS Load Balancer Controller 所需的 ServiceAccount（IRSA）
-#   3. 通过 Helm 安装或升级 AWS Load Balancer Controller
-#   4. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
-#   5. 检查 NAT 网关、ALB、EKS 控制面和节点组等状态
-#   6. 获取最新的 EKS NodeGroup 生成的 ASG 名称
-#   7. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
-#   8. 自动写入绑定日志，避免重复执行
-#   9. 部署 task-api（固定 ECR digest，配置探针/资源）并在集群内冒烟
-#  10. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
-#  11. 确保 task-api 的 ServiceAccount 存在并带 IRSA 注解
+#   3. 确保 task-api 的 ServiceAccount 存在并带 IRSA 注解
+#   4. 通过 Helm 安装或升级 AWS Load Balancer Controller
+#   5. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
+#   6. 检查 NAT 网关、ALB、EKS 控制面和节点组等状态
+#   7. 获取最新的 EKS NodeGroup 生成的 ASG 名称
+#   8. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
+#   9. 自动写入绑定日志，避免重复执行
+#  10. 部署 task-api（固定 ECR digest，配置探针/资源）并在集群内冒烟
+#  11. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
 #  12. 安装 metrics-server（--kubelet-insecure-tls）
 #  13. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
 # 使用：
@@ -66,6 +76,7 @@ STATE_FILE="${SCRIPT_DIR}/.last-asg-bound"
 AUTOSCALER_CHART_NAME="cluster-autoscaler"
 AUTOSCALER_RELEASE_NAME=${AUTOSCALER_CHART_NAME}
 AUTOSCALER_HELM_REPO_NAME="autoscaler"
+AUTOSCALER_HELM_REPO_URL="https://kubernetes.github.io/autoscaler"
 AUTOSCALER_SERVICE_ACCOUNT_NAME=${AUTOSCALER_CHART_NAME}
 AUTOSCALER_ROLE_NAME="eks-cluster-autoscaler"
 AUTOSCALER_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${AUTOSCALER_ROLE_NAME}"
@@ -171,12 +182,95 @@ ensure_albc_service_account() {
 
 # 确保 task-api 的 ServiceAccount 存在并带 IRSA 注解
 ensure_task_api_service_account() {
-  log "🛠️ 确保 ServiceAccount ${TASK_API_SERVICE_ACCOUNT_NAME} 存在并带 IRSA 注解"
-  if ! kubectl -n "${NS}" get sa "${TASK_API_SERVICE_ACCOUNT_NAME}" >/dev/null 2>&1; then
-    abort "应用 task api 可能没有成功配置 serviceAccountName 为 ${TASK_API_SERVICE_ACCOUNT_NAME}，需要重新部署应用"
+  log "🛠️ 确保 task-api ServiceAccount ${TASK_API_SERVICE_ACCOUNT_NAME} 存在并带 IRSA 注解"
+  if ! kubectl -n $NS get sa $TASK_API_SERVICE_ACCOUNT_NAME >/dev/null 2>&1; then
+    log "创建 ServiceAccount ${TASK_API_SERVICE_ACCOUNT_NAME}"
+    kubectl -n ${NS} create serviceaccount ${TASK_API_SERVICE_ACCOUNT_NAME}
   fi
-  kubectl -n "${NS}" annotate sa "${TASK_API_SERVICE_ACCOUNT_NAME}" \
+  # 写入/覆盖 IRSA 注解
+  kubectl -n ${NS} annotate sa ${TASK_API_SERVICE_ACCOUNT_NAME} \
     "eks.amazonaws.com/role-arn=${TASK_API_ROLE_ARN}" --overwrite
+}
+
+# 检查 task-api 的 Pod 是否正常运行
+check_task_api() {
+  log "🔎 验证 IRSA 注入与运行时环境"
+
+  # 1) ServiceAccount 注解检查
+  kubectl -n "${NS}" get sa "${TASK_API_SERVICE_ACCOUNT_NAME}" -o yaml | \
+    grep -q "eks.amazonaws.com/role-arn" || \
+    abort "ServiceAccount 未正确注解 eks.amazonaws.com/role-arn"
+
+  # 2) 获取一个 Pod 名称以检查环境变量
+  local pod
+  pod=$(kubectl -n "${NS}" get pods -l app="${TASK_API_SERVICE_ACCOUNT_NAME}" \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  [[ -z "$pod" ]] && abort "未找到 ${APP} Pod，无法进行 IRSA 自检"
+
+  # 等待 Pod 进入 Running 状态
+  local wait_time=0
+  local max_wait=60
+  while [[ $wait_time -lt $max_wait ]]; do
+    pod_status=$(kubectl -n "${NS}" get pod "$pod" -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+    if [[ "$pod_status" == "Running" ]]; then
+      break
+    fi
+    sleep 3
+    wait_time=$((wait_time+3))
+  done
+  [[ "$pod_status" != "Running" ]] && abort "Pod $pod 未进入 Running 状态，当前状态: $pod_status"
+
+  # 3) 确认关键环境变量存在
+  local env_out
+  env_out=$(kubectl -n "${NS}" exec "$pod" -- sh -lc 'env') || \
+    abort "无法获取 Pod 环境变量"
+  for key in S3_BUCKET S3_PREFIX AWS_REGION AWS_ROLE_ARN AWS_WEB_IDENTITY_TOKEN_FILE; do
+    echo "$env_out" | grep -q "^${key}=" || abort "缺少环境变量 ${key}"
+  done
+
+  # 4) 确认 WebIdentity Token 已正确挂载
+  kubectl -n "${NS}" exec "$pod" -- sh -lc \
+    'ls -l /var/run/secrets/eks.amazonaws.com/serviceaccount/ && \
+     [ -s /var/run/secrets/eks.amazonaws.com/serviceaccount/token ]' >/dev/null || \
+     abort "WebIdentity Token 缺失或为空"
+
+  log "✅ task-api ServiceAccount IRSA 自检通过"
+
+  log "🔎 验证 task-api ALB、Ingress、dns"
+
+  local outdir="${SCRIPT_DIR}/.out"; mkdir -p "$outdir"
+  local dns
+
+  log "⏳ Waiting for ALB to be provisioned ..."
+  # 获取 ALB 的 DNS 名称
+  local t=0; local timeout=600
+  while [[ $t -lt $timeout ]]; do
+    dns=$(kubectl -n "$NS" get ing "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+    [[ -n "${dns}" ]] && break
+    sleep 5; t=$((t+5))
+  done
+  [[ -z "${dns}" ]] && abort "Timeout waiting ALB"
+
+  log "✅ ALB ready: http://${dns}"
+  echo "${dns}" > "${outdir}/alb_${APP}_dns"
+
+  log "🧪 Smoke test: "
+  local smoke_retries=10
+  local smoke_ok=0
+  local smoke_wait=5
+  for ((i=1; i<=smoke_retries; i++)); do
+    if curl -sf "http://${dns}/api/hello?name=Renda" | sed -n '1p'; then
+      smoke_ok=1
+      break
+    else
+      log "⏳ Smoke test attempt $i/${smoke_retries} failed, retrying in ${smoke_wait}s..."
+      sleep $smoke_wait
+    fi
+  done
+  [[ $smoke_ok -eq 0 ]] && abort "Smoke test failed: /api/hello (DNS may not be ready or network issue)"
+  curl -s "http://${dns}/actuator/health" | grep '"status":"UP"' || { log "❌ Health check failed"; return 1; }
+
+  log "✅ Smoke test passed"
 }
 
 # 安装或升级 AWS Load Balancer Controller
@@ -252,17 +346,21 @@ install_autoscaler() {
       ;;
   esac
   log "🚀 正在通过 Helm 安装或升级 Cluster Autoscaler..."
-  if ! helm repo list | grep -q '^autoscaler'; then
-    log "🔧 添加 autoscaler Helm 仓库"
-    helm repo add autoscaler https://kubernetes.github.io/autoscaler
+  if ! helm repo list | grep -q "^${AUTOSCALER_HELM_REPO_NAME}\b"; then
+    log "🔧 添加 ${AUTOSCALER_HELM_REPO_NAME} Helm 仓库"
+    helm repo add ${AUTOSCALER_HELM_REPO_NAME} ${AUTOSCALER_HELM_REPO_URL}
   fi
-  helm repo update
   # 获取 Kubernetes 完整版本 (如 v1.33.1)
   K8S_FULL_VERSION=$(kubectl version -o json | jq -r '.serverVersion.gitVersion')
   # 提取主次版本号 (如 1.33)
   K8S_MINOR_VERSION=$(echo "$K8S_FULL_VERSION" | sed -E 's/^v([0-9]+\.[0-9]+)\..*$/\1/')
-  # 确定 Cluster Autoscaler 版本 (总是使用 .0 补丁版本)
-  AUTOSCALER_VERSION="v${K8S_MINOR_VERSION}.0"
+  # 允许通过环境变量覆盖 Cluster Autoscaler 版本，否则默认使用 .0 补丁版本
+  if [[ -z "${AUTOSCALER_VERSION:-}" ]]; then
+    AUTOSCALER_VERSION="v${K8S_MINOR_VERSION}.0"
+    log "⚠️  未设置 AUTOSCALER_VERSION，自动推断为 ${AUTOSCALER_VERSION}。如遇 Helm 拉取失败，请手动指定支持的版本（如：export AUTOSCALER_VERSION=v1.33.0）"
+  else
+    log "📌 使用指定的 Cluster Autoscaler 版本：${AUTOSCALER_VERSION}"
+  fi
   helm upgrade --install ${AUTOSCALER_RELEASE_NAME} ${AUTOSCALER_HELM_REPO_NAME}/${AUTOSCALER_CHART_NAME} -n $KUBE_DEFAULT_NAMESPACE --create-namespace \
     --set awsRegion=$REGION \
     --set autoDiscovery.clusterName=$CLUSTER_NAME \
@@ -276,8 +374,8 @@ install_autoscaler() {
   log "🔍 检查 Cluster Autoscaler Pod 状态"
   kubectl -n $KUBE_DEFAULT_NAMESPACE rollout status deployment/${DEPLOYMENT_AUTOSCALER_NAME} --timeout=180s
   kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_AUTOSCALER_LABEL
-  log "如果 Helm 部署失败，重新部署后，需要执行如下命令删除旧 Pod 让 Deployment 拉新配置: "
-  log "kubectl -n $KUBE_DEFAULT_NAMESPACE delete pod -l $POD_AUTOSCALER_LABEL"
+  # "如果 Helm 部署失败，重新部署后，需要执行如下命令删除旧 Pod 让 Deployment 拉新配置: "
+  # log "kubectl -n $KUBE_DEFAULT_NAMESPACE delete pod -l $POD_AUTOSCALER_LABEL"
 }
 
 # 获取当前最新 ASG 名
@@ -411,6 +509,7 @@ deploy_task_api() {
   fi
   log "🗂️  apply 清单：ns-sa.yaml"
   kubectl -n "${NS}" apply -f "${K8S_BASE_DIR}/ns-sa.yaml"
+  ensure_task_api_service_account  # 确保应用级 SA 带 IRSA 注解
   log "🗂️  apply 清单：configmap.yaml"
   kubectl -n "${NS}" apply -f "${K8S_BASE_DIR}/configmap.yaml"
   log "🗂️  apply 清单：deploy-svc.yaml"
@@ -453,42 +552,14 @@ deploy_task_api() {
 }
 
 # 部署 taskapi ingress
-deploy_taskapi_ingress() {
-  set -euo pipefail
-  local outdir="${SCRIPT_DIR}/.out"; mkdir -p "$outdir"
-
+deploy_task_api_ingress() {
   log "📦 Apply Ingress (${APP}) ..."
   # 若无变更就不 apply（0=无差异，1=有差异，>1=出错）
   if kubectl -n "$NS" diff -f "$ING_FILE" >/dev/null 2>&1; then
     log "≡ No changes"
   else
-    kubectl apply -f "$ING_FILE"
+    kubectl -n "$NS" apply -f "$ING_FILE"
   fi
-
-  # 如果已经有 ALB，就直接复用并返回
-  local dns
-  dns=$(kubectl -n "$NS" get ing "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
-  if [[ -n "${dns}" ]]; then
-    log "✅ ALB ready: http://${dns}"
-    echo "${dns}" > "${outdir}/alb_${APP}_dns"
-    return 0
-  fi
-
-  log "⏳ Waiting for ALB to be provisioned ..."
-  local t=0; local timeout=600
-  while [[ $t -lt $timeout ]]; do
-    dns=$(kubectl -n "$NS" get ing "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
-    [[ -n "${dns}" ]] && break
-    sleep 5; t=$((t+5))
-  done
-  [[ -z "${dns}" ]] && { log "❌ Timeout waiting ALB"; return 1; }
-
-  log "✅ ALB ready: http://${dns}"
-  echo "${dns}" > "${outdir}/alb_${APP}_dns"
-
-  log "🧪 Smoke"
-  curl -s "http://${dns}/api/hello?name=Renda" | sed -n '1p'
-  curl -s "http://${dns}/actuator/health" | sed -n '1p'
 }
 
 ### ---- metrics-server (Helm) ----
@@ -542,10 +613,10 @@ perform_health_checks "$asg_name"
 
 deploy_task_api
 
-deploy_taskapi_ingress
-
-ensure_task_api_service_account  # 确保应用级 SA 带 IRSA 注解
+deploy_task_api_ingress
 
 deploy_metrics_server
 
 deploy_taskapi_hpa
+
+check_task_api

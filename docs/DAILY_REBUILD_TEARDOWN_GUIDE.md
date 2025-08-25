@@ -87,7 +87,7 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 
 ### Makefile 命令 - start-all
 
-`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：刷新 kubeconfig 并等待集群就绪后创建 AWS Load Balancer Controller ServiceAccount、应用 ALB 控制器 CRDs 并安装/升级 AWS Load Balancer Controller、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定、确保应用 `task-api` 的 ServiceAccount 带 IRSA 注解，并将应用 `task-api` 部署/更新到集群和做集群内冒烟测试。
+`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：刷新 kubeconfig 并等待集群就绪后创建 AWS Load Balancer Controller ServiceAccount、应用 ALB 控制器 CRDs 并安装/升级 AWS Load Balancer Controller、安装/升级 Cluster Autoscaler、检查 NAT/ALB/节点组/SNS 绑定、确保 ServiceAccount 带 IRSA 注解，并将应用 `task-api` 部署/更新到集群和做集群内冒烟测试。
 
 ### 常见错误与排查指引
 
@@ -240,6 +240,20 @@ Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway
         curl -sf http://task-api.svc-task.svc.cluster.local:8080/api/hello?name=Renda >/dev/null; \
         curl -sf http://task-api.svc-task.svc.cluster.local:8080/actuator/health | grep -q '\"status\":\"UP\"'"
     ```
+- [x] **IRSA 与环境变量自检（task-api）**
+  - 验证 ServiceAccount 注解、环境变量以及 WebIdentity Token：
+    ```bash
+    export TASK_API_SERVICE_ACCOUNT_NAME="task-api"
+    export NS="svc-task"
+    kubectl -n "$NS" get sa "$TASK_API_SERVICE_ACCOUNT_NAME" -o yaml | grep -n "eks.amazonaws.com/role-arn"
+    POD=$(kubectl -n "$NS" get pods -l app="$TASK_API_SERVICE_ACCOUNT_NAME" -o jsonpath='{.items[0].metadata.name}')
+    kubectl -n "$NS" exec "$POD" -- sh -lc 'env | grep -E "S3_BUCKET|S3_PREFIX|AWS_REGION|AWS_ROLE_ARN|AWS_WEB_IDENTITY_TOKEN_FILE"'
+    kubectl -n "$NS" exec "$POD" -- sh -lc 'ls -l /var/run/secrets/eks.amazonaws.com/serviceaccount/ && [ -s /var/run/secrets/eks.amazonaws.com/serviceaccount/token ] && echo "token OK"'
+    ```
+  - **预期**：
+    * `S3_BUCKET/S3_PREFIX/AWS_REGION` 三个自定义变量存在；
+    * `AWS_ROLE_ARN` 与 `AWS_WEB_IDENTITY_TOKEN_FILE` 由 EKS 自动注入；
+    * 输出 `token OK` 表示投影令牌已正确挂载。
 
 ---
 
