@@ -77,18 +77,18 @@ scale-zero:
 stop: scale-zero
 	@echo "Stopping all resources (NAT, ALB, EKS control plane)..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
-			-var="region=$(REGION)" \
-			-var="create_nat=false" \
-			-var="create_alb=false" \
-			-var="create_eks=false"
+		-var="region=$(REGION)" \
+		-var="create_nat=false" \
+		-var="create_alb=false" \
+		-var="create_eks=false"
 
 ## 🧼 在销毁前先优雅释放：删除所有 ALB Ingress → 等待回收 ALB/TG → 卸载 ALB Controller + metrics-server
 pre-teardown:
 	@echo "🧹 [pre-teardown] 删除 Ingress & 卸载 ALB Controller (+ metrics-server)"
 	@mkdir -p scripts/logs
-       @REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
-               UNINSTALL_METRICS_SERVER=$(UNINSTALL_METRICS) \
-               bash $(PRE_TEARDOWN) | tee scripts/logs/pre-teardown.log
+	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
+		UNINSTALL_METRICS_SERVER=$(UNINSTALL_METRICS) \
+		bash $(PRE_TEARDOWN) | tee scripts/logs/pre-teardown.log
 
 ## 🛠️ 清理残留日志组 + 兜底强删 ALB/TargetGroup/安全组（按标签）
 post-teardown:
@@ -105,7 +105,7 @@ stop-all: pre-teardown stop post-teardown
 destroy-all: pre-teardown stop
 	@echo "🔥 Destroying all Terraform-managed resources..."
 	terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
-			-var="region=$(REGION)"
+		-var="region=$(REGION)"
 	@echo "Running post-teardown cleanup..."
 	@mkdir -p scripts/logs
 	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
