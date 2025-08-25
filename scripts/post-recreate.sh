@@ -15,8 +15,9 @@
 #   8. 自动写入绑定日志，避免重复执行
 #   9. 部署 task-api（固定 ECR digest，配置探针/资源）并在集群内冒烟
 #  10. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
-#  11. 安装 metrics-server（--kubelet-insecure-tls）
-#  12. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
+#  11. 确保 task-api 的 ServiceAccount 存在并带 IRSA 注解
+#  12. 安装 metrics-server（--kubelet-insecure-tls）
+#  13. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
@@ -28,6 +29,8 @@ CLOUD_PROVIDER="aws"
 # 可通过环境变量覆盖
 PROFILE=${AWS_PROFILE:-phase2-sso}
 REGION=${REGION:-us-east-1}
+AWS_PROFILE=${PROFILE}
+AWS_REGION=${REGION}
 ACCOUNT_ID=${ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --profile "$PROFILE" --output text)}
 echo "使用 AWS 账号: $ACCOUNT_ID"
 
@@ -43,13 +46,17 @@ NS="${NS:-svc-task}"
 APP="${APP:-task-api}"
 # ECR 仓库名
 ECR_REPO="${ECR_REPO:-task-api}"
+# IRSA 角色名称与 ARN（应用级 ServiceAccount 使用）
+TASK_API_ROLE_NAME="dev-task-api-irsa"
+TASK_API_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${TASK_API_ROLE_NAME}"
+TASK_API_SERVICE_ACCOUNT_NAME="${TASK_API_SERVICE_ACCOUNT_NAME:-${APP}}"
 # 要部署的镜像 tag（也可用 latest）。若设置 IMAGE_DIGEST 则优先生效。
 IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
 # k8s 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 K8S_BASE_DIR="${K8S_BASE_DIR:-${ROOT_DIR}/task-api/k8s/base}"
-# 若你想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
+# 若想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
 
 # 为 ASG 配置 Spot Interruption 通知的参数
 TOPIC_NAME="spot-interruption-topic"
@@ -58,6 +65,8 @@ STATE_FILE="${SCRIPT_DIR}/.last-asg-bound"
 # ASG 相关参数
 AUTOSCALER_CHART_NAME="cluster-autoscaler"
 AUTOSCALER_RELEASE_NAME=${AUTOSCALER_CHART_NAME}
+AUTOSCALER_HELM_REPO_NAME="autoscaler"
+AUTOSCALER_SERVICE_ACCOUNT_NAME=${AUTOSCALER_CHART_NAME}
 AUTOSCALER_ROLE_NAME="eks-cluster-autoscaler"
 AUTOSCALER_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${AUTOSCALER_ROLE_NAME}"
 DEPLOYMENT_AUTOSCALER_NAME="${AUTOSCALER_RELEASE_NAME}-${CLOUD_PROVIDER}-${AUTOSCALER_CHART_NAME}"
@@ -160,6 +169,16 @@ ensure_albc_service_account() {
     "eks.amazonaws.com/role-arn=${ALBC_ROLE_ARN}" --overwrite
 }
 
+# 确保 task-api 的 ServiceAccount 存在并带 IRSA 注解
+ensure_task_api_service_account() {
+  log "🛠️ 确保 ServiceAccount ${TASK_API_SERVICE_ACCOUNT_NAME} 存在并带 IRSA 注解"
+  if ! kubectl -n "${NS}" get sa "${TASK_API_SERVICE_ACCOUNT_NAME}" >/dev/null 2>&1; then
+    abort "应用 task api 可能没有成功配置 serviceAccountName 为 ${TASK_API_SERVICE_ACCOUNT_NAME}，需要重新部署应用"
+  fi
+  kubectl -n "${NS}" annotate sa "${TASK_API_SERVICE_ACCOUNT_NAME}" \
+    "eks.amazonaws.com/role-arn=${TASK_API_ROLE_ARN}" --overwrite
+}
+
 # 安装或升级 AWS Load Balancer Controller
 install_albc_controller() {
   local status
@@ -244,11 +263,11 @@ install_autoscaler() {
   K8S_MINOR_VERSION=$(echo "$K8S_FULL_VERSION" | sed -E 's/^v([0-9]+\.[0-9]+)\..*$/\1/')
   # 确定 Cluster Autoscaler 版本 (总是使用 .0 补丁版本)
   AUTOSCALER_VERSION="v${K8S_MINOR_VERSION}.0"
-  helm upgrade --install ${AUTOSCALER_RELEASE_NAME} autoscaler/${AUTOSCALER_CHART_NAME} -n $KUBE_DEFAULT_NAMESPACE --create-namespace \
+  helm upgrade --install ${AUTOSCALER_RELEASE_NAME} ${AUTOSCALER_HELM_REPO_NAME}/${AUTOSCALER_CHART_NAME} -n $KUBE_DEFAULT_NAMESPACE --create-namespace \
     --set awsRegion=$REGION \
     --set autoDiscovery.clusterName=$CLUSTER_NAME \
     --set rbac.serviceAccount.create=true \
-    --set rbac.serviceAccount.name=${AUTOSCALER_RELEASE_NAME} \
+    --set rbac.serviceAccount.name=${AUTOSCALER_SERVICE_ACCOUNT_NAME} \
     --set extraArgs.balance-similar-node-groups=true \
     --set extraArgs.skip-nodes-with-system-pods=false \
     --set rbac.serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="$AUTOSCALER_ROLE_ARN" \
@@ -524,6 +543,8 @@ perform_health_checks "$asg_name"
 deploy_task_api
 
 deploy_taskapi_ingress
+
+ensure_task_api_service_account  # 确保应用级 SA 带 IRSA 注解
 
 deploy_metrics_server
 

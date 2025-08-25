@@ -7,3 +7,6 @@ metadata:
 data:
   APP_NAME: "task-api"
   WELCOME_MSG: "hello from ${AWS_REGION}"
+  S3_BUCKET: "dev-task-api-welcomed-anteater"
+  S3_PREFIX: "task-api/"
+  AWS_REGION: "us-east-1"

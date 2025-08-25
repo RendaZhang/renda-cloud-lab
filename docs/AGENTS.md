@@ -79,7 +79,7 @@ renda-cloud-lab/
 - Rebuild lifecycle and autoscaling behavior controlled via `make stop-all`, `make start-all`, and supporting scripts.
 - Login helper command: `make aws-login`
 - Import existing clusters via `scripts/tf-import.sh`
-- Post-recreate automation script: `scripts/post-recreate.sh` (updates kubeconfig & installs AWS Load Balancer Controller & autoscaler)
+- Post-recreate automation script: `scripts/post-recreate.sh`
 
 ---
 
