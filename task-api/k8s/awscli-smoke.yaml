@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: awscli-smoke
+  namespace: svc-task
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      serviceAccountName: task-api
+      restartPolicy: Never
+      containers:
+        - name: awscli
+          image: amazon/aws-cli:2.17.33
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: task-api-config
+          command: ["sh","-lc"]
+          args:
+            - |
+              set -euo pipefail
+              echo "== STS get-caller-identity =="
+              aws sts get-caller-identity --output json
+
+              TS=$(date +%s)
+              KEY_OK="${S3_PREFIX%/}/smoke/${TS}.txt"      # 允许的前缀
+              KEY_DENY="not-allowed/${TS}.txt"             # 不允许的前缀（应被拒）
+              echo "hello from IRSA $(date -Iseconds)" > /tmp/x.txt
+
+              echo "== Put to allowed prefix =="
+              aws s3 cp /tmp/x.txt "s3://${S3_BUCKET}/${KEY_OK}"
+
+              echo "== List allowed prefix (top 5) =="
+              aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX%/}/smoke/" | head -n 5 || true
+
+              echo "== Get just uploaded object =="
+              aws s3 cp "s3://${S3_BUCKET}/${KEY_OK}" - | head -c 80; echo
+
+              echo "== Negative test: put to DISALLOWED prefix (should fail) =="
+              if aws s3 cp /tmp/x.txt "s3://${S3_BUCKET}/${KEY_DENY}"; then
+                echo "UNEXPECTED: write to disallowed prefix succeeded"; exit 2
+              else
+                echo "EXPECTED: AccessDenied on disallowed prefix"
+              fi
+
+              echo "ALL OK"
