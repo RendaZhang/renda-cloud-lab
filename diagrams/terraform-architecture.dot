@@ -60,6 +60,7 @@ digraph G {
     label = "module.network_base"
     fontname = "sans-serif"
     "module.network_base.data.aws_availability_zones.available" [label="data.aws_availability_zones.available"];
+    "module.network_base.data.aws_region.current" [label="data.aws_region.current"];
     "module.network_base.data.aws_route53_zone.lab" [label="data.aws_route53_zone.lab"];
     "module.network_base.aws_internet_gateway.igw" [label="aws_internet_gateway.igw"];
     "module.network_base.aws_route_table.private" [label="aws_route_table.private"];
@@ -70,18 +71,37 @@ digraph G {
     "module.network_base.aws_subnet.private" [label="aws_subnet.private"];
     "module.network_base.aws_subnet.public" [label="aws_subnet.public"];
     "module.network_base.aws_vpc.this" [label="aws_vpc.this"];
+    "module.network_base.aws_vpc_endpoint.s3" [label="aws_vpc_endpoint.s3"];
+  }
+  subgraph "cluster_module.task_api" {
+    label = "module.task_api"
+    fontname = "sans-serif"
+    "module.task_api.data.aws_iam_policy_document.bucket" [label="data.aws_iam_policy_document.bucket"];
+    "module.task_api.aws_iam_policy.this" [label="aws_iam_policy.this"];
+    "module.task_api.aws_iam_role.this" [label="aws_iam_role.this"];
+    "module.task_api.aws_iam_role_policy_attachment.this" [label="aws_iam_role_policy_attachment.this"];
+    "module.task_api.aws_s3_bucket.this" [label="aws_s3_bucket.this"];
+    "module.task_api.aws_s3_bucket_lifecycle_configuration.this" [label="aws_s3_bucket_lifecycle_configuration.this"];
+    "module.task_api.aws_s3_bucket_ownership_controls.this" [label="aws_s3_bucket_ownership_controls.this"];
+    "module.task_api.aws_s3_bucket_policy.this" [label="aws_s3_bucket_policy.this"];
+    "module.task_api.aws_s3_bucket_public_access_block.this" [label="aws_s3_bucket_public_access_block.this"];
+    "module.task_api.aws_s3_bucket_server_side_encryption_configuration.this" [label="aws_s3_bucket_server_side_encryption_configuration.this"];
+    "module.task_api.aws_s3_bucket_versioning.this" [label="aws_s3_bucket_versioning.this"];
+    "module.task_api.random_pet.bucket_suffix" [label="random_pet.bucket_suffix"];
   }
   "aws_route53_record.lab_alias" -> "module.alb.aws_lb_listener.http";
   "module.alb.aws_lb.demo" -> "module.network_base.data.aws_route53_zone.lab";
   "module.alb.aws_lb.demo" -> "module.network_base.aws_route_table_association.private";
   "module.alb.aws_lb.demo" -> "module.network_base.aws_route_table_association.public";
   "module.alb.aws_lb.demo" -> "module.network_base.aws_security_group.alb";
+  "module.alb.aws_lb.demo" -> "module.network_base.aws_vpc_endpoint.s3";
   "module.alb.aws_lb_listener.http" -> "module.alb.aws_lb.demo";
   "module.alb.aws_lb_listener.http" -> "module.alb.aws_lb_target_group.demo";
   "module.alb.aws_lb_target_group.demo" -> "module.network_base.data.aws_route53_zone.lab";
   "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_route_table_association.private";
   "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_route_table_association.public";
   "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_security_group.alb";
+  "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_vpc_endpoint.s3";
   "module.eks.data.tls_certificate.cluster" -> "module.eks.aws_eks_cluster.this";
   "module.eks.aws_eks_cluster.this" -> "module.eks.aws_iam_role_policy_attachment.eks_cluster_policy";
   "module.eks.aws_eks_cluster.this" -> "module.eks.aws_iam_role_policy_attachment.eks_service_policy";
@@ -101,6 +121,7 @@ digraph G {
   "module.eks.aws_iam_role.eks_cluster_role" -> "module.network_base.aws_route_table_association.private";
   "module.eks.aws_iam_role.eks_cluster_role" -> "module.network_base.aws_route_table_association.public";
   "module.eks.aws_iam_role.eks_cluster_role" -> "module.network_base.aws_security_group.alb";
+  "module.eks.aws_iam_role.eks_cluster_role" -> "module.network_base.aws_vpc_endpoint.s3";
   "module.eks.aws_iam_role.eks_node_role" -> "module.eks.aws_eks_cluster.this";
   "module.eks.aws_iam_role.eks_node_role" -> "module.eks.random_id.role_suffix";
   "module.eks.aws_iam_role_policy_attachment.ecr_read_policy" -> "module.eks.aws_iam_role.eks_node_role";
@@ -121,6 +142,7 @@ digraph G {
   "module.eks.random_id.role_suffix" -> "module.network_base.aws_route_table_association.private";
   "module.eks.random_id.role_suffix" -> "module.network_base.aws_route_table_association.public";
   "module.eks.random_id.role_suffix" -> "module.network_base.aws_security_group.alb";
+  "module.eks.random_id.role_suffix" -> "module.network_base.aws_vpc_endpoint.s3";
   "module.irsa.aws_iam_policy.cluster_autoscaler" -> "module.eks.aws_eks_node_group.ng";
   "module.irsa.aws_iam_policy.cluster_autoscaler" -> "module.eks.aws_iam_openid_connect_provider.oidc";
   "module.irsa.aws_iam_role.eks_cluster_autoscaler" -> "module.eks.aws_eks_node_group.ng";
@@ -137,6 +159,7 @@ digraph G {
   "module.nat.aws_eip.nat" -> "module.network_base.aws_route_table_association.private";
   "module.nat.aws_eip.nat" -> "module.network_base.aws_route_table_association.public";
   "module.nat.aws_eip.nat" -> "module.network_base.aws_security_group.alb";
+  "module.nat.aws_eip.nat" -> "module.network_base.aws_vpc_endpoint.s3";
   "module.nat.aws_nat_gateway.this" -> "module.nat.aws_eip.nat";
   "module.nat.aws_route.private_default" -> "module.nat.aws_nat_gateway.this";
   "module.network_base.aws_internet_gateway.igw" -> "module.network_base.aws_vpc.this";
@@ -151,4 +174,21 @@ digraph G {
   "module.network_base.aws_subnet.private" -> "module.network_base.aws_vpc.this";
   "module.network_base.aws_subnet.public" -> "module.network_base.data.aws_availability_zones.available";
   "module.network_base.aws_subnet.public" -> "module.network_base.aws_vpc.this";
+  "module.network_base.aws_vpc_endpoint.s3" -> "module.network_base.data.aws_region.current";
+  "module.network_base.aws_vpc_endpoint.s3" -> "module.network_base.aws_route_table.private";
+  "module.task_api.data.aws_iam_policy_document.bucket" -> "module.task_api.aws_s3_bucket.this";
+  "module.task_api.aws_iam_policy.this" -> "module.task_api.aws_s3_bucket.this";
+  "module.task_api.aws_iam_role.this" -> "module.eks.aws_eks_node_group.ng";
+  "module.task_api.aws_iam_role.this" -> "module.eks.aws_iam_openid_connect_provider.oidc";
+  "module.task_api.aws_iam_role_policy_attachment.this" -> "module.task_api.aws_iam_policy.this";
+  "module.task_api.aws_iam_role_policy_attachment.this" -> "module.task_api.aws_iam_role.this";
+  "module.task_api.aws_s3_bucket.this" -> "module.task_api.random_pet.bucket_suffix";
+  "module.task_api.aws_s3_bucket_lifecycle_configuration.this" -> "module.task_api.aws_s3_bucket.this";
+  "module.task_api.aws_s3_bucket_ownership_controls.this" -> "module.task_api.aws_s3_bucket.this";
+  "module.task_api.aws_s3_bucket_policy.this" -> "module.task_api.data.aws_iam_policy_document.bucket";
+  "module.task_api.aws_s3_bucket_public_access_block.this" -> "module.task_api.aws_s3_bucket.this";
+  "module.task_api.aws_s3_bucket_server_side_encryption_configuration.this" -> "module.task_api.aws_s3_bucket.this";
+  "module.task_api.aws_s3_bucket_versioning.this" -> "module.task_api.aws_s3_bucket.this";
+  "module.task_api.random_pet.bucket_suffix" -> "module.eks.aws_eks_node_group.ng";
+  "module.task_api.random_pet.bucket_suffix" -> "module.eks.aws_iam_openid_connect_provider.oidc";
 }
