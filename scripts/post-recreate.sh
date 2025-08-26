@@ -594,11 +594,29 @@ deploy_task_api() {
   IMAGE="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}@${DIGEST}"
   log "🖼️  将部署镜像：${IMAGE}"
 
-  # ===== 用 set image 覆盖镜像，并记录 rollout 历史 =====
-  log "♻️  更新 Deployment 镜像并等待滚动完成"
-  kubectl -n "${NS}" set image deploy/"${APP}" "${APP}"="${IMAGE}" --record
-  kubectl -n "${NS}" rollout status deploy/"${APP}" --timeout=180s
-  kubectl -n "${NS}" get deploy,svc -o wide
+  # ===== 若已部署且健康则跳过镜像更新 =====
+  skip_deploy=false
+  current_image=""
+  if kubectl -n "${NS}" get deploy "${APP}" >/dev/null 2>&1; then
+    current_image=$(kubectl -n "${NS}" get deploy "${APP}" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "")
+    if [[ "$current_image" == "${IMAGE}" ]]; then
+      # 检查是否所有 Pod 均为 Running
+      if ! kubectl -n "${NS}" get pods -l app="${APP}" --no-headers 2>/dev/null | grep -v Running >/dev/null; then
+        log "✅ 镜像 ${IMAGE} 已部署且运行正常，跳过镜像更新"
+        skip_deploy=true
+      else
+        log "⚠️ 镜像一致但存在异常 Pod，重新部署"
+      fi
+    fi
+  fi
+
+  if [[ "${skip_deploy}" != true ]]; then
+    # ===== 用 set image 覆盖镜像，并记录 rollout 历史 =====
+    log "♻️  更新 Deployment 镜像并等待滚动完成"
+    kubectl -n "${NS}" set image deploy/"${APP}" "${APP}"="${IMAGE}" --record
+    kubectl -n "${NS}" rollout status deploy/"${APP}" --timeout=180s
+    kubectl -n "${NS}" get deploy,svc -o wide
+  fi
 
   # ===== 集群内冒烟测试 =====
   log "🧪 集群内冒烟测试：/api/hello 与 /actuator/health"
