@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: task-api-smoke
+  namespace: ${NS}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: curl
+          image: curlimages/curl:8.8.0
+          imagePullPolicy: IfNotPresent
+          command: ["sh","-lc"]
+          args:
+            - |
+              set -euo pipefail
+              BASE_URL="http://${APP}.${NS}.svc.cluster.local:8080"
+              echo "== GET ${BASE_URL}/api/hello =="
+              curl -sf ${BASE_URL}/api/hello?name=Renda | head -c 200
+              echo
+              echo "== GET ${BASE_URL}/actuator/health =="
+              curl -sf ${BASE_URL}/actuator/health | grep -q '"status":"UP"'
+              echo "Health endpoint OK"
+              echo "ALL OK"

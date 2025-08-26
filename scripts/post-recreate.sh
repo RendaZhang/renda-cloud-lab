@@ -600,27 +600,8 @@ deploy_task_api() {
 
   # ===== 集群内冒烟测试 =====
   log "🧪 集群内冒烟测试：/api/hello 与 /actuator/health"
-  cat <<EOF | kubectl -n "${NS}" apply -f -
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: task-api-smoke
-spec:
-  backoffLimit: 0
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: curl
-        image: curlimages/curl:8.8.0
-        command:
-        - sh
-        - -c
-        - |
-          set -e
-          curl -sf http://${APP}.${NS}.svc.cluster.local:8080/api/hello?name=Renda >/dev/null
-          curl -sf http://${APP}.${NS}.svc.cluster.local:8080/actuator/health | grep -q '"status":"UP"'
-EOF
+  local smoke_manifest="${ROOT_DIR}/task-api/k8s/curl-smoke.yaml"
+  NS="${NS}" APP="${APP}" envsubst < "${smoke_manifest}" | kubectl apply -f -
 
   if ! kubectl -n "${NS}" wait --for=condition=complete job/task-api-smoke --timeout=60s; then
     kubectl -n "${NS}" logs job/task-api-smoke || true
