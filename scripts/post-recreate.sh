@@ -102,6 +102,8 @@ ALBC_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ALBC_ROLE_NAME}"
 ING_FILE="${ROOT_DIR}/task-api/k8s/ingress.yaml"
 # ---- HPA ----
 HPA_FILE="${ROOT_DIR}/task-api/k8s/hpa.yaml"
+# ---- In-cluster Smoke Test ----
+SMOKE_FILE="${ROOT_DIR}/task-api/k8s/task-api-smoke.yaml"
 
 # === 函数定义 ===
 # log() {
@@ -204,7 +206,7 @@ awscli_s3_smoke() {
   log "🧪 aws-cli IRSA S3 smoke test"
   local manifest="${ROOT_DIR}/task-api/k8s/awscli-smoke.yaml"
 
-  kubectl apply -f "$manifest"
+  kubectl -n "$NS" apply -f "$manifest"
 
   if ! kubectl -n "$NS" wait --for=condition=complete job/awscli-smoke --timeout=180s; then
     kubectl -n "$NS" logs job/awscli-smoke || true
@@ -600,8 +602,7 @@ deploy_task_api() {
 
   # ===== 集群内冒烟测试 =====
   log "🧪 集群内冒烟测试：/api/hello 与 /actuator/health"
-  local smoke_manifest="${ROOT_DIR}/task-api/k8s/curl-smoke.yaml"
-  NS="${NS}" APP="${APP}" envsubst < "${smoke_manifest}" | kubectl apply -f -
+  kubectl -n "${NS}" apply -f "${SMOKE_FILE}"
 
   if ! kubectl -n "${NS}" wait --for=condition=complete job/task-api-smoke --timeout=60s; then
     kubectl -n "${NS}" logs job/task-api-smoke || true
@@ -653,9 +654,9 @@ deploy_metrics_server() {
 ### ---- HPA for task-api ----
 deploy_taskapi_hpa() {
   log "📦 Apply HPA for task-api ..."
-  kubectl apply -f "$HPA_FILE"
+  kubectl -n "$NS" apply -f "$HPA_FILE"
   log "🔎 Describe HPA"
-  kubectl -n svc-task describe hpa task-api | sed -n '1,60p' || true
+  kubectl -n "$NS" describe hpa task-api | sed -n '1,60p' || true
 }
 
 # === 主流程 ===

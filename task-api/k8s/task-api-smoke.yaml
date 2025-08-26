@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: task-api-smoke
-  namespace: ${NS}
+  namespace: svc-task
 spec:
   backoffLimit: 0
   template:
@@ -12,11 +12,14 @@ spec:
         - name: curl
           image: curlimages/curl:8.8.0
           imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: task-api-config
           command: ["sh","-lc"]
           args:
             - |
               set -euo pipefail
-              BASE_URL="http://${APP}.${NS}.svc.cluster.local:8080"
+              BASE_URL="http://${APP_NAME}.svc-task.svc.cluster.local:8080"
               echo "== GET ${BASE_URL}/api/hello =="
               curl -sf ${BASE_URL}/api/hello?name=Renda | head -c 200
               echo
