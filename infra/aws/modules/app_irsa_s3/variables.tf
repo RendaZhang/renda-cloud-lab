@@ -51,3 +51,9 @@ variable "create_irsa" {
   type        = bool
   default     = true
 }
+
+variable "vpc_id" {
+  description = "VPC ID for optional bucket policy SourceVpc restriction"
+  type        = string
+  default     = null
+}

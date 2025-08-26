@@ -19,6 +19,11 @@ output "private_route_table_ids" {
   value       = aws_route_table.private[*].id
 }
 
+output "s3_gateway_endpoint_id" {
+  description = "S3 网关端点 ID"
+  value       = aws_vpc_endpoint.s3.id
+}
+
 output "alb_sg_id" {
   description = "ALB 使用的安全组 ID"
   value       = aws_security_group.alb.id

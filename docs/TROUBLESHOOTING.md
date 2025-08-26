@@ -20,13 +20,18 @@
     - [BUG-011: Terraform 初始化时因缓存问题导致 Registry 连接失败](#bug-011-terraform-%E5%88%9D%E5%A7%8B%E5%8C%96%E6%97%B6%E5%9B%A0%E7%BC%93%E5%AD%98%E9%97%AE%E9%A2%98%E5%AF%BC%E8%87%B4-registry-%E8%BF%9E%E6%8E%A5%E5%A4%B1%E8%B4%A5)
     - [BUG-012: Ingress 无法自动创建 ALB – 子网缺少 AWS Load Balancer Controller 所需标签](#bug-012-ingress-%E6%97%A0%E6%B3%95%E8%87%AA%E5%8A%A8%E5%88%9B%E5%BB%BA-alb--%E5%AD%90%E7%BD%91%E7%BC%BA%E5%B0%91-aws-load-balancer-controller-%E6%89%80%E9%9C%80%E6%A0%87%E7%AD%BE)
     - [BUG-013: Terraform 创建 AWS Load Balancer Controller ServiceAccount 时 TLS 握手超时](#bug-013-terraform-%E5%88%9B%E5%BB%BA-aws-load-balancer-controller-serviceaccount-%E6%97%B6-tls-%E6%8F%A1%E6%89%8B%E8%B6%85%E6%97%B6)
+    - [BUG-014: S3 Bucket Policy 过宽 Deny 导致 Terraform 管理面 403（PutLifecycle/GetPolicy）](#bug-014-s3-bucket-policy-%E8%BF%87%E5%AE%BD-deny-%E5%AF%BC%E8%87%B4-terraform-%E7%AE%A1%E7%90%86%E9%9D%A2-403putlifecyclegetpolicy)
+    - [BUG-015: `terraform plan` 报 “aws\_s3\_bucket has been deleted” 的误判（刷新被 403 误导）](#bug-015-terraform-plan-%E6%8A%A5-aws%5C_s3%5C_bucket-has-been-deleted-%E7%9A%84%E8%AF%AF%E5%88%A4%E5%88%B7%E6%96%B0%E8%A2%AB-403-%E8%AF%AF%E5%AF%BC)
+    - [BUG-016: `BucketAlreadyExists` 创建冲突（资源已存在但不在 tfstate）](#bug-016-bucketalreadyexists-%E5%88%9B%E5%BB%BA%E5%86%B2%E7%AA%81%E8%B5%84%E6%BA%90%E5%B7%B2%E5%AD%98%E5%9C%A8%E4%BD%86%E4%B8%8D%E5%9C%A8-tfstate)
+    - [BUG-017: `aws_vpc_endpoint` 提示 deprecated 属性（service\_name 组成方式）](#bug-017-aws_vpc_endpoint-%E6%8F%90%E7%A4%BA-deprecated-%E5%B1%9E%E6%80%A7service%5C_name-%E7%BB%84%E6%88%90%E6%96%B9%E5%BC%8F)
+    - [BUG-018: 通过 Terraform 创建 K8s ServiceAccount 偶发 TLS 握手超时](#bug-018-%E9%80%9A%E8%BF%87-terraform-%E5%88%9B%E5%BB%BA-k8s-serviceaccount-%E5%81%B6%E5%8F%91-tls-%E6%8F%A1%E6%89%8B%E8%B6%85%E6%97%B6)
   - [附录](#%E9%99%84%E5%BD%95)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # 集群故障排查指南
 
-- **Last Updated:** August 17, 2025, 07:52 (UTC+08:00)
+- **Last Updated:** August 26, 2025, 08:15 (UTC+08:00)
 - **作者:** 张人大（Renda Zhang）
 
 --
@@ -564,15 +569,269 @@
 - **经验总结**：
   - 涉及集群 API 的 Terraform 资源在重建后需确保 kubeconfig 已刷新；依赖集群状态的对象更适合在脚本中处理。
 
+### BUG-014: S3 Bucket Policy 过宽 Deny 导致 Terraform 管理面 403（PutLifecycle/GetPolicy）
+
+- **问题状态**：已关闭 (Closed)
+- **发现日期**：2025-08-26
+- **问题现象**：
+  - `terraform apply` 在创建/更新 `aws_s3_bucket_lifecycle_configuration` 与 `aws_s3_bucket_policy` 时失败：
+    - `AccessDenied: ... is not authorized to perform: s3:PutLifecycleConfiguration ... with an explicit deny in a resource-based policy`
+    - `AccessDenied: ... is not authorized to perform: s3:GetBucketPolicy ... with an explicit deny in a resource-based policy`
+- **背景场景**：
+  - 桶：`dev-task-api-welcomed-anteater`
+  - 采用 Bucket Policy 做安全基线（强制 TLS、限制 VPC 访问）
+  - 管理身份：AWS SSO 管理员，从公网端点操作
+- **复现方式**：
+  1. 在 Bucket Policy 中对 `Action: "s3:*"` 使用显式 `Deny`，并附加 `aws:SecureTransport=false` 或/和 `aws:SourceVpc` 条件；
+  2. 本机运行 `terraform apply` 更新生命周期或读取策略；
+  3. 触发 403。
+- **根因分析**：
+  - Bucket Policy 的 **显式 Deny** 覆盖了**管理面**动作（如 `PutBucketLifecycleConfiguration`、`GetBucketPolicy`）；
+  - Terraform 从公网端点调用这些 API，被资源策略直接拒绝。
+- **修复方法**：
+  1. **收敛 Deny 到“数据面”**：仅 `["s3:GetObject","s3:PutObject","s3:DeleteObject"]`；
+  2. 若使用 VPC 限制，将条件改为 `StringNotEqualsIfExists` 避免无 `aws:SourceVpc` 上下文时误伤；
+  3. 用管理员账号在控制台 **S3 > Bucket > Permissions > Bucket policy > Edit** 先“解锁”成新策略；
+  4. 再 `terraform apply` 让 HCL 与远端一致。
+- **相关命令**：
+  ```bash
+  aws s3api get-bucket-policy --bucket dev-task-api-welcomed-anteater --query Policy | jq -r .
+  terraform plan -refresh-only && terraform apply -refresh-only
+  terraform apply
+  ```
+- **适用版本**：
+  - Terraform v1.x，hashicorp/aws provider v5.x
+- **经验总结**：
+  - **显式 Deny 总是优先生效**；限制“列目录/读写对象”放在 **IAM identity policy** 更合适，Bucket Policy 只做“数据面护栏”。
+
+### BUG-015: `terraform plan` 报 “aws\_s3\_bucket has been deleted” 的误判（刷新被 403 误导）
+
+- **问题状态**：已关闭 (Closed)
+- **发现日期**：2025-08-26
+- **问题现象**：
+  - 第二次执行 `terraform plan` 显示：
+    - `# module.task_api.aws_s3_bucket.this has been deleted`
+- **背景场景**：
+  - 刚通过控制台或其他路径更新了 Bucket Policy
+  - 策略中对 `s3:ListBucket` 也做了 Deny（且带 `aws:SourceVpc` 条件）
+- **复现方式**：
+  1. Bucket Policy 对 `s3:ListBucket` 做 Deny（VPC 外 403）；
+  2. 本机运行 `terraform plan`；
+  3. Provider 刷新远端状态时遭 403 → 误判资源被外部删除。
+- **根因分析**：
+  - `plan` 前会执行 **refresh**；刷新调用读取桶元数据/位置/策略；
+  - 由于 `ListBucket` 被 Deny，刷新 403，被当作 NotFound。
+- **修复方法**：
+  1. 从 Bucket Policy 的 Deny 中**移除 `s3:ListBucket`**；
+  2. 仅保留对象级动作 `Get/Put/DeleteObject` 的 Deny；
+  3. 执行刷新对齐：
+     ```bash
+     terraform plan -refresh-only
+     terraform apply -refresh-only
+     terraform plan
+     ```
+- **相关命令**：
+  ```bash
+  aws s3api get-bucket-policy --bucket dev-task-api-welcomed-anteater --query Policy | jq -r .
+  ```
+- **适用版本**：
+  - Terraform v1.x，hashicorp/aws provider v5.x
+- **经验总结**：
+  - **刷新 ≠ 数据面**；避免用资源策略阻断 Terraform 的**管理面/读取**路径。
+
+### BUG-016: `BucketAlreadyExists` 创建冲突（资源已存在但不在 tfstate）
+
+- **问题状态**：已关闭 (Closed)
+- **发现日期**：2025-08-26
+- **问题现象**：
+  - `terraform apply` 创建 `aws_s3_bucket` 报：`Error: creating S3 Bucket (...): BucketAlreadyExists`
+- **背景场景**：
+  - 桶名全局唯一；目标桶已存在（本账号或他人账号）
+- **复现方式**：
+  1. 目标桶先手工或其他流程创建；
+  2. Terraform 尝试再次创建相同名字。
+- **根因分析**：
+  - 资源已存在但 **tfstate 未托管** 或模块路径/资源地址变更导致重复创建计划。
+- **修复方法**：
+  - 若为**自有桶**：`terraform import` 将现有资源纳入状态（同时导入 PublicAccess/SSE/Ownership/Policy/Lifecycle 等关联资源），随后 `terraform plan/apply`；
+  - 若非自有桶：更换为**唯一新桶名**，或采用随机后缀。
+- **相关命令**：
+  ```bash
+  aws s3api head-bucket --bucket dev-task-api-welcomed-anteater
+  terraform import module.task_api.aws_s3_bucket.this dev-task-api-welcomed-anteater
+  ```
+- **适用版本**：
+  - Terraform v1.x，hashicorp/aws provider v5.x
+- **经验总结**：
+  - 资源迁移/重构时优先 **import**；模块路径变更可用 `terraform state mv` 调整地址。
+
+### BUG-017: `aws_vpc_endpoint` 提示 deprecated 属性（service\_name 组成方式）
+
+- **问题状态**：已关闭 (Closed)
+- **发现日期**：2025-08-26
+- **问题现象**：
+  - Plan/Apply 警告：`The attribute "name" is deprecated`
+- **背景场景**：
+  - 使用 `data.aws_region.current.name` 组装 `service_name`。
+- **复现方式**：
+  - `service_name = "com.amazonaws.${data.aws_region.current.name}.s3"`
+- **根因分析**：
+  - Provider 标记 `data.aws_region.current.name` 为 deprecated 场景。
+- **修复方法**：
+  - 改为 `data.aws_region.current.id` 或直接用 `var.region`：
+    - `service_name = "com.amazonaws.${var.region}.s3"`
+- **相关命令**：无（静态代码调整）
+- **适用版本**：
+  - hashicorp/aws provider v5.x
+- **经验总结**：
+  - 对 region 文字，优先来源于输入变量/`data...id`，减少未来兼容性告警。
+
+### BUG-018: 通过 Terraform 创建 K8s ServiceAccount 偶发 TLS 握手超时
+
+- **问题状态**：已关闭 (Closed)
+- **发现日期**：2025-08-26
+- **问题现象**：
+  - `kubernetes_service_account` 在 `apply` 时失败：
+    - `TLS handshake timeout`（10 秒内未完成）
+- **背景场景**：
+  - 本地 kubeconfig/令牌过期；或 EKS API 临时网络不稳
+- **复现方式**：
+  1. 长时间未刷新 `kubeconfig`；
+  2. 直接 `terraform apply` 创建 SA。
+- **根因分析**：
+  - Kubernetes provider 连接 EKS API 失败（凭证过期/上下文错误）。
+- **修复方法**：
+  1. 先执行 `aws eks update-kubeconfig --name dev --region us-east-1`；
+  2. 将 SA 管理改由 **`post-recreate.sh` 脚本**（你已实施），避免 provider 与集群状态耦合；
+  3. Terraform 专注于 IAM/IRSA 等云侧资源。
+- **相关命令**：
+  ```bash
+  aws eks update-kubeconfig --name dev --region us-east-1 --profile phase2-sso
+  kubectl -n svc-task get sa task-api -o yaml
+  ```
+- **适用版本**：
+  - Terraform v1.x，hashicorp/kubernetes provider v2.x，EKS 1.2x
+- **经验总结**：
+  - **平台级组件/集群对象**可脚本化安装（Helm/Kubectl），让 Terraform 主要管理 **云侧/IAM**，减少跨面耦合与脆弱点。
+
 ---
 
 ## 附录
 
 - **常用 Terraform 命令**：
-  - 删除缓存目录和状态锁文件
+  - 删除缓存目录和状态锁文件（仅在你**有把握**且无用状态时使用）
     ```bash
     rm -rf .terraform* terraform.tfstate*
     ```
+    > ⚠️ 警告：删除 `terraform.tfstate*` 会“遗失”与真实资源的映射，谨慎使用；遇到锁问题优先用 `terraform force-unlock`。
+  - 初始化/升级 Providers 与模块
+    ```bash
+    terraform init
+    terraform init -upgrade
+    ```
+  - 代码格式化与语法校验
+    ```bash
+    terraform fmt -recursive
+    terraform validate
+    ```
+  - 预览变更（常用组合）
+    ```bash
+    # 基本预览
+    terraform plan
+
+    # 仅刷新远端状态，查看漂移
+    terraform plan -refresh-only
+
+    # 输出到文件，便于“计划→执行”两步走
+    terraform plan -out=plan.tfplan
+
+    # 指定变量/变量文件
+    terraform plan -var="env=dev" -var-file=env/dev.tfvars
+    ```
+  - 执行变更
+    ```bash
+    terraform apply         # 互动确认
+    terraform apply -auto-approve
+    terraform apply plan.tfplan    # 执行已保存的计划
+    ```
+  - 仅刷新状态并写回（对齐 tfstate 与真实资源）
+    ```bash
+    terraform apply -refresh-only
+    ```
+  - 查看状态与资源详情
+    ```bash
+    terraform show
+    terraform state list
+    terraform state show module.task_api.aws_s3_bucket.this
+    ```
+  - 导入已有资源进状态（常见场景：手工创建过的资源）
+    ```bash
+    terraform import module.task_api.aws_s3_bucket.this dev-task-api-welcomed-anteater
+    ```
+  - 移动/更名状态中的资源地址（重构模块名/资源名时）
+    ```bash
+    terraform state mv module.old.aws_s3_bucket.this module.task_api.aws_s3_bucket.this
+    ```
+  - 从状态中移除资源（不再由 TF 管理；不会删除真实资源）
+    ```bash
+    terraform state rm module.task_api.aws_s3_bucket_policy.this
+    ```
+  - 强制解锁（遇到 “state lock” 无法释放时）
+    ```bash
+    terraform force-unlock <LOCK_ID>
+    ```
+  - 输出变量（人类可读 / 机器可读）
+    ```bash
+    terraform output
+    terraform output -json
+    ```
+  - 工作空间（多环境隔离：dev/stage/prod）
+    ```bash
+    terraform workspace list
+    terraform workspace new dev
+    terraform workspace select dev
+    terraform workspace delete old-env
+    ```
+  - 精准定位/限域变更（谨慎使用 `-target`，易造成漂移）
+    ```bash
+    terraform plan   -target=module.task_api.aws_s3_bucket.this
+    terraform apply  -target=module.task_api.aws_s3_bucket.this
+    ```
+  - 销毁资源（危险操作，建议只在沙箱/自动化销毁流程中使用）
+    ```bash
+    terraform destroy
+    terraform destroy -target=module.task_api.aws_s3_bucket.this
+    ```
+  - 诊断日志（排错用）
+    ```bash
+    TF_LOG=DEBUG TF_LOG_PATH=./tf.log terraform plan
+    ```
+  - Provider/平台锁定（生成 `.terraform.lock.hcl`，保证团队一致性）
+    ```bash
+    terraform providers lock -platform=linux_amd64 -platform=darwin_amd64 -platform=windows_amd64
+    ```
+  - 生成资源依赖图（需本地安装 graphviz）
+    ```bash
+    terraform graph | dot -Tsvg > graph.svg
+    ```
+  - 与 Terraform Cloud/Enterprise 交互（如有使用）
+    ```bash
+    terraform login
+    terraform logout
+    ```
+  - 环境变量注入变量值（无需在命令行显式 `-var`）
+
+    ```bash
+    export TF_VAR_env=dev
+    export TF_VAR_region=us-east-1
+    terraform plan
+    ```
+  - 标记/取消标记资源为“需要替换”（少用；适合触发特定资源重建）
+    ```bash
+    terraform taint   module.task_api.aws_s3_bucket.this
+    terraform untaint module.task_api.aws_s3_bucket.this
+    ```
+    > ℹ️ 在 1.x 版本中 `taint/untaint` 仍可用，但官方更推荐通过**变更配置**或**生命周期策略**来驱动替换。
 - **常用 AWS CLI 命令**：
   - 列出角色关联的策略：
     ```bash

@@ -3,6 +3,7 @@
 // ---------------------------
 
 data "aws_availability_zones" "available" {} # 查询可用区
+data "aws_region" "current" {}               # 当前区域，用于 VPC Endpoint（使用 id 字段）
 
 resource "aws_vpc" "this" {
   cidr_block           = "10.0.0.0/16" # VPC 网段
@@ -75,6 +76,20 @@ resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[count.index].id
+}
+
+# S3 Gateway Endpoint：私有子网直连 S3，绕过 NAT 以节省成本
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.this.id
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id # 仅关联私有路由表
+
+  tags = {
+    Name        = "${var.cluster_name}-s3-endpoint"
+    ManagedBy   = "Terraform"
+    Description = "Gateway endpoint for S3"
+  }
 }
 
 # 安全组专供 ALB

@@ -19,6 +19,11 @@ output "private_subnet_ids" {
   value       = module.network_base.private_subnet_ids
 }
 
+output "s3_gateway_endpoint_id" {
+  description = "S3 网关端点 ID"
+  value       = module.network_base.s3_gateway_endpoint_id
+}
+
 output "autoscaler_role_arn" {
   description = "EKS Cluster Autoscaler 使用的 IAM 角色 ARN"
   value       = var.create_eks ? module.irsa[0].autoscaler_role_arn : null
@@ -52,4 +57,14 @@ output "task_api_s3_prefix" {
 output "task_api_bucket_url" {
   description = "task-api 应用的 S3 URL"
   value       = module.task_api.bucket_url
+}
+
+output "task_api_bucket_policy_id" {
+  description = "task-api 桶策略资源 ID"
+  value       = module.task_api.bucket_policy_id
+}
+
+output "task_api_bucket_lifecycle_rules" {
+  description = "task-api 桶生命周期规则及状态"
+  value       = module.task_api.bucket_lifecycle_rules
 }

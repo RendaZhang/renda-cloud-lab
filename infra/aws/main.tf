@@ -78,6 +78,7 @@ module "task_api" {
   s3_prefix         = var.task_api_s3_prefix                     # S3 前缀
   oidc_provider_arn = module.eks.oidc_provider_arn               # OIDC Provider ARN
   oidc_provider_url = module.eks.oidc_provider_url_without_https # OIDC Provider URL（无 https）
+  vpc_id            = module.network_base.vpc_id                 # 桶策略限制访问的 VPC
   depends_on        = [module.eks]                               # 依赖 EKS 模块
 }
 

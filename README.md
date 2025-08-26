@@ -28,7 +28,7 @@
 
 # Renda Cloud Lab
 
-- **最后更新**: August 26, 2025, 03:27 (UTC+08:00)
+- **最后更新**: August 26, 2025, 08:15 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -60,7 +60,7 @@
 - **CI/CD & GitOps** — 集成 `AWS CodePipeline` 持续集成流水线，结合 `Argo CD` 与 `Helm` 实现 `GitOps` 持续部署
 - **可观测性 & SRE** — 引入 `OpenTelemetry`、`Prometheus`、`Grafana` 构建可观测体系，并通过 `Chaos Mesh` 落实 `Chaos Engineering`（混沌工程）实践
 - **生成式 AI Sidecar** — 基于 `Spring Boot + Spring AI` 框架，集成 AWS Bedrock (如 Titan 大模型) / GCP Vertex AI 等生成式 AI 服务，实现应用智能化
-- **成本 & 安全护栏** — 利用 Spot 实例、IRSA、AWS Budgets 控制成本，并通过 Trivy 镜像扫描、OPA Gatekeeper 策略等保障集群安全
+- **成本 & 安全护栏** — 利用 Spot 实例、IRSA、AWS Budgets 控制成本，并通过 Trivy 镜像扫描、OPA Gatekeeper 策略、S3 Gateway Endpoint 与 Bucket Policy 加固（含临时前缀生命周期清理）等保障集群安全与成本优化
 - **自动扩缩容 (Cluster Autoscaler)** — 通过脚本式 `Helm` 安装 `cluster-autoscaler`，实现节点数量根据负载弹性伸缩
 - **负载均衡控制器 (AWS Load Balancer Controller)** — Terraform 仅预置 IRSA，ServiceAccount 由 `post-recreate.sh` 刷新 kubeconfig 并等待集群就绪后创建并注解，Helm 安装后即可管理 ALB Ingress
 

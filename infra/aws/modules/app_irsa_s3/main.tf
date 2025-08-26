@@ -67,18 +67,85 @@ resource "aws_s3_bucket_versioning" "this" {
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
+  # 仅清理临时 smoke 前缀，避免误删业务数据
   rule {
-    id     = "cleanup-test-prefix" # 仅清理测试前缀
+    id     = "cleanup-smoke"
     status = "Enabled"
 
     filter {
-      prefix = var.s3_prefix # 作用于指定前缀
+      prefix = "${var.s3_prefix}smoke/" # 目标前缀：<prefix>smoke/
     }
 
     expiration {
-      days = 30 # 30 天后自动过期
+      days = 7 # 7 天后自动过期
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 7 # 清理旧版本
     }
   }
+}
+
+# --- Bucket Policy ---
+data "aws_iam_policy_document" "bucket" {
+  statement {
+    sid    = "DenyInsecureTransport"
+    effect = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    # 仅“数据面”动作：
+    # - 避免阻断管理面（Get/PutBucketPolicy、PutBucketLifecycleConfiguration 等）
+    # - 避免刷新时从公网端点读取桶信息被 403
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject"
+    ]
+    resources = [
+      aws_s3_bucket.this.arn,
+      "${aws_s3_bucket.this.arn}/*"
+    ]
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.vpc_id == null ? [] : [var.vpc_id]
+    content {
+      sid    = "DenyNonVpc"
+      effect = "Deny"
+      principals {
+        type        = "*"
+        identifiers = ["*"]
+      }
+      # 同样只覆盖“数据面”动作
+      actions = [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ]
+      resources = [
+        aws_s3_bucket.this.arn,
+        "${aws_s3_bucket.this.arn}/*"
+      ]
+      condition {
+        # IfExists 避免在没有 SourceVpc 上下文（例如公网端点）时被误判为“不等”
+        test     = "StringNotEqualsIfExists"
+        variable = "aws:SourceVpc"
+        values   = [var.vpc_id]
+      }
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "this" {
+  bucket = aws_s3_bucket.this.id
+  policy = data.aws_iam_policy_document.bucket.json
 }
 
 # --- IAM Policy ---
