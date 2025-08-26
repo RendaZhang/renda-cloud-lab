@@ -24,7 +24,7 @@
 #   7. 获取最新的 EKS NodeGroup 生成的 ASG 名称
 #   8. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
 #   9. 自动写入绑定日志，避免重复执行
-#  10. 部署 task-api（固定 ECR digest，配置探针/资源）并在集群内冒烟
+#  10. 部署 task-api（固定 ECR digest，配置探针/资源，并创建 PodDisruptionBudget）并在集群内冒烟
 #  11. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
 #  12. 安装 metrics-server（--kubelet-insecure-tls）
 #  13. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
@@ -55,6 +55,8 @@ ASG_PREFIX="eks-${NODEGROUP_NAME}"
 NS="${NS:-svc-task}"
 # Deployment/Service 的名称与容器名
 APP="${APP:-task-api}"
+# PodDisruptionBudget 名称（与 Deployment 同名 + "-pdb"）
+PDB_NAME="${PDB_NAME:-${APP}-pdb}"
 # ECR 仓库名
 ECR_REPO="${ECR_REPO:-task-api}"
 # IRSA 角色名称与 ARN（应用级 ServiceAccount 使用）
@@ -63,7 +65,7 @@ TASK_API_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${TASK_API_ROLE
 TASK_API_SERVICE_ACCOUNT_NAME="${TASK_API_SERVICE_ACCOUNT_NAME:-${APP}}"
 # 要部署的镜像 tag（也可用 latest）。若设置 IMAGE_DIGEST 则优先生效。
 IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
-# k8s 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml）
+# k8s 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml / pdb.yaml）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 K8S_BASE_DIR="${K8S_BASE_DIR:-${ROOT_DIR}/task-api/k8s/base}"
@@ -258,6 +260,19 @@ check_task_api() {
      abort "WebIdentity Token 缺失或为空"
 
   log "✅ task-api ServiceAccount IRSA 自检通过"
+
+  log "🔎 验证 PodDisruptionBudget (${PDB_NAME})"
+
+  kubectl -n "${NS}" get pdb "${PDB_NAME}" >/dev/null 2>&1 || \
+    abort "缺少 PodDisruptionBudget ${PDB_NAME}"
+
+  local pdb_min pdb_healthy
+  pdb_min=$(kubectl -n "${NS}" get pdb "${PDB_NAME}" -o jsonpath='{.spec.minAvailable}')
+  pdb_healthy=$(kubectl -n "${NS}" get pdb "${PDB_NAME}" -o jsonpath='{.status.currentHealthy}')
+  [[ "$pdb_min" != "1" ]] && abort "PodDisruptionBudget minAvailable=$pdb_min (expected 1)"
+  [[ "${pdb_healthy:-0}" -lt 1 ]] && abort "PodDisruptionBudget currentHealthy=${pdb_healthy}"
+
+  log "✅ PodDisruptionBudget 检查通过 (minAvailable=${pdb_min}, healthy=${pdb_healthy})"
 
   log "🔎 验证 task-api ALB、Ingress、dns"
 
@@ -539,6 +554,9 @@ deploy_task_api() {
   kubectl -n "${NS}" apply -f "${K8S_BASE_DIR}/configmap.yaml"
   log "🗂️  apply 清单：deploy-svc.yaml"
   kubectl -n "${NS}" apply -f "${K8S_BASE_DIR}/deploy-svc.yaml"
+  log "🗂️  apply 清单：pdb.yaml"
+  # PodDisruptionBudget 确保在节点维护或滚动升级等自愿中断场景下，至少保留 1 个可用 Pod
+  kubectl -n "${NS}" apply -f "${K8S_BASE_DIR}/pdb.yaml"
 
   # ===== 解析镜像（优先使用固定 digest）=====
   if [[ -n "${IMAGE_DIGEST:-}" ]]; then
