@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: task-api-pdb
+  namespace: svc-task
+spec:
+  # 最小可用副本，与 HPA(min=2) 兼容
+  # 在当前副本通常为 2 的情况下，允许逐个中断，保证流量不中断。
+  # 与 HPA 搭配：当副本被扩到更多时，PDB 会自动以数字约束；保持简单就好。
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: task-api
