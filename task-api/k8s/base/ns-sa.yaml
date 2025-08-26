@@ -14,6 +14,7 @@ metadata:
   namespace: svc-task
   labels:
     app.kubernetes.io/name: task-api
-# 预留 IRSA 注解位（Day 4 再填上 role-arn）
+# IRSA 注解由 scripts/post-recreate.sh 的 ensure_task_api_service_account 动态写入
+# 若要改为通过 YAML 静态声明，请先移除脚本中的注入逻辑，并取消下列注释填入对应 role-arn
 #  annotations:
 #    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>
