@@ -600,10 +600,35 @@ deploy_task_api() {
 
   # ===== 集群内冒烟测试 =====
   log "🧪 集群内冒烟测试：/api/hello 与 /actuator/health"
-  kubectl -n "${NS}" run curl --image=curlimages/curl:8.8.0 -i --rm -q --restart=Never -- \
-    sh -lc "set -e; \
-      curl -sf http://${APP}.${NS}.svc.cluster.local:8080/api/hello?name=Renda >/dev/null; \
-      curl -sf http://${APP}.${NS}.svc.cluster.local:8080/actuator/health | grep -q '\"status\":\"UP\"'"
+  cat <<EOF | kubectl -n "${NS}" apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: task-api-smoke
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: curl
+        image: curlimages/curl:8.8.0
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          curl -sf http://${APP}.${NS}.svc.cluster.local:8080/api/hello?name=Renda >/dev/null
+          curl -sf http://${APP}.${NS}.svc.cluster.local:8080/actuator/health | grep -q '"status":"UP"'
+EOF
+
+  if ! kubectl -n "${NS}" wait --for=condition=complete job/task-api-smoke --timeout=60s; then
+    kubectl -n "${NS}" logs job/task-api-smoke || true
+    kubectl -n "${NS}" delete job task-api-smoke --ignore-not-found
+    abort "集群内冒烟测试失败"
+  fi
+  kubectl -n "${NS}" logs job/task-api-smoke || true
+  kubectl -n "${NS}" delete job task-api-smoke --ignore-not-found
   log "✅ 部署与冒烟测试完成"
 }
 
