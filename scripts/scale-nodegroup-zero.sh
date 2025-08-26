@@ -6,6 +6,15 @@ CLUSTER_NAME="dev"
 REGION="us-east-1"
 PROFILE="phase2-sso"
 
+echo "🔍 检查 EKS 集群 ${CLUSTER_NAME} 是否已删除"
+if aws eks describe-cluster --name "$CLUSTER_NAME" \
+      --region "$REGION" --profile "$PROFILE" >/dev/null 2>&1; then
+  echo "EKS 集群仍存在"
+else
+  echo "EKS 集群已删除"
+  exit 0
+fi
+
 echo "🔍 获取 NodeGroup 列表中..."
 
 NODEGROUPS=$(aws eks list-nodegroups \
