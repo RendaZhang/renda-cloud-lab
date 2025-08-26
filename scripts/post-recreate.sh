@@ -592,7 +592,6 @@ deploy_task_api() {
     fi
   fi
   IMAGE="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}@${DIGEST}"
-  log "🖼️  将部署镜像：${IMAGE}"
 
   # ===== 若已部署且健康则跳过镜像更新 =====
   skip_deploy=false
@@ -612,6 +611,7 @@ deploy_task_api() {
 
   if [[ "${skip_deploy}" != true ]]; then
     # ===== 用 set image 覆盖镜像，并记录 rollout 历史 =====
+    log "🖼️  将部署镜像：${IMAGE}"
     log "♻️  更新 Deployment 镜像并等待滚动完成"
     kubectl -n "${NS}" set image deploy/"${APP}" "${APP}"="${IMAGE}" --record
     kubectl -n "${NS}" rollout status deploy/"${APP}" --timeout=180s
