@@ -266,13 +266,26 @@ check_task_api() {
   kubectl -n "${NS}" get pdb "${PDB_NAME}" >/dev/null 2>&1 || \
     abort "缺少 PodDisruptionBudget ${PDB_NAME}"
 
-  local pdb_min pdb_healthy
+  local pdb_min disruptions_allowed current_healthy desired_healthy
   pdb_min=$(kubectl -n "${NS}" get pdb "${PDB_NAME}" -o jsonpath='{.spec.minAvailable}')
-  pdb_healthy=$(kubectl -n "${NS}" get pdb "${PDB_NAME}" -o jsonpath='{.status.currentHealthy}')
-  [[ "$pdb_min" != "1" ]] && abort "PodDisruptionBudget minAvailable=$pdb_min (expected 1)"
-  [[ "${pdb_healthy:-0}" -lt 1 ]] && abort "PodDisruptionBudget currentHealthy=${pdb_healthy}"
+  disruptions_allowed=$(kubectl -n "${NS}" get pdb "${PDB_NAME}" -o jsonpath='{.status.disruptionsAllowed}')
+  current_healthy=$(kubectl -n "${NS}" get pdb "${PDB_NAME}" -o jsonpath='{.status.currentHealthy}')
+  desired_healthy=$(kubectl -n "${NS}" get pdb "${PDB_NAME}" -o jsonpath='{.status.desiredHealthy}')
 
-  log "✅ PodDisruptionBudget 检查通过 (minAvailable=${pdb_min}, healthy=${pdb_healthy})"
+  [[ "$pdb_min" != "1" ]] && abort "PodDisruptionBudget minAvailable=$pdb_min (expected 1)"
+  disruptions_allowed=${disruptions_allowed:-0}
+  current_healthy=${current_healthy:-0}
+  desired_healthy=${desired_healthy:-0}
+
+  if [ "$disruptions_allowed" -lt 1 ]; then
+    abort "PodDisruptionBudget disruptionsAllowed=$disruptions_allowed (<1)，可能是就绪副本不足或探针未 READY"
+  fi
+
+  if [ "$current_healthy" -lt "$desired_healthy" ]; then
+    abort "PodDisruptionBudget currentHealthy=$current_healthy < desiredHealthy=$desired_healthy"
+  fi
+
+  log "✅ PodDisruptionBudget 检查通过 (allowed=${disruptions_allowed}, healthy=${current_healthy}/${desired_healthy})"
 
   log "🔎 验证 task-api ALB、Ingress、dns"
 
@@ -607,14 +620,28 @@ deploy_task_api_ingress() {
 
 ### ---- metrics-server (Helm) ----
 deploy_metrics_server() {
+  log "🔍 检查 metrics-server 状态..."
+  if kubectl -n "$KUBE_DEFAULT_NAMESPACE" get deployment metrics-server >/dev/null 2>&1; then
+    local replicas available
+    replicas=$(kubectl -n "$KUBE_DEFAULT_NAMESPACE" get deployment metrics-server -o jsonpath='{.status.replicas}')
+    available=$(kubectl -n "$KUBE_DEFAULT_NAMESPACE" get deployment metrics-server -o jsonpath='{.status.availableReplicas}')
+    replicas=${replicas:-0}
+    available=${available:-0}
+    if [[ "$replicas" -gt 0 && "$replicas" == "$available" ]]; then
+      log "✅ metrics-server 已部署且健康，跳过安装"
+      return
+    fi
+    log "⚠️ metrics-server 存在但未就绪，重新部署"
+  fi
+
   log "📦 Installing metrics-server ..."
   helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ >/dev/null 2>&1 || true
-  helm repo update >/dev/null
+  helm repo update >/dev/null 2>&1
   helm upgrade --install metrics-server metrics-server/metrics-server \
-    --namespace $KUBE_DEFAULT_NAMESPACE \
+    --namespace "$KUBE_DEFAULT_NAMESPACE" \
     --version 3.12.1 \
     --set args={--kubelet-insecure-tls}
-  kubectl -n $KUBE_DEFAULT_NAMESPACE rollout status deploy/metrics-server --timeout=180s
+  kubectl -n "$KUBE_DEFAULT_NAMESPACE" rollout status deploy/metrics-server --timeout=180s
 }
 
 ### ---- HPA for task-api ----
