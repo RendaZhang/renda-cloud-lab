@@ -39,10 +39,11 @@
 > - 本仓库已通过 Terraform 创建 AWS Budgets（默认 90 USD），当花费接近阈值时会以邮件提醒。
 > - 完成关停流程后，环境便仅剩下不计费或低成本的基础部分（如 VPC 等）。
 > - 若历史上曾使用 eksctl 创建过集群，可能在 CloudFormation 中留下 `eksctl-dev-cluster` 等栈。Terraform 删除集群后，请手动删除这些栈，以防资源残留。
+> - 需要重建的时候，即可按照流程步骤，通过 Terraform 一键重建所有资源，实现完整的 **一键销毁与重建** 循环，而无需额外手动干预 EKS 集群。
 > - ECR 不随每日销毁而删除，`task-api` 的容器镜像源自本仓库 `task-api/` 子项目。若该项目有改动，需要在 `task-api` 目录构建并推送新镜像到 ECR。生产/预发推荐 **固定镜像 digest**（`image: ...@sha256:...`），避免 `:latest` 漂移；ECR 生命周期策略建议至少保留最近 **5–10** 个 tag 或保留 **7 天** 的 untagged，以便快速回滚。
 > - 应用级 S3 桶（如 task-api）设置了 `prevent_destroy`，不会在日常 `stop-all` / `destroy-all` 流程中删除；对应 IRSA Role 仅在 `create_eks=true` 时创建。
 > - Amazon Route 53 不包含在重建与销毁流程里面，如果有使用的话，仍然会每月固定扣费 0.5 美金。
-> - 需要重建的时候，即可按照流程步骤，通过 Terraform 一键重建所有资源，实现完整的 **一键销毁与重建** 循环，而无需额外手动干预 EKS 集群。
+> - AMP Workspace **默认保留**，在采集侧（如 ADOT Collector）按需缩放副本数（`scale replicas=0/1`）来“关/开”采集。若采用 **AWS 托管采集器（scraper）**，其生命周期独立于 Workspace，需单独创建/删除。
 
 ### 构建并推送 task-api 镜像
 
