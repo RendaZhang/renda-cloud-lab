@@ -18,6 +18,8 @@ spec:
       terminationGracePeriodSeconds: 20
       containers:
         - name: ${APP}
+          # 镜像以 ECR digest 固定，来源于本仓库 task-api 项目
+          # 更新 task-api 后需替换 ${DIGEST}
           image: ${REMOTE}@${DIGEST}
           imagePullPolicy: IfNotPresent
           ports:

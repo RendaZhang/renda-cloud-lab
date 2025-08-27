@@ -18,8 +18,9 @@ spec:
       terminationGracePeriodSeconds: 20
       containers:
         - name: task-api
-          # 镜像以 ECR digest 固定，避免 tag 漂移
-          image: 563149051155.dkr.ecr.us-east-1.amazonaws.com/task-api@sha256:927d20ca4cebedc14f81770e8e5e49259684723ba65b76e7c59f3003cc9a9741
+          # 镜像以 ECR digest 固定，来源于本仓库 task-api 项目的构建结果
+          # 若更新 task-api 源码需重建并替换下方 digest
+          image: 563149051155.dkr.ecr.us-east-1.amazonaws.com/task-api@sha256:d409d3f8925d75544f34edf9f0dbf8d772866b27609ef01826e1467fee52170a
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

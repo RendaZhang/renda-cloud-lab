@@ -24,7 +24,7 @@
 #   7. 获取最新的 EKS NodeGroup 生成的 ASG 名称
 #   8. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
 #   9. 自动写入绑定日志，避免重复执行
-#  10. 部署 task-api（固定 ECR digest，配置探针/资源，并创建 PodDisruptionBudget）并在集群内冒烟
+#  10. 部署 task-api（镜像由 task-api 子项目构建并固定 ECR digest，配置探针/资源，并创建 PodDisruptionBudget）并在集群内冒烟
 #  11. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
 #  12. 安装 metrics-server（--kubelet-insecure-tls）
 #  13. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
@@ -63,8 +63,9 @@ ECR_REPO="${ECR_REPO:-task-api}"
 TASK_API_ROLE_NAME="dev-task-api-irsa"
 TASK_API_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${TASK_API_ROLE_NAME}"
 TASK_API_SERVICE_ACCOUNT_NAME="${TASK_API_SERVICE_ACCOUNT_NAME:-${APP}}"
-# 要部署的镜像 tag（也可用 latest）。若设置 IMAGE_DIGEST 则优先生效。
-IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
+# 要部署的 task-api 镜像 tag（也可用 latest）。若设置 IMAGE_DIGEST 则优先生效。
+# 如更新 task-api 源码，请先构建并推送新镜像，然后调整此处 tag 或设置 IMAGE_DIGEST。
+IMAGE_TAG="${IMAGE_TAG:-0.1.0-2508272044}"
 # k8s 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml / pdb.yaml）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"

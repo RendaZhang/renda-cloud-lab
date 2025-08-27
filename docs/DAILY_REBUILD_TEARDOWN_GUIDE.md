@@ -4,6 +4,7 @@
 
 - [Terraform 重建与销毁流程操作文档](#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
   - [简介](#%E7%AE%80%E4%BB%8B)
+    - [构建并推送 task-api 镜像](#%E6%9E%84%E5%BB%BA%E5%B9%B6%E6%8E%A8%E9%80%81-task-api-%E9%95%9C%E5%83%8F)
   - [重建流程](#%E9%87%8D%E5%BB%BA%E6%B5%81%E7%A8%8B)
     - [AWS SSO 登录和基本准备](#aws-sso-%E7%99%BB%E5%BD%95%E5%92%8C%E5%9F%BA%E6%9C%AC%E5%87%86%E5%A4%87)
     - [Makefile 命令 - start-all](#makefile-%E5%91%BD%E4%BB%A4---start-all)
@@ -20,7 +21,7 @@
 
 # Terraform 重建与销毁流程操作文档
 
-- **最后更新**: August 26, 2025, 20:08 (UTC+08:00)
+- **最后更新**: August 27, 2025, 20:13 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 ---
@@ -38,10 +39,119 @@
 > - 本仓库已通过 Terraform 创建 AWS Budgets（默认 90 USD），当花费接近阈值时会以邮件提醒。
 > - 完成关停流程后，环境便仅剩下不计费或低成本的基础部分（如 VPC 等）。
 > - 若历史上曾使用 eksctl 创建过集群，可能在 CloudFormation 中留下 `eksctl-dev-cluster` 等栈。Terraform 删除集群后，请手动删除这些栈，以防资源残留。
-> - ECR 不随每日销毁而删除，因此脚本可直接使用已有镜像；若需要新版本，先在本地构建并 `docker push` 到 ECR。生产/预发推荐 **固定镜像 digest**（`image: ...@sha256:...`），避免 `:latest` 漂移；ECR 生命周期策略建议至少保留最近 **5–10** 个 tag 或保留 **7 天** 的 untagged，以便快速回滚。
+> - ECR 不随每日销毁而删除，`task-api` 的容器镜像源自本仓库 `task-api/` 子项目。若该项目有改动，需要在 `task-api` 目录构建并推送新镜像到 ECR。生产/预发推荐 **固定镜像 digest**（`image: ...@sha256:...`），避免 `:latest` 漂移；ECR 生命周期策略建议至少保留最近 **5–10** 个 tag 或保留 **7 天** 的 untagged，以便快速回滚。
 > - 应用级 S3 桶（如 task-api）设置了 `prevent_destroy`，不会在日常 `stop-all` / `destroy-all` 流程中删除；对应 IRSA Role 仅在 `create_eks=true` 时创建。
 > - Amazon Route 53 不包含在重建与销毁流程里面，如果有使用的话，仍然会每月固定扣费 0.5 美金。
 > - 需要重建的时候，即可按照流程步骤，通过 Terraform 一键重建所有资源，实现完整的 **一键销毁与重建** 循环，而无需额外手动干预 EKS 集群。
+
+### 构建并推送 task-api 镜像
+
+1. **确认节点架构**，以选择正确的 `--platform`：
+
+    ```bash
+    kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.architecture
+    ```
+
+2. **进入子项目**：
+
+    ```bash
+    cd task-api
+    ```
+
+3. **变量与登录**：
+
+    ```bash
+    # 基本变量
+    export PROFILE="phase2-sso"
+    # —— 统一导出 AWS_PROFILE，省去每条命令 --profile ——
+    export AWS_PROFILE="$PROFILE"
+    export AWS_REGION=us-east-1
+    export ECR_REPO=task-api
+    export APP=task-api
+    export NS=svc-task
+    # 可追踪 tag
+    export VERSION="0.1.0-$(date +%y%m%d%H%M)"
+
+    # 账户与仓库 URI
+    ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+    REMOTE="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+
+    # 确认/创建仓库并登录（若已存在会跳过）
+    aws ecr describe-repositories --repository-names "$ECR_REPO" --region "$AWS_REGION" >/dev/null 2>&1 \
+      || aws ecr create-repository --repository-name "$ECR_REPO" --image-tag-mutability IMMUTABLE --region "$AWS_REGION"
+    aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    ```
+
+4. **本地构建镜像（下例以 `linux/amd64` 为例，可按需替换）**：
+
+    ```bash
+    docker system prune -a
+    docker build --platform=linux/amd64 -t "${APP}:${VERSION}" .
+    ```
+
+5. 可使用 `docker run` 在本地冒烟：
+
+    ```bash
+    docker run -d -p 8080:8080 --name my-task "${APP}:${VERSION}"
+    curl http://localhost:8080/actuator/health
+    curl http://localhost:8080/actuator/prometheus
+    docker stop my-task && docker rm my-task
+    ```
+
+6. **推送到 ECR 并记录 digest**：
+
+    ```bash
+    REMOTE="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/task-api"
+    docker tag "${APP}:${VERSION}" "${REMOTE}:${VERSION}"
+    docker tag "${APP}:${VERSION}" "$REMOTE:latest"
+    docker push "${REMOTE}:${VERSION}"
+    # 推送成功会回显各层与 digest
+
+    # 读取本次镜像的 digest
+    DIGEST=$(aws ecr describe-images \
+      --repository-name "$ECR_REPO" \
+      --image-ids imageTag="$VERSION" \
+      --query 'imageDetails[0].imageDigest' \
+      --output text \
+      --region "$AWS_REGION")
+    echo "DIGEST=$DIGEST"
+    printf 'export DIGEST=%s\n' "$DIGEST" > scripts/.last_image
+
+    # 清理本地镜像
+    docker system prune -a
+    ```
+
+7. **给 ECR 镜像加新的 latest 标签**：
+
+    ```bash
+    # 拉取 ECR 镜像到本地
+    docker system prune -a
+    docker pull "${REMOTE}:${VERSION}"
+    docker images
+    # 打新标签
+    docker tag "${REMOTE}:${VERSION}" "$REMOTE:latest"
+    # 修改为 MUTABLE（需管理员权限）
+    aws ecr put-image-tag-mutability \
+    --repository-name $APP \
+    --image-tag-mutability MUTABLE \
+    --region $AWS_REGION
+    # 推送 latest 标签
+    docker push "$REMOTE:latest"
+    # 改回 IMMUTABLE
+    aws ecr put-image-tag-mutability \
+    --repository-name $APP \
+    --image-tag-mutability IMMUTABLE \
+    --region $AWS_REGION
+    # 本地清理
+    docker system prune -a
+    docker images -a
+    docker ps -a
+    ```
+
+8. **更新部署引用**：
+   - 将新的 digest 写入 `task-api/k8s/base/deploy-svc.yaml`。
+   - 把最新的 tag `${VERSION}` 的值同步更新到 `scripts/post-recreate.sh` 的 `IMAGE_TAG` 的默认值中。
+   - 可以在执行 `post-recreate.sh` 时通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
 
 ---
 

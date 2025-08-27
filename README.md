@@ -19,6 +19,7 @@
     - [文档](#%E6%96%87%E6%A1%A3)
     - [检查清单](#%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95)
     - [脚本清单](#%E8%84%9A%E6%9C%AC%E6%B8%85%E5%8D%95)
+    - [task-api 镜像更新](#task-api-%E9%95%9C%E5%83%8F%E6%9B%B4%E6%96%B0)
   - [未来计划](#%E6%9C%AA%E6%9D%A5%E8%AE%A1%E5%88%92)
   - [🤝 贡献指南](#-%E8%B4%A1%E7%8C%AE%E6%8C%87%E5%8D%97)
   - [🔐 License](#-license)
@@ -28,7 +29,7 @@
 
 # Renda Cloud Lab
 
-- **最后更新**: August 26, 2025, 20:08 (UTC+08:00)
+- **最后更新**: August 27, 2025, 20:13 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -259,6 +260,15 @@ cd renda-cloud-lab
 
 - `update-diagrams.sh` 脚本依赖：需安装 `Graphviz`
 - 脚本的运行日志默认写入 `scripts/logs` 目录下；最近一次已绑定的 ASG 名缓存于 `scripts/.last-asg-bound`，两者均已在 `.gitignore` 排除。
+
+### task-api 镜像更新
+
+部署层使用的容器镜像来自本仓库 `task-api` 子项目。
+
+若修改了 `task-api` 源码：
+
+1. 在 `task-api` 目录构建并推送新镜像到 ECR（具体操作步骤参见 [DAILY_REBUILD_TEARDOWN_GUIDE.md](docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#构建并推送-task-api-镜像)）。
+2. 将新的 digest 写入 `task-api/k8s/base/deploy-svc.yaml`，或在执行 `post-recreate.sh` 前通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
 
 ---
 
