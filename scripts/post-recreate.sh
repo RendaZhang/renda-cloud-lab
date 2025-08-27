@@ -354,7 +354,7 @@ check_ingress_alb() {
   done
   [[ $smoke_ok -eq 0 ]] && abort "Smoke test failed: /api/hello (DNS may not be ready or network issue)"
   curl -s "http://${dns}/actuator/health" | grep '"status":"UP"' || abort "Health check failed"
-  curl -s "http://${dns}/actuator/prometheus" | head -c 100 || abort "Prometheus endpoint check failed"
+  curl -s "http://${dns}/actuator/prometheus" | grep '# HELP application_ready_time_seconds' || abort "Prometheus endpoint check failed"
 
   log "✅ ALB DNS Smoke test passed"
 }
