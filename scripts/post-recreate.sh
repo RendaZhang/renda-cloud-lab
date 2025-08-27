@@ -107,6 +107,12 @@ HPA_FILE="${ROOT_DIR}/task-api/k8s/hpa.yaml"
 SMOKE_FILE="${ROOT_DIR}/task-api/k8s/task-api-smoke.yaml"
 
 # === 函数定义 ===
+# 清理临时 Job/资源，避免脚本异常退出后残留
+cleanup() {
+  kubectl -n "$NS" delete job task-api-smoke awscli-smoke --ignore-not-found >/dev/null 2>&1 || true
+}
+trap cleanup EXIT ERR
+
 # log() {
 #   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 # }
