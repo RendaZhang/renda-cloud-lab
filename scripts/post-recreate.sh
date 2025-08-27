@@ -221,6 +221,16 @@ awscli_s3_smoke() {
 }
 
 
+# 确认 Deployment 滚动更新就绪
+check_deployment_ready() {
+  log "⏳ 等待 Deployment ${APP} 就绪"
+  if ! kubectl -n "$NS" rollout status deploy/"${APP}" --timeout=180s; then
+    abort "Deployment ${APP} 未在 180s 内就绪"
+  fi
+  log "✅ Deployment ${APP} 已就绪"
+}
+
+
 # 集群内冒烟测试
 task_api_smoke_test() {
   log "🧪 集群内冒烟测试"
@@ -346,6 +356,8 @@ check_ingress_alb() {
 # 串联 task-api 各项检查
 check_task_api() {
   log "🔍 检查 task-api"
+
+  check_deployment_ready
 
   local fails=0
   local summary=()
