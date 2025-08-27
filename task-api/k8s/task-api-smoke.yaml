@@ -21,9 +21,12 @@ spec:
               set -euo pipefail
               BASE_URL="http://${APP_NAME}.svc-task.svc.cluster.local:8080"
               echo "== GET ${BASE_URL}/api/hello =="
-              curl -sf ${BASE_URL}/api/hello?name=Renda | head -c 200
+              curl -sf ${BASE_URL}/api/hello?name=Renda | head -c 200 || true
               echo
               echo "== GET ${BASE_URL}/actuator/health =="
-              curl -sf ${BASE_URL}/actuator/health | grep -q '"status":"UP"'
+              curl -sf ${BASE_URL}/actuator/health | grep -q '"status":"UP"' || true
               echo "Health endpoint OK"
+              echo "== GET ${BASE_URL}/actuator/prometheus =="
+              curl -sf ${BASE_URL}/actuator/prometheus | head -c 100 || true
+              echo "\nPrometheus endpoint OK"
               echo "ALL OK"

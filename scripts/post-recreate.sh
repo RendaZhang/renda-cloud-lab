@@ -222,6 +222,19 @@ awscli_s3_smoke() {
 
 # 检查 task-api
 check_task_api() {
+  # ===== 集群内冒烟测试 =====
+  log "🧪 集群内冒烟测试"
+  kubectl -n "${NS}" apply -f "${SMOKE_FILE}"
+
+  if ! kubectl -n "${NS}" wait --for=condition=complete job/task-api-smoke --timeout=60s; then
+    kubectl -n "${NS}" logs job/task-api-smoke || true
+    kubectl -n "${NS}" delete job task-api-smoke --ignore-not-found
+    abort "集群内冒烟测试失败"
+  fi
+  kubectl -n "${NS}" logs job/task-api-smoke || true
+  kubectl -n "${NS}" delete job task-api-smoke --ignore-not-found
+  log "✅ 部署与冒烟测试完成"
+
   log "🔎 验证 IRSA 注入与运行时环境"
 
   # 1) ServiceAccount 注解检查
@@ -322,7 +335,8 @@ check_task_api() {
     fi
   done
   [[ $smoke_ok -eq 0 ]] && abort "Smoke test failed: /api/hello (DNS may not be ready or network issue)"
-  curl -s "http://${dns}/actuator/health" | grep '"status":"UP"' || { log "❌ Health check failed"; return 1; }
+  curl -s "http://${dns}/actuator/health" | grep '"status":"UP"' || abort "Health check failed"
+  curl -s "http://${dns}/actuator/prometheus" | head -c 100 || abort "Prometheus endpoint check failed"
 
   log "✅ ALB DNS Smoke test passed"
 
@@ -618,19 +632,6 @@ deploy_task_api() {
     kubectl -n "${NS}" rollout status deploy/"${APP}" --timeout=180s
     kubectl -n "${NS}" get deploy,svc -o wide
   fi
-
-  # ===== 集群内冒烟测试 =====
-  log "🧪 集群内冒烟测试：/api/hello 与 /actuator/health"
-  kubectl -n "${NS}" apply -f "${SMOKE_FILE}"
-
-  if ! kubectl -n "${NS}" wait --for=condition=complete job/task-api-smoke --timeout=60s; then
-    kubectl -n "${NS}" logs job/task-api-smoke || true
-    kubectl -n "${NS}" delete job task-api-smoke --ignore-not-found
-    abort "集群内冒烟测试失败"
-  fi
-  kubectl -n "${NS}" logs job/task-api-smoke || true
-  kubectl -n "${NS}" delete job task-api-smoke --ignore-not-found
-  log "✅ 部署与冒烟测试完成"
 }
 
 # 部署 taskapi ingress
@@ -689,8 +690,7 @@ fi
 log "🔍 获取最新的 ASG 名称"
 asg_name=$(get_latest_asg)
 if [[ -z "$asg_name" ]]; then
-  log "❌ 未找到以 $ASG_PREFIX 开头的 ASG, 终止脚本"
-  exit 1
+  abort "未找到以 $ASG_PREFIX 开头的 ASG, 终止脚本"
 fi
 
 update_kubeconfig
