@@ -2,11 +2,19 @@ server:
   port: 8080
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
   endpoint:
     health:
       probes:
-        enabled: true   # 启用 /actuator/health/{liveness,readiness}
+        enabled: true  # /actuator/health/{liveness,readiness}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    # 给所有指标加一个统一标签，便于 Grafana/GQL 过滤
+    tags:
+      application: ${APP:task-api}
+    # 为 http.server.requests 开启直方图，用于 P95/P99 统计
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
