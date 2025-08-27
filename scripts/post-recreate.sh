@@ -346,11 +346,36 @@ check_ingress_alb() {
 # 串联 task-api 各项检查
 check_task_api() {
   log "🔍 检查 task-api"
-  task_api_smoke_test
-  verify_irsa_env
-  check_pdb
-  check_ingress_alb
-  awscli_s3_smoke
+
+  local fails=0
+  local summary=()
+
+  run_check() {
+    local fn="$1"
+    local label="$2"
+    if ( "$fn" ); then
+      summary+=("✅ ${label}")
+    else
+      summary+=("❌ ${label}")
+      fails=$((fails+1))
+    fi
+  }
+
+  run_check task_api_smoke_test "集群内冒烟测试"
+  run_check verify_irsa_env "IRSA 环境自检"
+  run_check check_pdb "PodDisruptionBudget"
+  run_check check_ingress_alb "Ingress/ALB/DNS"
+  run_check awscli_s3_smoke "aws-cli S3 权限"
+
+  log "📊 task-api 检查结果汇总"
+  for item in "${summary[@]}"; do
+    log "$item"
+  done
+
+  if [[ $fails -gt 0 ]]; then
+    abort "task-api 检查失败 (${fails} 项)"
+  fi
+
   log "✅ task-api 检查完成"
 }
 # 安装或升级 AWS Load Balancer Controller
