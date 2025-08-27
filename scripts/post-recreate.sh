@@ -220,9 +220,9 @@ awscli_s3_smoke() {
   log "✅ aws-cli smoke test finished"
 }
 
-# 检查 task-api
-check_task_api() {
-  # ===== 集群内冒烟测试 =====
+
+# 集群内冒烟测试
+task_api_smoke_test() {
   log "🧪 集群内冒烟测试"
   kubectl -n "${NS}" apply -f "${SMOKE_FILE}"
 
@@ -234,34 +234,32 @@ check_task_api() {
   kubectl -n "${NS}" logs job/task-api-smoke || true
   kubectl -n "${NS}" delete job task-api-smoke --ignore-not-found
   log "✅ 部署与冒烟测试完成"
+}
 
+# 验证 IRSA 注入与运行时环境
+verify_irsa_env() {
   log "🔎 验证 IRSA 注入与运行时环境"
 
-  # 1) ServiceAccount 注解检查
   kubectl -n "${NS}" get sa "${TASK_API_SERVICE_ACCOUNT_NAME}" -o yaml | \
     grep -q "eks.amazonaws.com/role-arn" || \
     abort "ServiceAccount 未正确注解 eks.amazonaws.com/role-arn"
 
-  # 2) 获取一个 Pod 名称以检查环境变量
   local pod
   pod=$(kubectl -n "${NS}" get pods -l app="${TASK_API_SERVICE_ACCOUNT_NAME}" \
     -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
   [[ -z "$pod" ]] && abort "未找到 ${APP} Pod，无法进行 IRSA 自检"
 
-  # 等待 Pod 进入 Running 状态
   local wait_time=0
   local max_wait=60
+  local pod_status
   while [[ $wait_time -lt $max_wait ]]; do
     pod_status=$(kubectl -n "${NS}" get pod "$pod" -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-    if [[ "$pod_status" == "Running" ]]; then
-      break
-    fi
+    [[ "$pod_status" == "Running" ]] && break
     sleep 3
     wait_time=$((wait_time+3))
   done
   [[ "$pod_status" != "Running" ]] && abort "Pod $pod 未进入 Running 状态，当前状态: $pod_status"
 
-  # 3) 确认关键环境变量存在
   local env_out
   env_out=$(kubectl -n "${NS}" exec "$pod" -- sh -lc 'env') || \
     abort "无法获取 Pod 环境变量"
@@ -269,14 +267,16 @@ check_task_api() {
     echo "$env_out" | grep -q "^${key}=" || abort "缺少环境变量 ${key}"
   done
 
-  # 4) 确认 WebIdentity Token 已正确挂载
   kubectl -n "${NS}" exec "$pod" -- sh -lc \
     'ls -l /var/run/secrets/eks.amazonaws.com/serviceaccount/ && \
      [ -s /var/run/secrets/eks.amazonaws.com/serviceaccount/token ]' >/dev/null || \
      abort "WebIdentity Token 缺失或为空"
 
   log "✅ task-api ServiceAccount IRSA 自检通过"
+}
 
+# 验证 PodDisruptionBudget
+check_pdb() {
   log "🔎 验证 PodDisruptionBudget (${PDB_NAME})"
 
   kubectl -n "${NS}" get pdb "${PDB_NAME}" >/dev/null 2>&1 || \
@@ -302,14 +302,16 @@ check_task_api() {
   fi
 
   log "✅ PodDisruptionBudget 检查通过 (allowed=${disruptions_allowed}, healthy=${current_healthy}/${desired_healthy})"
+}
 
+# 验证 ALB/Ingress/DNS
+check_ingress_alb() {
   log "🔎 验证 task-api ALB、Ingress、dns"
 
   local outdir="${SCRIPT_DIR}/.out"; mkdir -p "$outdir"
   local dns
 
   log "⏳ Waiting for ALB to be provisioned ..."
-  # 获取 ALB 的 DNS 名称
   local t=0; local timeout=600
   while [[ $t -lt $timeout ]]; do
     dns=$(kubectl -n "$NS" get ing "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
@@ -339,10 +341,18 @@ check_task_api() {
   curl -s "http://${dns}/actuator/prometheus" | head -c 100 || abort "Prometheus endpoint check failed"
 
   log "✅ ALB DNS Smoke test passed"
-
-  awscli_s3_smoke
 }
 
+# 串联 task-api 各项检查
+check_task_api() {
+  log "🔍 检查 task-api"
+  task_api_smoke_test
+  verify_irsa_env
+  check_pdb
+  check_ingress_alb
+  awscli_s3_smoke
+  log "✅ task-api 检查完成"
+}
 # 安装或升级 AWS Load Balancer Controller
 install_albc_controller() {
   local status
