@@ -13,6 +13,8 @@
 # 如下两个会由 EKS 自动注入
 #   AWS_ROLE_ARN
 #   AWS_WEB_IDENTITY_TOKEN_FILE
+# "如果 Helm 部署失败，重新部署后，需要执行如下命令删除旧 Pod 让 Deployment 拉新配置: "
+# log "kubectl -n $KUBE_DEFAULT_NAMESPACE delete pod -l $POD_AUTOSCALER_LABEL"
 #
 # 功能：
 #   1. 更新本地 kubeconfig 并等待集群 API 就绪
@@ -278,6 +280,12 @@ verify_irsa_env() {
      abort "WebIdentity Token 缺失或为空"
 
   log "✅ task-api ServiceAccount IRSA 自检通过"
+
+  log "🔎 验证 ADOT Collector ServiceAccount IRSA 注解"
+  local adot_sa_arn
+  adot_sa_arn=$(kubectl -n "$ADOT_NAMESPACE" get sa "$ADOT_SERVICE_ACCOUNT_NAME" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
+  [[ -z "$adot_sa_arn" || "$adot_sa_arn" != "$ADOT_ROLE_ARN" ]] && abort "ADOT Collector ServiceAccount IRSA 注解缺失或不匹配"
+  log "✅ ADOT Collector ServiceAccount IRSA 注解正确"
 }
 
 # 验证 PodDisruptionBudget
@@ -371,16 +379,32 @@ awscli_s3_smoke() {
 }
 
 check_adot_ready() {
-  # for run_check: returns 0 on healthy with correct IRSA
+  log "🔎 ADOT Collector 端到端验证"
   local status
   status=$(check_adot_status)
-  if [[ "$status" != "healthy" ]]; then
-    return 1
+  [[ "$status" != "healthy" ]] && abort "ADOT Collector 状态异常: $status"
+
+  local deploy="deploy/${ADOT_RELEASE_NAME}-opentelemetry-collector"
+  kubectl -n "$ADOT_NAMESPACE" port-forward "$deploy" 8888 >/tmp/adot-pf.log 2>&1 &
+  local pf_pid=$!
+
+  local metric_value=""
+  local retries=0
+  while [[ $retries -lt 5 ]]; do
+    metric_value=$(curl -s localhost:8888/metrics | grep 'otelcol_exporter_sent_metric_points{exporter="prometheusremotewrite"' | awk '{print $2}')
+    [[ -n "$metric_value" ]] && break
+    sleep 2
+    retries=$((retries+1))
+  done
+
+  kill $pf_pid 2>/dev/null || true
+  wait $pf_pid 2>/dev/null || true
+
+  if [[ "$metric_value" =~ ^[0-9]+$ && "$metric_value" -gt 0 ]]; then
+    log "✅ ADOT Collector Remote Write 已发送 metric points: $metric_value"
+  else
+    abort "ADOT Collector Remote Write 未生效"
   fi
-  local sa_arn
-  sa_arn=$(kubectl -n "$ADOT_NAMESPACE" get sa "$ADOT_SERVICE_ACCOUNT_NAME" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
-  [[ -z "$sa_arn" || "$sa_arn" != "$ADOT_ROLE_ARN" ]] && return 1
-  return 0
 }
 
 # 串联 task-api 各项检查
@@ -522,8 +546,6 @@ install_autoscaler() {
   log "🔍 检查 Cluster Autoscaler Pod 状态"
   kubectl -n $KUBE_DEFAULT_NAMESPACE rollout status deployment/${DEPLOYMENT_AUTOSCALER_NAME} --timeout=180s
   kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_AUTOSCALER_LABEL
-  # "如果 Helm 部署失败，重新部署后，需要执行如下命令删除旧 Pod 让 Deployment 拉新配置: "
-  # log "kubectl -n $KUBE_DEFAULT_NAMESPACE delete pod -l $POD_AUTOSCALER_LABEL"
 }
 
 # 获取当前最新 ASG 名
@@ -813,15 +835,6 @@ deploy_adot_collector() {
     abort "ADOT Collector 未在 180s 内就绪"
   fi
   kubectl -n "${ADOT_NAMESPACE}" get pods -l app.kubernetes.io/instance="${ADOT_RELEASE_NAME}" || true
-
-  # 验证 ServiceAccount IRSA 注解
-  log "🔎 验证 ADOT ServiceAccount IRSA 注解"
-  local sa_arn
-  sa_arn=$(kubectl -n "${ADOT_NAMESPACE}" get sa "${ADOT_SERVICE_ACCOUNT_NAME}" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
-  if [[ -z "${sa_arn}" || "${sa_arn}" != "${ADOT_ROLE_ARN}" ]]; then
-    abort "ADOT ServiceAccount 注解缺失或不匹配 (got='${sa_arn}' expected='${ADOT_ROLE_ARN}')"
-  fi
-  log "✅ ADOT Collector 部署完成并具备 IRSA 注解"
 }
 
 # === 主流程 ===
