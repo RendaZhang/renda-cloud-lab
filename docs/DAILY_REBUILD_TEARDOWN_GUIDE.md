@@ -4,6 +4,10 @@
 
 - [Terraform 重建与销毁流程操作文档](#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
   - [简介](#%E7%AE%80%E4%BB%8B)
+    - [命名空间说明](#%E5%91%BD%E5%90%8D%E7%A9%BA%E9%97%B4%E8%AF%B4%E6%98%8E)
+      - [kube-system](#kube-system)
+      - [svc-task](#svc-task)
+      - [observability](#observability)
     - [构建并推送 task-api 镜像](#%E6%9E%84%E5%BB%BA%E5%B9%B6%E6%8E%A8%E9%80%81-task-api-%E9%95%9C%E5%83%8F)
   - [重建流程](#%E9%87%8D%E5%BB%BA%E6%B5%81%E7%A8%8B)
     - [AWS SSO 登录和基本准备](#aws-sso-%E7%99%BB%E5%BD%95%E5%92%8C%E5%9F%BA%E6%9C%AC%E5%87%86%E5%A4%87)
@@ -45,6 +49,23 @@
 > - 应用级 S3 桶（如 task-api）设置了 `prevent_destroy`，不会在日常 `stop-all` / `destroy-all` 流程中删除；对应 IRSA Role 仅在 `create_eks=true` 时创建。
 > - Amazon Route 53 不包含在重建与销毁流程里面，如果有使用的话，仍然会每月固定扣费 0.5 美金。
 > - AMP Workspace **默认保留**，在采集侧（如 ADOT Collector）按需缩放副本数（`scale replicas=0/1`）来“关/开”采集。若采用 **AWS 托管采集器（scraper）**，其生命周期独立于 Workspace，需单独创建/删除。
+
+### 命名空间说明
+
+#### kube-system
+
+系统级组件（例如 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server 等）默认安装在 `kube-system` 命名空间。
+Terraform 变量 `kubernetes_default_namespace` 与脚本变量 `KUBE_DEFAULT_NAMESPACE` 控制该命名空间。
+
+#### svc-task
+
+示例应用 `task-api` 及其关联资源（Deployment、Service、ConfigMap、PodDisruptionBudget 等）位于 `svc-task` 命名空间。
+Shell 脚本变量 `NS` 和 Terraform 变量 `task_api_namespace` 均默认指向该命名空间。
+
+#### observability
+
+可观测性组件（例如 ADOT Collector）部署在 `observability` 命名空间。
+它由脚本变量 `ADOT_NAMESPACE` 和 Terraform 变量 `adot_namespace` 控制。
 
 ### 构建并推送 task-api 镜像
 

@@ -10,12 +10,13 @@
   - [本地环境检查](#%E6%9C%AC%E5%9C%B0%E7%8E%AF%E5%A2%83%E6%A3%80%E6%9F%A5)
   - [运行预检脚本](#%E8%BF%90%E8%A1%8C%E9%A2%84%E6%A3%80%E8%84%9A%E6%9C%AC)
   - [AWS SSO 登录](#aws-sso-%E7%99%BB%E5%BD%95)
+  - [Kubernetes 命名空间](#kubernetes-%E5%91%BD%E5%90%8D%E7%A9%BA%E9%97%B4)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # 前置条件操作指南
 
-- **Last Updated:** July 18, 2025, 21:20 (UTC+8)
+- **Last Updated:** August 28, 2025, 21:50 (UTC+8)
 - **作者:** 张人大（Renda Zhang）
 
 本文档整理了部署 **Renda Cloud Lab** 之前需要完成的准备工作，以便顺利运行 Terraform 与脚本。
@@ -117,3 +118,17 @@ make preflight   # 等同于 bash scripts/preflight.sh
 ## AWS SSO 登录
 
 在执行 Terraform 或脚本前，运行 `make aws-login` 获取临时凭证。
+
+---
+
+## Kubernetes 命名空间
+
+项目中默认使用以下 Kubernetes 命名空间：
+
+| Namespace     | 作用                                                         |
+| ------------- | ------------------------------------------------------------ |
+| `kube-system` | 集群核心组件所在命名空间，如 Cluster Autoscaler 与 ALB 控制器 |
+| `observability` | 用于可观测性组件，例如 ADOT Collector                      |
+| `svc-task`    | 示例应用 `task-api` 的运行命名空间                            |
+
+首次部署时请确认上述命名空间已存在。若缺失，可执行 `kubectl create namespace <name>` 手动创建。
