@@ -65,6 +65,25 @@ variable "albc_namespace" {
   default     = "kube-system"
 }
 
+# -------- ADOT Collector (AMP remote_write) 配置 --------
+variable "adot_irsa_role_name" {
+  description = "Name of the IRSA role for ADOT Collector"
+  type        = string
+  default     = "adot-collector"
+}
+
+variable "adot_service_account_name" {
+  description = "Kubernetes ServiceAccount name for ADOT Collector"
+  type        = string
+  default     = "adot-collector"
+}
+
+variable "adot_namespace" {
+  description = "Namespace for ADOT Collector ServiceAccount"
+  type        = string
+  default     = "observability"
+}
+
 variable "eksctl_version" {
   description = "Version of eksctl to use"
   type        = string

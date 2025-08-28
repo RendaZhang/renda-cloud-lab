@@ -66,6 +66,18 @@ module "irsa_albc" {
   depends_on                      = [module.eks]                               # 依赖 EKS 模块
 }
 
+module "irsa_adot_amp" {
+  source                          = "./modules/irsa_adot_amp"                  # IRSA 模块，为 ADOT Collector 提供 AMP remote_write 权限
+  count                           = var.create_eks ? 1 : 0                     # 仅在创建 EKS 时启用
+  name                            = var.adot_irsa_role_name                    # IAM 角色名称
+  namespace                       = var.adot_namespace                         # ADOT Collector 所在命名空间
+  cluster_name                    = var.cluster_name                           # 集群名称
+  service_account_name            = var.adot_service_account_name              # ADOT Collector 的 ServiceAccount 名称
+  oidc_provider_arn               = module.eks.oidc_provider_arn               # OIDC Provider ARN
+  oidc_provider_url_without_https = module.eks.oidc_provider_url_without_https # OIDC URL（无 https）
+  depends_on                      = [module.eks]                               # 依赖 EKS 模块
+}
+
 module "task_api" {
   source            = "./modules/app_irsa_s3"                    # 应用级 S3 桶 + IRSA 权限模块
   create_irsa       = var.create_eks                             # 仅在创建 EKS 时生成 IRSA 角色（s3 桶不受影响）

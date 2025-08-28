@@ -1,0 +1,84 @@
+## ADOT Collector Helm values for AMP remote_write via SigV4
+## Namespace: observability
+## ServiceAccount: adot-collector (IRSA annotated)
+
+mode: deployment
+replicaCount: 1
+
+serviceAccount:
+  create: true
+  name: adot-collector
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::563149051155:role/adot-collector
+
+# 用 ADOT Collector 镜像（内置 SigV4 扩展）
+image:
+  repository: public.ecr.aws/aws-observability/aws-otel-collector
+  tag: v0.43.0
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 200m, memory: 256Mi }
+
+clusterRole:
+  # Required for prometheus receiver with kubernetes_sd_configs
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "nodes", "endpoints", "services", "namespaces"]
+      verbs: ["get", "list", "watch"]
+
+config:
+  extensions:
+    # Keep default health_check extension; add SigV4 for request signing
+    health_check: {}
+    sigv4auth:
+      region: us-east-1
+      service: aps
+  receivers:
+    prometheus:
+      config:
+        global:
+          scrape_interval: 30s
+          scrape_timeout: 10s
+        scrape_configs:
+          - job_name: 'task-api'
+            scrape_interval: 30s
+            scrape_timeout: 10s
+            metrics_path: /actuator/prometheus
+            static_configs:
+              # 直接使用 FQDN（Fully Qualified Domain Name，完全限定域名）
+              - targets: ['task-api.svc-task.svc.cluster.local:8080']
+            sample_limit: 2000
+            metric_relabel_configs:
+              # 仅保留关键指标（HTTP 延迟直方图 + JVM 内存）
+              - source_labels: [__name__]
+                regex: 'http_server_requests_seconds_(bucket|sum|count)|jvm_memory_used_bytes'
+                action: keep
+              # 丢弃高基数标签，控制成本
+              - action: labeldrop
+                regex: 'uri|exception'
+  processors:
+    batch:
+      timeout: 5s
+      send_batch_size: 1000
+      send_batch_max_size: 10000
+  exporters:
+    # Remote write to Amazon Managed Prometheus
+    prometheusremotewrite:
+      endpoint: https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-4c9b04d5-5e49-415e-90ef-747450304dca/api/v1/remote_write
+      auth:
+        authenticator: sigv4auth
+  service:
+    extensions:
+      - health_check
+      - sigv4auth
+    pipelines:
+      # Export collector + pod metrics to AMP
+      metrics:
+        receivers:
+          - prometheus
+        processors:
+          - batch
+        exporters:
+          - prometheusremotewrite

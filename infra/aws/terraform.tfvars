@@ -27,6 +27,11 @@ albc_irsa_role_name       = "aws-load-balancer-controller" # ALBC IRSA 角色名
 albc_service_account_name = "aws-load-balancer-controller" # ALBC ServiceAccount 名称
 albc_namespace            = "kube-system"                  # ALBC 所在命名空间
 
+# ADOT Collector（AMP remote_write）IRSA 配置
+adot_irsa_role_name       = "adot-collector" # IRSA 角色名称（用于 ADOT Collector）
+adot_service_account_name = "adot-collector" # ServiceAccount 名称
+adot_namespace            = "observability"  # 命名空间
+
 # --- task-api 应用配置 ---
 task_api_namespace      = "svc-task"
 task_api_sa_name        = "task-api"

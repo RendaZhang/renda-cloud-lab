@@ -29,7 +29,7 @@
 
 # Renda Cloud Lab
 
-- **最后更新**: August 27, 2025, 20:13 (UTC+08:00)
+- **最后更新**: August 28, 2025, 19:00 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -252,8 +252,8 @@ cd renda-cloud-lab
 | --------------------------| -----------------------------------|
 | `preflight.sh`            | 预检 AWS CLI 凭证 + Service Quotas  |
 | `tf-import.sh`            | 将 EKS 集群资源导入 Terraform 状态   |
-| `post-recreate.sh`        | 刷新 kubeconfig 并等待集群就绪后创建 AWS Load Balancer Controller 的 ServiceAccount（解决 Terraform kubeconfig 过期导致的 TLS 握手超时问题），以及自动为最新 NodeGroup 绑定 Spot 通知；应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server、HPA 与 PodDisruptionBudget；部署应用 task-api（多清单 + ECR digest）、确保 ServiceAccount 带 IRSA 注解、发布 Ingress 并完成冒烟验证；运行 aws-cli Job 冒烟验证 STS 身份及 S3 前缀权限。 |
-| `pre-teardown.sh`         | 停止或销毁前删除 ALB 类型 Ingress、卸载 AWS Load Balancer Controller（可选卸载 metrics-server），等待 ALB/TG 回收，为后续资源销毁做准备 |
+| `post-recreate.sh`        | 刷新 kubeconfig 并等待集群就绪后创建 AWS Load Balancer Controller 的 ServiceAccount（解决 Terraform kubeconfig 过期导致的 TLS 握手超时问题），以及自动为最新 NodeGroup 绑定 Spot 通知；应用 ALB 控制器 CRDs 并通过 Helm 安装/升级 AWS Load Balancer Controller、Cluster Autoscaler、metrics-server、HPA 与 PodDisruptionBudget；部署应用 task-api（多清单 + ECR digest，含 Prometheus 抓取注解）、确保 ServiceAccount 带 IRSA 注解、发布 Ingress 并完成冒烟验证；运行 aws-cli Job 冒烟验证 STS 身份及 S3 前缀权限；安装/升级 ADOT Collector 并配置向 AMP remote_write（IRSA + SigV4），具备幂等性（健康即跳过）。 |
+| `pre-teardown.sh`         | 停止或销毁前删除 ALB 类型 Ingress、卸载 AWS Load Balancer Controller（可选卸载 metrics-server 与 ADOT Collector），等待 ALB/TG 回收，为后续资源销毁做准备 |
 | `post-teardown.sh`        | 销毁集群后清理 CloudWatch 日志组、ALB/TargetGroup/安全组，并验证 NAT 网关、EKS 集群及 ASG SNS 通知等资源已删除；支持 `DRY_RUN=true` 预演 |
 | `scale-nodegroup-zero.sh` | 将 EKS 集群所有 NodeGroup 实例数缩容至 0；暂停所有工作节点以降低 EC2 成本 |
 | `update-diagrams.sh`      | 图表生成脚本 |

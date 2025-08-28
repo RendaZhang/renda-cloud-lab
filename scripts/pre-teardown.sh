@@ -18,6 +18,11 @@ ALBC_RELEASE="${ALBC_RELEASE:-aws-load-balancer-controller}"
 UNINSTALL_METRICS_SERVER="${UNINSTALL_METRICS_SERVER:-false}"   # true 则卸载 metrics-server
 WAIT_ALB_DELETION_TIMEOUT="${WAIT_ALB_DELETION_TIMEOUT:-180}"  # 最多等待 180s 让 ALB 被回收
 
+# ADOT Collector（OpenTelemetry Collector）可选卸载
+ADOT_NAMESPACE="${ADOT_NAMESPACE:-observability}"
+ADOT_RELEASE="${ADOT_RELEASE:-adot-collector}"
+UNINSTALL_ADOT_COLLECTOR="${UNINSTALL_ADOT_COLLECTOR:-false}"   # true 则卸载 ADOT Collector
+
 export AWS_PROFILE="$PROFILE"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
@@ -121,6 +126,15 @@ if [[ "$UNINSTALL_METRICS_SERVER" == "true" ]]; then
   kubectl -n kube-system delete deploy metrics-server --ignore-not-found
 else
   log "ℹ️ 未启用 UNINSTALL_METRICS_SERVER，跳过卸载 metrics-server"
+fi
+
+# ====== （可选）卸载 ADOT Collector ======
+if [[ "$UNINSTALL_ADOT_COLLECTOR" == "true" ]]; then
+  log "🧹 卸载 ADOT Collector (release=${ADOT_RELEASE}, ns=${ADOT_NAMESPACE})"
+  helm -n "$ADOT_NAMESPACE" uninstall "$ADOT_RELEASE" || true
+  kubectl -n "$ADOT_NAMESPACE" delete deploy "${ADOT_RELEASE}-opentelemetry-collector" --ignore-not-found
+else
+  log "ℹ️ 未启用 UNINSTALL_ADOT_COLLECTOR，跳过卸载 ADOT Collector"
 fi
 
 log "✅ pre-teardown 完成：Ingress 已删除、ALB Controller 已卸载（ALB 若仍残留将由 post-teardown 兜底清理）"

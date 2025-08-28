@@ -13,6 +13,10 @@ spec:
   template:
     metadata:
       labels: { app: task-api }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8080"
     spec:
       serviceAccountName: task-api
       terminationGracePeriodSeconds: 20

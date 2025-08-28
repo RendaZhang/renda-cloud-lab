@@ -28,7 +28,8 @@
 #  11. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
 #  12. 安装 metrics-server（--kubelet-insecure-tls）
 #  13. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
-#  14. 检查 task-api
+#  14. 安装/升级 ADOT Collector 并配置向 AMP 写指标（IRSA + SigV4）
+#  15. 检查 task-api
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
@@ -99,6 +100,18 @@ ALBC_HELM_REPO_URL="https://aws.github.io/eks-charts"
 POD_ALBC_LABEL="app.kubernetes.io/name=${ALBC_RELEASE_NAME}"
 ALBC_ROLE_NAME="${ALBC_ROLE_NAME:-aws-load-balancer-controller}"
 ALBC_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ALBC_ROLE_NAME}"
+# ADOT Collector + AMP settings
+ADOT_NAMESPACE="${ADOT_NAMESPACE:-observability}"
+ADOT_RELEASE_NAME="${ADOT_RELEASE_NAME:-adot-collector}"
+ADOT_SERVICE_ACCOUNT_NAME="${ADOT_SERVICE_ACCOUNT_NAME:-adot-collector}"
+ADOT_HELM_REPO_NAME="${ADOT_HELM_REPO_NAME:-open-telemetry}"
+ADOT_HELM_REPO_URL="${ADOT_HELM_REPO_URL:-https://open-telemetry.github.io/opentelemetry-helm-charts}"
+# IRSA 角色（默认使用当前账号下的 adot-collector 角色名；可通过环境变量覆盖）
+ADOT_ROLE_NAME="${ADOT_ROLE_NAME:-adot-collector}"
+ADOT_ROLE_ARN="${ADOT_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ADOT_ROLE_NAME}}"
+# Helm values 文件路径（固定在 task-api/k8s 下，便于审阅与版本控制）
+ADOT_VALUES_FILE="${ROOT_DIR}/task-api/k8s/adot-collector-values.yaml"
+
 # ---- Ingress ----
 ING_FILE="${ROOT_DIR}/task-api/k8s/ingress.yaml"
 # ---- HPA ----
@@ -204,29 +217,6 @@ ensure_task_api_service_account() {
     "eks.amazonaws.com/role-arn=${TASK_API_ROLE_ARN}" --overwrite
 }
 
-# ---- aws-cli IRSA smoke test ----
-# Launches a temporary aws-cli Job (serviceAccount=task-api) to:
-#   1) call STS get-caller-identity
-#   2) write/list/read under the allowed S3 prefix
-#   3) verify writes to a disallowed prefix are denied
-awscli_s3_smoke() {
-  log "🧪 aws-cli IRSA S3 smoke test"
-  local manifest="${ROOT_DIR}/task-api/k8s/awscli-smoke.yaml"
-
-  kubectl -n "$NS" apply -f "$manifest"
-
-  if ! kubectl -n "$NS" wait --for=condition=complete job/awscli-smoke --timeout=180s; then
-    kubectl -n "$NS" logs job/awscli-smoke || true
-    kubectl -n "$NS" delete job awscli-smoke --ignore-not-found
-    abort "aws-cli smoke job failed"
-  fi
-
-  kubectl -n "$NS" logs job/awscli-smoke || true
-  kubectl -n "$NS" delete job awscli-smoke --ignore-not-found
-  log "✅ aws-cli smoke test finished"
-}
-
-
 # 确认 Deployment 滚动更新就绪
 check_deployment_ready() {
   log "⏳ 等待 Deployment ${APP} 就绪"
@@ -235,7 +225,6 @@ check_deployment_ready() {
   fi
   log "✅ Deployment ${APP} 已就绪"
 }
-
 
 # 集群内冒烟测试
 task_api_smoke_test() {
@@ -359,6 +348,41 @@ check_ingress_alb() {
   log "✅ ALB DNS Smoke test passed"
 }
 
+# ---- aws-cli IRSA smoke test ----
+# Launches a temporary aws-cli Job (serviceAccount=task-api) to:
+#   1) call STS get-caller-identity
+#   2) write/list/read under the allowed S3 prefix
+#   3) verify writes to a disallowed prefix are denied
+awscli_s3_smoke() {
+  log "🧪 aws-cli IRSA S3 smoke test"
+  local manifest="${ROOT_DIR}/task-api/k8s/awscli-smoke.yaml"
+
+  kubectl -n "$NS" apply -f "$manifest"
+
+  if ! kubectl -n "$NS" wait --for=condition=complete job/awscli-smoke --timeout=180s; then
+    kubectl -n "$NS" logs job/awscli-smoke || true
+    kubectl -n "$NS" delete job awscli-smoke --ignore-not-found
+    abort "aws-cli smoke job failed"
+  fi
+
+  kubectl -n "$NS" logs job/awscli-smoke || true
+  kubectl -n "$NS" delete job awscli-smoke --ignore-not-found
+  log "✅ aws-cli smoke test finished"
+}
+
+check_adot_ready() {
+  # for run_check: returns 0 on healthy with correct IRSA
+  local status
+  status=$(check_adot_status)
+  if [[ "$status" != "healthy" ]]; then
+    return 1
+  fi
+  local sa_arn
+  sa_arn=$(kubectl -n "$ADOT_NAMESPACE" get sa "$ADOT_SERVICE_ACCOUNT_NAME" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
+  [[ -z "$sa_arn" || "$sa_arn" != "$ADOT_ROLE_ARN" ]] && return 1
+  return 0
+}
+
 # 串联 task-api 各项检查
 check_task_api() {
   log "🔍 检查 task-api"
@@ -384,6 +408,7 @@ check_task_api() {
   run_check check_pdb "PodDisruptionBudget"
   run_check check_ingress_alb "Ingress/ALB/DNS"
   run_check awscli_s3_smoke "aws-cli S3 权限"
+  run_check check_adot_ready "ADOT Collector"
 
   log "📊 task-api 检查结果汇总"
   for item in "${summary[@]}"; do
@@ -732,6 +757,73 @@ deploy_taskapi_hpa() {
   kubectl -n "$NS" describe hpa task-api | sed -n '1,60p' || true
 }
 
+### ---- ADOT Collector + AMP (Helm) ----
+check_adot_status() {
+  # returns: healthy|missing|unhealthy
+  local deploy_name="${ADOT_RELEASE_NAME}-opentelemetry-collector"
+  if ! kubectl -n "$ADOT_NAMESPACE" get deployment "$deploy_name" >/dev/null 2>&1; then
+    echo "missing"; return
+  fi
+  if kubectl -n "$ADOT_NAMESPACE" get pod -l app.kubernetes.io/instance="${ADOT_RELEASE_NAME}" --no-headers 2>/dev/null | grep -v Running >/dev/null; then
+    echo "unhealthy"
+  else
+    echo "healthy"
+  fi
+}
+
+deploy_adot_collector() {
+  log "🔍 准备部署 ADOT Collector 到命名空间: ${ADOT_NAMESPACE}"
+  if ! kubectl get ns "${ADOT_NAMESPACE}" >/dev/null 2>&1; then
+    log "🧱 创建命名空间 ${ADOT_NAMESPACE}"
+    kubectl create namespace "${ADOT_NAMESPACE}"
+  fi
+
+  if [[ ! -f "${ADOT_VALUES_FILE}" ]]; then
+    abort "缺少 Helm values 文件: ${ADOT_VALUES_FILE}"
+  fi
+
+  # Skip when already healthy
+  local cur_status
+  cur_status=$(check_adot_status || true)
+  if [[ "$cur_status" == "healthy" ]]; then
+    log "✅ ADOT Collector 已部署且健康，跳过 Helm 升级"
+    # still validate IRSA annotation
+    local sa_arn
+    sa_arn=$(kubectl -n "$ADOT_NAMESPACE" get sa "$ADOT_SERVICE_ACCOUNT_NAME" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
+    [[ "$sa_arn" == "$ADOT_ROLE_ARN" ]] || abort "ADOT ServiceAccount 注解缺失或不匹配 (got='${sa_arn}' expected='${ADOT_ROLE_ARN}')"
+    return 0
+  fi
+
+  if ! helm repo list | grep -q "^${ADOT_HELM_REPO_NAME}\\b"; then
+    log "🔧 添加 ${ADOT_HELM_REPO_NAME} Helm 仓库"
+    helm repo add ${ADOT_HELM_REPO_NAME} ${ADOT_HELM_REPO_URL}
+  fi
+  helm repo update >/dev/null 2>&1 || true
+
+  log "🚀 通过 Helm 安装/升级 ADOT Collector (${ADOT_RELEASE_NAME})"
+  helm upgrade --install "${ADOT_RELEASE_NAME}" ${ADOT_HELM_REPO_NAME}/opentelemetry-collector \
+    -n "${ADOT_NAMESPACE}" --create-namespace \
+    -f "${ADOT_VALUES_FILE}"
+
+  local deploy_name
+  deploy_name="${ADOT_RELEASE_NAME}-opentelemetry-collector"
+  log "⏳ 等待 ADOT Collector Deployment (${deploy_name}) 就绪"
+  if ! kubectl -n "${ADOT_NAMESPACE}" rollout status deployment/"${deploy_name}" --timeout=180s; then
+    kubectl -n "${ADOT_NAMESPACE}" get pods -l app.kubernetes.io/instance="${ADOT_RELEASE_NAME}" || true
+    abort "ADOT Collector 未在 180s 内就绪"
+  fi
+  kubectl -n "${ADOT_NAMESPACE}" get pods -l app.kubernetes.io/instance="${ADOT_RELEASE_NAME}" || true
+
+  # 验证 ServiceAccount IRSA 注解
+  log "🔎 验证 ADOT ServiceAccount IRSA 注解"
+  local sa_arn
+  sa_arn=$(kubectl -n "${ADOT_NAMESPACE}" get sa "${ADOT_SERVICE_ACCOUNT_NAME}" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
+  if [[ -z "${sa_arn}" || "${sa_arn}" != "${ADOT_ROLE_ARN}" ]]; then
+    abort "ADOT ServiceAccount 注解缺失或不匹配 (got='${sa_arn}' expected='${ADOT_ROLE_ARN}')"
+  fi
+  log "✅ ADOT Collector 部署完成并具备 IRSA 注解"
+}
+
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
 
@@ -765,6 +857,8 @@ deploy_task_api
 deploy_task_api_ingress
 
 deploy_metrics_server
+
+deploy_adot_collector
 
 deploy_taskapi_hpa
 

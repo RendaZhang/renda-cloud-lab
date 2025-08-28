@@ -14,6 +14,7 @@
     - [AWS SSO 登录](#aws-sso-%E7%99%BB%E5%BD%95)
     - [Makefile 命令 - stop-all](#makefile-%E5%91%BD%E4%BB%A4---stop-all)
     - [Makefile 命令 - destroy-all](#makefile-%E5%91%BD%E4%BB%A4---destroy-all)
+    - [可选参数与开关（teardown 阶段）](#%E5%8F%AF%E9%80%89%E5%8F%82%E6%95%B0%E4%B8%8E%E5%BC%80%E5%85%B3teardown-%E9%98%B6%E6%AE%B5)
     - [常见错误与排查指引](#%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF%E4%B8%8E%E6%8E%92%E6%9F%A5%E6%8C%87%E5%BC%95-1)
     - [销毁清单验证](#%E9%94%80%E6%AF%81%E6%B8%85%E5%8D%95%E9%AA%8C%E8%AF%81)
 
@@ -21,7 +22,7 @@
 
 # Terraform 重建与销毁流程操作文档
 
-- **最后更新**: August 27, 2025, 20:13 (UTC+08:00)
+- **最后更新**: August 28, 2025, 19:22 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 ---
@@ -198,7 +199,17 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 
 ### Makefile 命令 - start-all
 
-`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：刷新 kubeconfig 并等待集群就绪后创建 AWS Load Balancer Controller ServiceAccount、应用 ALB 控制器 CRDs 并安装/升级 AWS Load Balancer Controller、安装/升级 Cluster Autoscaler、metrics-server、部署 HPA、检查 NAT/ALB/节点组/SNS 绑定、确保 ServiceAccount 带 IRSA 注解，并将应用 `task-api` 及其 PodDisruptionBudget 部署/更新到集群和做集群内冒烟测试；最后运行 aws-cli Job 验证 STS 身份与 S3 前缀权限。
+`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：
+
+- 刷新 kubeconfig 并等待集群就绪；
+- 创建/注解 AWS Load Balancer Controller 的 ServiceAccount（IRSA），应用 CRDs 并通过 Helm 安装/升级 Controller；
+- 安装/升级 Cluster Autoscaler、metrics-server、部署 HPA；
+- 检查 NAT/ALB/节点组/SNS 绑定；
+- 确保应用级 ServiceAccount 带 IRSA 注解；
+- 部署/更新 `task-api` 及其 PodDisruptionBudget，并执行集群内冒烟；
+- 发布 Ingress 并做 ALB DNS 冒烟；
+- 运行 aws-cli Job 验证 STS 身份及 S3 前缀权限；
+- 安装/升级 ADOT Collector（OpenTelemetry Collector）并配置向 Amazon Managed Prometheus（AMP）进行 remote_write（SigV4 签名 + IRSA）。
 
 ### 常见错误与排查指引
 
@@ -374,6 +385,20 @@ Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway
     kubectl -n svc-task delete job awscli-smoke --ignore-not-found
     ```
   - **预期**：日志包含 STS 身份信息，可在允许前缀写入/列举/读取，并在不允许前缀写入时得到 `AccessDenied`。
+- [x] **ADOT Collector（OpenTelemetry Collector）**：
+  - 部署健康：
+    ```bash
+    kubectl -n observability get deploy,pod -l app.kubernetes.io/instance=adot-collector
+    ```
+    期望 Deployment 可用且 Pod 为 `Running`。
+  - IRSA 注解：
+    ```bash
+    kubectl -n observability get sa adot-collector -o yaml | rg 'eks.amazonaws.com/role-arn'
+    ```
+    期望显示 `arn:aws:iam::563149051155:role/adot-collector`；
+  - AMP 写入验证（在 AMP 查询控制台）：
+    - `otelcol_receiver_accepted_metric_points`
+    - 或按应用指标查询，如：`sum by (k8s_namespace,k8s_pod)(rate(http_server_requests_seconds_count[5m]))`
 
 ---
 
@@ -395,7 +420,7 @@ make aws-login
 
 ### Makefile 命令 - stop-all
 
-`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server），随后执行 `make stop` 一键销毁 NAT 网关、ALB 以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
+`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server 与 ADOT Collector），随后执行 `make stop` 一键销毁 NAT 网关、ALB 以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
 
 执行前请确认已登录 AWS 且后端状态配置正确，以免销毁过程因权限问题中断。
 
@@ -413,7 +438,7 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
 
 执行 `make destroy-all` 触发一键完全销毁流程。
 
-该命令首先运行 `pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
+该命令首先运行 `pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server 与 ADOT Collector），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
 
 `make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。
 
@@ -428,6 +453,17 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
 **请注意**：
 
 完全销毁后，下次重建前需要重新执行 `terraform init` 初始化，以确保 Terraform 能正确连接远端后端并重新创建所需资源。因为状态文件清空后，Terraform 本地可能需要重新获取后端配置。
+
+### 可选参数与开关（teardown 阶段）
+
+- `UNINSTALL_METRICS`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `metrics-server`。
+- `UNINSTALL_ADOT`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `ADOT Collector`（Helm release: `adot-collector`，ns: `observability`）。
+- 直接调用脚本时可使用同义环境变量：
+  - `UNINSTALL_METRICS_SERVER=true bash scripts/pre-teardown.sh`
+  - `UNINSTALL_ADOT_COLLECTOR=false bash scripts/pre-teardown.sh`
+- 其他：
+  - `WAIT_ALB_DELETION_TIMEOUT`（默认 180）：等待 ALB 回收的最长秒数。
+  - `DRY_RUN`（仅 `post-teardown.sh`，默认 `false`）：只打印将执行的删除动作而不实际删除。
 
 ### 常见错误与排查指引
 
