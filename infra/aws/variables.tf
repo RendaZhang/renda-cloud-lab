@@ -84,6 +84,25 @@ variable "adot_namespace" {
   default     = "observability"
 }
 
+# -------- Grafana (AMP query) IRSA 配置 --------
+variable "grafana_irsa_role_name" {
+  description = "Name of the IRSA role for Grafana"
+  type        = string
+  default     = "grafana-amp-query"
+}
+
+variable "grafana_service_account_name" {
+  description = "Kubernetes ServiceAccount name for Grafana"
+  type        = string
+  default     = "grafana"
+}
+
+variable "grafana_namespace" {
+  description = "Namespace for Grafana ServiceAccount"
+  type        = string
+  default     = "observability"
+}
+
 variable "eksctl_version" {
   description = "Version of eksctl to use"
   type        = string

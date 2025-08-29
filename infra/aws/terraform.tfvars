@@ -32,6 +32,11 @@ adot_irsa_role_name       = "adot-collector" # IRSA 角色名称（用于 ADOT C
 adot_service_account_name = "adot-collector" # ServiceAccount 名称
 adot_namespace            = "observability"  # 命名空间
 
+# Grafana（AMP query）IRSA 配置
+grafana_irsa_role_name       = "grafana-amp-query" # IRSA 角色名称（用于 Grafana）
+grafana_service_account_name = "grafana"           # ServiceAccount 名称
+grafana_namespace            = "observability"     # 命名空间
+
 # --- task-api 应用配置 ---
 task_api_namespace      = "svc-task"
 task_api_sa_name        = "task-api"

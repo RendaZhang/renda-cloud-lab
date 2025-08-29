@@ -39,6 +39,11 @@ output "adot_amp_role_arn" {
   value       = var.create_eks ? module.irsa_adot_amp[0].adot_amp_role_arn : null
 }
 
+output "grafana_amp_role_arn" {
+  description = "Grafana AMP query 使用的 IAM 角色 ARN"
+  value       = var.create_eks ? module.irsa_grafana_amp[0].grafana_amp_role_arn : null
+}
+
 output "task_api_irsa_role_arn" {
   description = "task-api 应用使用的 IRSA Role ARN"
   value       = var.create_eks ? module.task_api.irsa_role_arn : null
