@@ -8,7 +8,7 @@ service:
   type: ClusterIP
   port: 80
 
-# --- IRSA：让 Helm 创建 SA 并挂上你刚才的 Role ARN ---
+# --- IRSA：让 Helm 创建 SA 并挂上 Role ARN ---
 serviceAccount:
   create: true
   name: grafana
@@ -30,14 +30,20 @@ datasources:
     apiVersion: 1
     datasources:
       - name: AMP
+        # 使用 AMP 专用类型
         type: grafana-amazonprometheus-datasource
         isDefault: true
         access: proxy
-        url: https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-4c9b04d5-5e49-415e-90ef-747450304dca/
+        url: https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-4c9b04d5-5e49-415e-90ef-747450304dca
         jsonData:
           authType: default               # 使用 AWS SDK 默认链（IRSA）
           defaultRegion: us-east-1
-          httpMethod: POST                # 建议 POST（AMP 支持）
+          httpMethod: POST
+          # 添加显式配置
+          sigV4Auth: true
+          sigV4AuthType: default
+          sigV4Region: us-east-1
+          sigV4AssumeRoleArn: arn:aws:iam::563149051155:role/grafana-amp-query
         editable: false
 
 # --- 管理员账号（临时密码，登陆后请改） ---
