@@ -1,4 +1,5 @@
-# --- 基础运行形态 ---
+---
+# 基础运行形态 ---
 replicas: 1
 image:
   repository: grafana/grafana
@@ -34,16 +35,15 @@ datasources:
         type: grafana-amazonprometheus-datasource
         isDefault: true
         access: proxy
-        url: https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-4c9b04d5-5e49-415e-90ef-747450304dca
+        url: https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-4c9b04d5-5e49-415e-90ef-747450304dca  # yamllint disable-line rule:line-length
         jsonData:
           authType: default               # 使用 AWS SDK 默认链（IRSA）
           defaultRegion: us-east-1
           httpMethod: POST
-          # 添加显式配置
+          # 添加显式配置（直接使用 Pod 角色，无需再 AssumeRole）
           sigV4Auth: true
           sigV4AuthType: default
           sigV4Region: us-east-1
-          sigV4AssumeRoleArn: arn:aws:iam::563149051155:role/grafana-amp-query
         editable: false
 
 # --- 管理员账号（临时密码，登陆后请改） ---
@@ -52,5 +52,5 @@ adminPassword: "password"
 
 # --- 资源略收敛即可 ---
 resources:
-  requests: { cpu: 100m, memory: 128Mi }
-  limits:   { cpu: 200m, memory: 256Mi }
+  requests: {cpu: 100m, memory: 128Mi}
+  limits: {cpu: 200m, memory: 256Mi}
