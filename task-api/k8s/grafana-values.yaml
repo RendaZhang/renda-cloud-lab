@@ -1,0 +1,50 @@
+# --- 基础运行形态 ---
+replicas: 1
+image:
+  repository: grafana/grafana
+  tag: "11.5.0"          # AMP 插件 v2.x 需 Grafana >= 11.5（稳妥起见固定一个 >=11.5 的版本）
+
+service:
+  type: ClusterIP
+  port: 80
+
+# --- IRSA：让 Helm 创建 SA 并挂上你刚才的 Role ARN ---
+serviceAccount:
+  create: true
+  name: grafana
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::563149051155:role/grafana-amp-query
+
+# --- 开启 SigV4 支持 & 让 SDK 走默认凭证链（IRSA） ---
+env:
+  AWS_SDK_LOAD_CONFIG: "true"
+  GF_AUTH_SIGV4_AUTH_ENABLED: "true"
+
+# --- 安装 AMP 数据源插件 ---
+plugins:
+  - grafana-amazonprometheus-datasource
+
+# --- 以 provisioning 方式声明数据源（默认指向 AMP） ---
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: AMP
+        type: grafana-amazonprometheus-datasource
+        isDefault: true
+        access: proxy
+        url: https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-4c9b04d5-5e49-415e-90ef-747450304dca/
+        jsonData:
+          authType: default               # 使用 AWS SDK 默认链（IRSA）
+          defaultRegion: us-east-1
+          httpMethod: POST                # 建议 POST（AMP 支持）
+        editable: false
+
+# --- 管理员账号（临时密码，登陆后请改） ---
+adminUser: admin
+adminPassword: "password"
+
+# --- 资源略收敛即可 ---
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 200m, memory: 256Mi }
