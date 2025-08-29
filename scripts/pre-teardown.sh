@@ -4,7 +4,7 @@
 # 目的:
 #   1) 删除所有 ALB 类型的 Ingress, 触发 ALBC 优雅回收云侧 ALB/TG
 #   2) 卸载 AWS Load Balancer Controller (Helm)
-#   3) (可选) 卸载 metrics-server
+#   3) (可选) 卸载 metrics-server / ADOT Collector / Grafana
 # 设计: 幂等、安全
 # ------------------------------------------------------------
 set -euo pipefail
@@ -22,6 +22,11 @@ WAIT_ALB_DELETION_TIMEOUT="${WAIT_ALB_DELETION_TIMEOUT:-180}"  # 最多等待 18
 ADOT_NAMESPACE="${ADOT_NAMESPACE:-observability}"
 ADOT_RELEASE="${ADOT_RELEASE:-adot-collector}"
 UNINSTALL_ADOT_COLLECTOR="${UNINSTALL_ADOT_COLLECTOR:-false}"   # true 则卸载 ADOT Collector
+
+# Grafana 可选卸载
+GRAFANA_NAMESPACE="${GRAFANA_NAMESPACE:-observability}"
+GRAFANA_RELEASE="${GRAFANA_RELEASE:-grafana}"
+UNINSTALL_GRAFANA="${UNINSTALL_GRAFANA:-false}"   # true 则卸载 Grafana
 
 export AWS_PROFILE="$PROFILE"
 
@@ -135,6 +140,15 @@ if [[ "$UNINSTALL_ADOT_COLLECTOR" == "true" ]]; then
   kubectl -n "$ADOT_NAMESPACE" delete deploy "${ADOT_RELEASE}-opentelemetry-collector" --ignore-not-found
 else
   log "ℹ️ 未启用 UNINSTALL_ADOT_COLLECTOR，跳过卸载 ADOT Collector"
+fi
+
+# ====== （可选）卸载 Grafana ======
+if [[ "$UNINSTALL_GRAFANA" == "true" ]]; then
+  log "🧹 卸载 Grafana (release=${GRAFANA_RELEASE}, ns=${GRAFANA_NAMESPACE})"
+  helm -n "$GRAFANA_NAMESPACE" uninstall "$GRAFANA_RELEASE" || true
+  kubectl -n "$GRAFANA_NAMESPACE" delete deploy "$GRAFANA_RELEASE" --ignore-not-found
+else
+  log "ℹ️ 未启用 UNINSTALL_GRAFANA，跳过卸载 Grafana"
 fi
 
 log "✅ pre-teardown 完成：Ingress 已删除、ALB Controller 已卸载（ALB 若仍残留将由 post-teardown 兜底清理）"

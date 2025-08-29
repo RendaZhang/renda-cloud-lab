@@ -29,9 +29,10 @@
 #  10. 部署 task-api（镜像由 task-api 子项目构建并固定 ECR digest，配置探针/资源，并创建 PodDisruptionBudget）并在集群内冒烟
 #  11. 发布 Ingress，等待公网 ALB 就绪并做 HTTP 冒烟
 #  12. 安装 metrics-server（--kubelet-insecure-tls）
-#  13. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
-#  14. 安装/升级 ADOT Collector 并配置向 AMP 写指标（IRSA + SigV4）
-#  15. 检查 task-api
+#  13. 安装/升级 ADOT Collector 并配置向 AMP 写指标（IRSA + SigV4）
+#  14. 安装/升级 Grafana（IRSA + SigV4 插件）
+#  15. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
+#  16. 检查 task-api
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
@@ -113,6 +114,13 @@ ADOT_ROLE_NAME="${ADOT_ROLE_NAME:-adot-collector}"
 ADOT_ROLE_ARN="${ADOT_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ADOT_ROLE_NAME}}"
 # Helm values 文件路径（固定在 task-api/k8s 下，便于审阅与版本控制）
 ADOT_VALUES_FILE="${ROOT_DIR}/task-api/k8s/adot-collector-values.yaml"
+
+# Grafana settings
+GRAFANA_NAMESPACE="${GRAFANA_NAMESPACE:-observability}"
+GRAFANA_RELEASE_NAME="${GRAFANA_RELEASE_NAME:-grafana}"
+GRAFANA_HELM_REPO_NAME="${GRAFANA_HELM_REPO_NAME:-grafana}"
+GRAFANA_HELM_REPO_URL="${GRAFANA_HELM_REPO_URL:-https://grafana.github.io/helm-charts}"
+GRAFANA_VALUES_FILE="${ROOT_DIR}/task-api/k8s/grafana-values.yaml"
 
 # ---- Ingress ----
 ING_FILE="${ROOT_DIR}/task-api/k8s/ingress.yaml"
@@ -407,6 +415,28 @@ check_adot_ready() {
   fi
 }
 
+check_grafana_ready() {
+  log "🔎 Grafana 端到端验证"
+  local status
+  status=$(check_grafana_status)
+  [[ "$status" != "healthy" ]] && abort "Grafana 状态异常: $status"
+
+  kubectl -n "$GRAFANA_NAMESPACE" port-forward svc/"$GRAFANA_RELEASE_NAME" 3000:80 >/tmp/grafana-pf.log 2>&1 &
+  local pf_pid=$!
+  sleep 3
+  local code
+  code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/health || true)
+  kill $pf_pid 2>/dev/null || true
+  wait $pf_pid 2>/dev/null || true
+  if [[ "$code" == "200" ]]; then
+    log "✅ Grafana /api/health 可访问"
+    return 0
+  else
+    log "❌ Grafana /api/health 返回码: $code"
+    return 1
+  fi
+}
+
 # 串联 task-api 各项检查
 check_task_api() {
   log "🔍 检查 task-api"
@@ -433,6 +463,7 @@ check_task_api() {
   run_check check_ingress_alb "Ingress/ALB/DNS"
   run_check awscli_s3_smoke "aws-cli S3 权限"
   run_check check_adot_ready "ADOT Collector"
+  run_check check_grafana_ready "Grafana 端到端"
 
   log "📊 task-api 检查结果汇总"
   for item in "${summary[@]}"; do
@@ -445,6 +476,7 @@ check_task_api() {
 
   log "✅ task-api 检查完成"
 }
+
 # 安装或升级 AWS Load Balancer Controller
 install_albc_controller() {
   local status
@@ -837,6 +869,58 @@ deploy_adot_collector() {
   kubectl -n "${ADOT_NAMESPACE}" get pods -l app.kubernetes.io/instance="${ADOT_RELEASE_NAME}" || true
 }
 
+### ---- Grafana (Helm) ----
+check_grafana_status() {
+  # returns: healthy|missing|unhealthy
+  if ! kubectl -n "$GRAFANA_NAMESPACE" get deployment "$GRAFANA_RELEASE_NAME" >/dev/null 2>&1; then
+    echo "missing"; return
+  fi
+  if kubectl -n "$GRAFANA_NAMESPACE" get pod -l app.kubernetes.io/instance="${GRAFANA_RELEASE_NAME}" --no-headers 2>/dev/null | grep -v Running >/dev/null; then
+    echo "unhealthy"
+  else
+    echo "healthy"
+  fi
+}
+
+deploy_grafana() {
+  log "🔍 准备部署 Grafana 到命名空间: ${GRAFANA_NAMESPACE}"
+  if ! kubectl get ns "${GRAFANA_NAMESPACE}" >/dev/null 2>&1; then
+    log "🧱 创建命名空间 ${GRAFANA_NAMESPACE}"
+    kubectl create namespace "${GRAFANA_NAMESPACE}"
+  fi
+
+  if [[ ! -f "${GRAFANA_VALUES_FILE}" ]]; then
+    abort "缺少 Helm values 文件: ${GRAFANA_VALUES_FILE}"
+  fi
+
+  local cur_status
+  cur_status=$(check_grafana_status || true)
+  if [[ "$cur_status" == "healthy" ]]; then
+    log "✅ Grafana 已部署且健康，跳过 Helm 升级"
+    return 0
+  elif [[ "$cur_status" == "unhealthy" ]]; then
+    log "⚠️ Grafana 存在但未就绪，重新部署"
+  fi
+
+  if ! helm repo list | grep -q "^${GRAFANA_HELM_REPO_NAME}\\b"; then
+    log "🔧 添加 ${GRAFANA_HELM_REPO_NAME} Helm 仓库"
+    helm repo add ${GRAFANA_HELM_REPO_NAME} ${GRAFANA_HELM_REPO_URL}
+  fi
+  helm repo update >/dev/null 2>&1 || true
+
+  log "🚀 通过 Helm 安装/升级 Grafana (${GRAFANA_RELEASE_NAME})"
+  helm upgrade --install "${GRAFANA_RELEASE_NAME}" ${GRAFANA_HELM_REPO_NAME}/grafana \
+    -n "${GRAFANA_NAMESPACE}" --create-namespace \
+    -f "${GRAFANA_VALUES_FILE}"
+
+  log "⏳ 等待 Grafana Deployment 就绪"
+  if ! kubectl -n "${GRAFANA_NAMESPACE}" rollout status deployment/"${GRAFANA_RELEASE_NAME}" --timeout=180s; then
+    kubectl -n "${GRAFANA_NAMESPACE}" get pods -l app.kubernetes.io/instance="${GRAFANA_RELEASE_NAME}" || true
+    abort "Grafana 未在 180s 内就绪"
+  fi
+  kubectl -n "${GRAFANA_NAMESPACE}" get pods -l app.kubernetes.io/instance="${GRAFANA_RELEASE_NAME}" || true
+}
+
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
 
@@ -872,6 +956,8 @@ deploy_task_api_ingress
 deploy_metrics_server
 
 deploy_adot_collector
+
+deploy_grafana
 
 deploy_taskapi_hpa
 

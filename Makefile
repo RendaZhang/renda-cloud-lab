@@ -12,6 +12,7 @@ POST_RECREATE         ?= $(SCRIPTS_DIR)/post-recreate.sh
 DRY_RUN               ?= false          # true 仅打印将执行的操作
 UNINSTALL_METRICS     ?= true           # pre-teardown 默认卸载 metrics-server
 UNINSTALL_ADOT        ?= true           # pre-teardown 默认卸载 ADOT Collector
+UNINSTALL_GRAFANA     ?= true           # pre-teardown 默认卸载 Grafana
 
 .PHONY: check check-auto preflight aws-login init plan start post-recreate start-all \
         scale-zero stop pre-teardown post-teardown stop-all destroy-all logs clean \
@@ -90,6 +91,7 @@ pre-teardown:
 	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
 		UNINSTALL_METRICS_SERVER=$(UNINSTALL_METRICS) \
 		UNINSTALL_ADOT_COLLECTOR=$(UNINSTALL_ADOT) \
+		UNINSTALL_GRAFANA=$(UNINSTALL_GRAFANA) \
 		bash $(PRE_TEARDOWN) | tee scripts/logs/pre-teardown.log
 
 ## 🛠️ 清理残留日志组 + 兜底强删 ALB/TargetGroup/安全组（按标签）
