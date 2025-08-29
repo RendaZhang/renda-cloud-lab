@@ -121,6 +121,9 @@ GRAFANA_RELEASE_NAME="${GRAFANA_RELEASE_NAME:-grafana}"
 GRAFANA_HELM_REPO_NAME="${GRAFANA_HELM_REPO_NAME:-grafana}"
 GRAFANA_HELM_REPO_URL="${GRAFANA_HELM_REPO_URL:-https://grafana.github.io/helm-charts}"
 GRAFANA_VALUES_FILE="${ROOT_DIR}/task-api/k8s/grafana-values.yaml"
+GRAFANA_SERVICE_ACCOUNT_NAME="${GRAFANA_SERVICE_ACCOUNT_NAME:-grafana}"
+GRAFANA_ROLE_NAME="${GRAFANA_ROLE_NAME:-grafana-amp-query}"
+GRAFANA_ROLE_ARN="${GRAFANA_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${GRAFANA_ROLE_NAME}}"
 
 # ---- Ingress ----
 ING_FILE="${ROOT_DIR}/task-api/k8s/ingress.yaml"
@@ -255,45 +258,91 @@ task_api_smoke_test() {
 verify_irsa_env() {
   log "🔎 验证 IRSA 注入与运行时环境"
 
-  kubectl -n "${NS}" get sa "${TASK_API_SERVICE_ACCOUNT_NAME}" -o yaml | \
-    grep -q "eks.amazonaws.com/role-arn" || \
-    abort "ServiceAccount 未正确注解 eks.amazonaws.com/role-arn"
+  local summary=()
+  local fails=0
 
+  # --- task-api ServiceAccount annotation ---
+  local sa_arn
+  sa_arn=$(kubectl -n "${NS}" get sa "${TASK_API_SERVICE_ACCOUNT_NAME}" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
+  if [[ "$sa_arn" == "$TASK_API_ROLE_ARN" ]]; then
+    summary+=("✅ task-api ServiceAccount 注解正确")
+  else
+    summary+=("❌ task-api ServiceAccount 注解缺失或不匹配 (got='${sa_arn}')")
+    fails=$((fails+1))
+  fi
+
+  # --- task-api Pod checks ---
   local pod
-  pod=$(kubectl -n "${NS}" get pods -l app="${TASK_API_SERVICE_ACCOUNT_NAME}" \
-    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-  [[ -z "$pod" ]] && abort "未找到 ${APP} Pod，无法进行 IRSA 自检"
+  pod=$(kubectl -n "${NS}" get pods -l app="${TASK_API_SERVICE_ACCOUNT_NAME}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  if [[ -z "$pod" ]]; then
+    summary+=("❌ 未找到 ${APP} Pod，无法进行 IRSA 自检")
+    fails=$((fails+1))
+  else
+    local wait_time=0
+    local max_wait=60
+    local pod_status
+    while [[ $wait_time -lt $max_wait ]]; do
+      pod_status=$(kubectl -n "${NS}" get pod "$pod" -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+      [[ "$pod_status" == "Running" ]] && break
+      sleep 3
+      wait_time=$((wait_time+3))
+    done
+    if [[ "$pod_status" != "Running" ]]; then
+      summary+=("❌ Pod $pod 未进入 Running 状态 (当前: $pod_status)")
+      fails=$((fails+1))
+    else
+      local env_out missing_env=()
+      if ! env_out=$(kubectl -n "${NS}" exec "$pod" -- sh -lc 'env'); then
+        summary+=("❌ 无法获取 Pod 环境变量")
+        fails=$((fails+1))
+      else
+        for key in S3_BUCKET S3_PREFIX AWS_REGION AWS_ROLE_ARN AWS_WEB_IDENTITY_TOKEN_FILE; do
+          if ! echo "$env_out" | grep -q "^${key}="; then
+            missing_env+=("$key")
+          fi
+        done
+        if (( ${#missing_env[@]} > 0 )); then
+          summary+=("❌ 缺少环境变量: ${missing_env[*]}")
+          fails=$((fails+1))
+        else
+          summary+=("✅ 环境变量注入正确")
+        fi
+      fi
 
-  local wait_time=0
-  local max_wait=60
-  local pod_status
-  while [[ $wait_time -lt $max_wait ]]; do
-    pod_status=$(kubectl -n "${NS}" get pod "$pod" -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-    [[ "$pod_status" == "Running" ]] && break
-    sleep 3
-    wait_time=$((wait_time+3))
-  done
-  [[ "$pod_status" != "Running" ]] && abort "Pod $pod 未进入 Running 状态，当前状态: $pod_status"
+      if kubectl -n "${NS}" exec "$pod" -- sh -lc 'ls -l /var/run/secrets/eks.amazonaws.com/serviceaccount/ && [ -s /var/run/secrets/eks.amazonaws.com/serviceaccount/token ]' >/dev/null; then
+        summary+=("✅ WebIdentity Token 存在且非空")
+      else
+        summary+=("❌ WebIdentity Token 缺失或为空")
+        fails=$((fails+1))
+      fi
+    fi
+  fi
 
-  local env_out
-  env_out=$(kubectl -n "${NS}" exec "$pod" -- sh -lc 'env') || \
-    abort "无法获取 Pod 环境变量"
-  for key in S3_BUCKET S3_PREFIX AWS_REGION AWS_ROLE_ARN AWS_WEB_IDENTITY_TOKEN_FILE; do
-    echo "$env_out" | grep -q "^${key}=" || abort "缺少环境变量 ${key}"
-  done
-
-  kubectl -n "${NS}" exec "$pod" -- sh -lc \
-    'ls -l /var/run/secrets/eks.amazonaws.com/serviceaccount/ && \
-     [ -s /var/run/secrets/eks.amazonaws.com/serviceaccount/token ]' >/dev/null || \
-     abort "WebIdentity Token 缺失或为空"
-
-  log "✅ task-api ServiceAccount IRSA 自检通过"
-
-  log "🔎 验证 ADOT Collector ServiceAccount IRSA 注解"
+  # --- ADOT Collector ServiceAccount annotation ---
   local adot_sa_arn
   adot_sa_arn=$(kubectl -n "$ADOT_NAMESPACE" get sa "$ADOT_SERVICE_ACCOUNT_NAME" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
-  [[ -z "$adot_sa_arn" || "$adot_sa_arn" != "$ADOT_ROLE_ARN" ]] && abort "ADOT Collector ServiceAccount IRSA 注解缺失或不匹配"
-  log "✅ ADOT Collector ServiceAccount IRSA 注解正确"
+  if [[ "$adot_sa_arn" == "$ADOT_ROLE_ARN" ]]; then
+    summary+=("✅ ADOT Collector ServiceAccount 注解正确")
+  else
+    summary+=("❌ ADOT Collector ServiceAccount 注解缺失或不匹配 (got='${adot_sa_arn}')")
+    fails=$((fails+1))
+  fi
+
+  # --- Grafana ServiceAccount annotation ---
+  local grafana_sa_arn
+  grafana_sa_arn=$(kubectl -n "$GRAFANA_NAMESPACE" get sa "$GRAFANA_SERVICE_ACCOUNT_NAME" -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' 2>/dev/null || true)
+  if [[ "$grafana_sa_arn" == "$GRAFANA_ROLE_ARN" ]]; then
+    summary+=("✅ Grafana ServiceAccount 注解正确")
+  else
+    summary+=("❌ Grafana ServiceAccount 注解缺失或不匹配 (got='${grafana_sa_arn}')")
+    fails=$((fails+1))
+  fi
+
+  for item in "${summary[@]}"; do
+    log "$item"
+  done
+
+  [[ $fails -eq 0 ]]
 }
 
 # 验证 PodDisruptionBudget
