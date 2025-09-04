@@ -26,7 +26,7 @@
     - [BUG-017: `aws_vpc_endpoint` 提示 deprecated 属性（service\_name 组成方式）](#bug-017-aws_vpc_endpoint-%E6%8F%90%E7%A4%BA-deprecated-%E5%B1%9E%E6%80%A7service%5C_name-%E7%BB%84%E6%88%90%E6%96%B9%E5%BC%8F)
     - [BUG-018: 通过 Terraform 创建 K8s ServiceAccount 偶发 TLS 握手超时](#bug-018-%E9%80%9A%E8%BF%87-terraform-%E5%88%9B%E5%BB%BA-k8s-serviceaccount-%E5%81%B6%E5%8F%91-tls-%E6%8F%A1%E6%89%8B%E8%B6%85%E6%97%B6)
     - [BUG-019: Grafana AMP 数据源使用错误类型导致认证失败](#bug-019-grafana-amp-%E6%95%B0%E6%8D%AE%E6%BA%90%E4%BD%BF%E7%94%A8%E9%94%99%E8%AF%AF%E7%B1%BB%E5%9E%8B%E5%AF%BC%E8%87%B4%E8%AE%A4%E8%AF%81%E5%A4%B1%E8%B4%A5)
-    - [BUG-020: Grafana AMP 数据源错误配置 assumeRoleArn 导致 403 权限错误](#bug-020-grafana-amp-%E6%95%B0%E6%8D%AE%E6%BA%90%E9%94%99%E8%AF%AF%E9%85%8D%E7%BD%AE-assumerolearn-%E5%AF%BC%E8%87%B4-403-%E6%9D%83%E9%99%90%E9%94%99%E8%AF%AF)
+    - [BUG-020: Grafana AMP 数据源 Save & Test 报 `AccessDenied: sts:AssumeRole`](#bug-020-grafana-amp-%E6%95%B0%E6%8D%AE%E6%BA%90-save--test-%E6%8A%A5-accessdenied-stsassumerole)
   - [附录](#%E9%99%84%E5%BD%95)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -736,29 +736,31 @@ type: grafana-amazonprometheus-datasource
 - **适用版本**：Grafana 11.5.0 + grafana-amazonprometheus-datasource 插件 v2.x
 - **经验总结**：AMP 数据源需要专用类型才能正确支持 AWS 认证机制，使用通用 Prometheus 类型无法处理 SigV4 签名认证
 
-### BUG-020: Grafana AMP 数据源错误配置 assumeRoleArn 导致 403 权限错误
+### BUG-020: Grafana AMP 数据源 Save & Test 报 `AccessDenied: sts:AssumeRole`
 
-- **问题状态**：已关闭 (Closed)
-- **发现日期**：2025-08-29
-- **问题现象**：即使使用正确的数据源类型，测试 AMP 数据源仍返回 403 Forbidden 错误，Web 界面显示 "Assume Role ARN" 和 "Default Region" 为空的可输入框
-- **背景场景**：在已配置 IRSA 的 EKS 环境中，Grafana Pod 已通过服务账户获得正确的 IAM 角色权限
-- **复现方式**：在数据源 jsonData 中配置 `assumeRoleArn` 参数，导致重复 AssumeRole 操作
-- **根因分析**：当 Pod 已通过 IRSA 获得有效角色凭证时，在数据源配置中再次指定 `assumeRoleArn` 会导致插件尝试重复 AssumeRole 操作，造成权限冲突和 403 错误
-- **修复方法**：移除 `assumeRoleArn` 配置，让插件直接使用 Pod 通过 IRSA 获取的 IAM 角色凭证，并显式启用 SigV4 认证
+- **问题状态**：已解决 (Resolved)
+- **发现日期**：2025-09-29
+- **问题现象**：
+  - 在 Grafana 中测试 AMP 数据源时出现：`failed to refresh cached credentials, operation error STS: AssumeRole ... AccessDenied`。
+- **背景场景**：
+  - Grafana Pod 已通过 IRSA 绑定 `grafana-amp-query` IAM 角色。
+  - 数据源 `jsonData` 中额外设置了 `sigV4AssumeRoleArn` 指向同一角色。
+- **复现方式**：
+  - 部署包含该配置的 `grafana-values.yaml`，登录 Grafana，在 **Connections → Data sources → AMP** 点击 **Save & Test**。
+- **根因分析**：
+  - 设置 `sigV4AssumeRoleArn` 会让 AWS SDK 再次调用 STS `AssumeRole`。
+  - 由于角色信任策略仅允许 OIDC 身份，而不允许角色自身调用 `AssumeRole`，导致 403 `AccessDenied`。
+- **修复方法**：
+  - 从数据源配置中移除 `sigV4AssumeRoleArn`，让 Grafana 直接使用 IRSA 提供的临时凭证。
 - **相关命令**：
-```yaml
-# 修复后的配置
-jsonData:
-  authType: default
-  defaultRegion: us-east-1
-  httpMethod: POST
-  sigV4Auth: true
-  sigV4AuthType: default
-  sigV4Region: us-east-1
-# 不再配置 assumeRoleArn
-```
-- **适用版本**：Grafana 11.5.0 + grafana-amazonprometheus-datasource 插件 v2.x
-- **经验总结**：在已启用 IRSA 的环境中，Grafana AMP 数据源应直接使用 Pod 获得的角色凭证，避免重复配置 assumeRoleArn。需要显式启用 SigV4 认证 (`sigV4Auth: true`) 并指定认证类型 (`sigV4AuthType: default`)
+  ```bash
+  helm upgrade --install grafana grafana/grafana \
+    -n observability -f task-api/k8s/grafana-values.yaml
+  ```
+  - 端口转发后在浏览器 `Save & Test` 应返回 `Data source is working`。
+- **适用版本**：
+  - Grafana ≥11.5
+  - 插件 `grafana-amazonprometheus-datasource` v2.x
 
 ---
 
