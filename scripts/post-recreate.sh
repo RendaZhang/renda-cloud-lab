@@ -470,18 +470,72 @@ check_grafana_ready() {
   status=$(check_grafana_status)
   [[ "$status" != "healthy" ]] && abort "Grafana 状态异常: $status"
 
-  kubectl -n "$GRAFANA_NAMESPACE" port-forward svc/"$GRAFANA_RELEASE_NAME" 3000:80 >/tmp/grafana-pf.log 2>&1 &
-  local pf_pid=$!
-  sleep 3
-  local code
-  code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/health || true)
-  kill $pf_pid 2>/dev/null || true
-  wait $pf_pid 2>/dev/null || true
+  # 依次尝试多个本地端口，避免 3000 被占用导致端口转发失败
+  local ports=(3000 3001 8080 18080)
+  local code=""
+  local chosen_port=""
+  local pf_pid=0
+  local pf_log="/tmp/grafana-pf.log"
+
+  for p in "${ports[@]}"; do
+    # 清理旧日志并启动端口转发
+    : > "$pf_log"
+    kubectl -n "$GRAFANA_NAMESPACE" port-forward svc/"$GRAFANA_RELEASE_NAME" "${p}:80" --address 127.0.0.1 >"$pf_log" 2>&1 &
+    pf_pid=$!
+
+    # 等待端口转发就绪或失败（最长 ~10s）
+    local wait_ok=0
+    for i in {1..20}; do
+      # 端口转发成功时日志会出现 "Forwarding from"
+      if grep -q "Forwarding from" "$pf_log"; then
+        wait_ok=1
+        break
+      fi
+      # 若进程已退出，说明该端口可能被占用或其它错误，尝试下一个端口
+      if ! ps -p $pf_pid >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.5
+    done
+
+    if [[ $wait_ok -ne 1 ]]; then
+      kill $pf_pid 2>/dev/null || true
+      wait $pf_pid 2>/dev/null || true
+      continue
+    fi
+
+    # 端口转发已建立，尝试多次访问 /api/health 等待 Grafana 就绪
+    for i in {1..15}; do
+      code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:${p}/api/health" || true)
+      if [[ "$code" == "200" ]]; then
+        chosen_port=$p
+        break
+      fi
+      sleep 2
+    done
+
+    # 无论成功与否，先关闭当前端口转发
+    kill $pf_pid 2>/dev/null || true
+    if ps -p $pf_pid > /dev/null 2>&1; then
+      wait $pf_pid 2>/dev/null || true
+    fi
+
+    # 若成功拿到 200，结束循环
+    if [[ "$code" == "200" ]]; then
+      break
+    fi
+  done
+
   if [[ "$code" == "200" ]]; then
-    log "✅ Grafana /api/health 可访问"
+    log "✅ Grafana /api/health 可访问（端口 ${chosen_port}）"
     return 0
   else
-    log "❌ Grafana /api/health 返回码: $code"
+    # 打印最后一次端口转发日志帮助定位问题
+    log "❌ Grafana /api/health 返回码: ${code:-000}"
+    if [[ -s "$pf_log" ]]; then
+      log "ℹ️ kubectl port-forward 日志:"
+      sed -n '1,50p' "$pf_log" || true
+    fi
     return 1
   fi
 }
