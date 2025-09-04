@@ -238,7 +238,6 @@ cd renda-cloud-lab
 - 📄 [eksctl 遗留指引](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/LEGACY_EKSCTL.md#eksctl-%E6%8C%87%E5%BC%95)
 - 📄 [前置条件操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/PREREQUISITES_GUIDE.md#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%E6%93%8D%E4%BD%9C%E6%8C%87%E5%8D%97)
 
-
 ### 检查清单
 
 - 检查 Terraform 版本 ≥ 1.0

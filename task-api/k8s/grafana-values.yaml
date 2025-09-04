@@ -46,6 +46,31 @@ datasources:
           sigV4Region: us-east-1
         editable: false
 
+# --- 预置 Dashboard ---
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+# 该仪表盘提供 Task API 在 Amazon Managed Prometheus 中的核心运行指标，
+# 默认时间范围为过去 1 小时，每 30 秒刷新一次。
+dashboards:
+  default:
+    task-api-observability:
+      # 这里的 JSON 会被 Helm 写成 ConfigMap 并挂载到上面声明的目录，Grafana 启动时自动读取。
+      # 面板未显式指定数据源时会使用默认数据源（已把 AMP 设为 isDefault: true，因此可直接生效）。
+      # 仪表盘 变量 app 用 label_values(..., application) 自动取值。
+      # 三个面板都未写 datasource 字段，Grafana 会使用默认数据源（即 Provision 的 AMP）。
+      # 仪表盘布局是 24 列栅格：三块各 8 列并排。
+      file: dashboards/task-api-observability.json
+
 # --- 管理员账号（临时密码，登陆后请改） ---
 adminUser: admin
 adminPassword: "password"
