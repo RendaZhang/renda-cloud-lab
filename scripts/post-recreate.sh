@@ -132,7 +132,8 @@ ENABLE_CHAOS_MESH="${ENABLE_CHAOS_MESH:-false}"
 CHAOS_NAMESPACE="${CHAOS_NAMESPACE:-chaos-testing}"
 CHAOS_RELEASE_NAME="${CHAOS_RELEASE_NAME:-chaos-mesh}"
 CHAOS_HELM_REPO_NAME="${CHAOS_HELM_REPO_NAME:-chaos-mesh}"
-CHAOS_DEPLOYMENT_NAME="${CHAOS_DEPLOYMENT_NAME:-${CHAOS_RELEASE_NAME}-controller-manager}"
+CHAOS_DEPLOYMENT_NAME="${CHAOS_DEPLOYMENT_NAME:-chaos-controller-manager}"
+CHAOS_DAEMONSET_NAME="${CHAOS_DAEMONSET_NAME:-chaos-daemon}"
 CHAOS_HELM_REPO_URL="${CHAOS_HELM_REPO_URL:-https://charts.chaos-mesh.org}"
 CHAOS_VALUES_FILE="${CHAOS_VALUES_FILE:-${ROOT_DIR}/task-api/k8s/chaos-mesh-values.yaml}"
 
@@ -1056,6 +1057,27 @@ check_chaos_mesh_status() {
   fi
 }
 
+# 确保 chaos-daemon 在所有节点上就绪；若因资源不足 Pending，则临时缩容 task-api
+ensure_chaos_daemon_ready() {
+  log "⏳ 等待 chaos-daemon DaemonSet 就绪"
+  if kubectl -n "${CHAOS_NAMESPACE}" rollout status ds/"${CHAOS_DAEMONSET_NAME}" --timeout=60s; then
+    return 0
+  fi
+
+  log "⚠️ chaos-daemon 未在 60s 内就绪，尝试临时缩容 ${APP}"
+  local orig_replicas
+  orig_replicas=$(kubectl -n "${NS}" get deploy/"${APP}" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo 1)
+  kubectl -n "${NS}" scale deploy/"${APP}" --replicas=1
+
+  if ! kubectl -n "${CHAOS_NAMESPACE}" rollout status ds/"${CHAOS_DAEMONSET_NAME}" --timeout=120s; then
+    kubectl -n "${NS}" scale deploy/"${APP}" --replicas="${orig_replicas}" || true
+    abort "Chaos Mesh daemonset 未在预期时间内就绪"
+  fi
+
+  kubectl -n "${NS}" scale deploy/"${APP}" --replicas="${orig_replicas}"
+  log "✅ chaos-daemon 就绪，${APP} 副本恢复为 ${orig_replicas}"
+}
+
 # 部署 Chaos Mesh（可选）
 deploy_chaos_mesh() {
   if [[ "$ENABLE_CHAOS_MESH" != "true" ]]; then
@@ -1098,6 +1120,8 @@ deploy_chaos_mesh() {
     abort "Chaos Mesh controller 未在 180s 内就绪"
   fi
   kubectl -n "${CHAOS_NAMESPACE}" get pods -l app.kubernetes.io/instance="${CHAOS_RELEASE_NAME}" || true
+
+  ensure_chaos_daemon_ready
 }
 
 # === 主流程 ===
