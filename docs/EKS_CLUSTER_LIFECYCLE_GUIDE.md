@@ -63,6 +63,12 @@ make init
 make start-all
 ```
 
+如需启用 Chaos Mesh，请在执行命令时加上 `ENABLE_CHAOS_MESH=true`，例如：
+
+```bash
+ENABLE_CHAOS_MESH=true make start-all
+```
+
 ---
 
 ## 日常关闭资源以节省成本

@@ -8,6 +8,7 @@
       - [kube-system](#kube-system)
       - [svc-task](#svc-task)
       - [observability](#observability)
+      - [chaos-testing](#chaos-testing)
     - [构建并推送 task-api 镜像](#%E6%9E%84%E5%BB%BA%E5%B9%B6%E6%8E%A8%E9%80%81-task-api-%E9%95%9C%E5%83%8F)
   - [重建流程](#%E9%87%8D%E5%BB%BA%E6%B5%81%E7%A8%8B)
     - [AWS SSO 登录和基本准备](#aws-sso-%E7%99%BB%E5%BD%95%E5%92%8C%E5%9F%BA%E6%9C%AC%E5%87%86%E5%A4%87)
@@ -66,6 +67,10 @@ Shell 脚本变量 `NS` 和 Terraform 变量 `task_api_namespace` 均默认指�
 
 可观测性组件（例如 ADOT Collector、Grafana）部署在 `observability` 命名空间。
 它由脚本变量 `ADOT_NAMESPACE`/`GRAFANA_NAMESPACE` 和 Terraform 变量 `adot_namespace` 控制。
+
+#### chaos-testing
+
+混沌工程组件 `Chaos Mesh` 在开启时会部署到 `chaos-testing` 命名空间，仅包含 controller 与 daemonset。
 
 ### 构建并推送 task-api 镜像
 
@@ -231,6 +236,7 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 - 发布 Ingress 并做 ALB DNS 冒烟；
 - 运行 aws-cli Job 验证 STS 身份及 S3 前缀权限；
 - 安装/升级 ADOT Collector（OpenTelemetry Collector）并配置向 Amazon Managed Prometheus（AMP）进行 remote_write（SigV4 签名 + IRSA）。
+- （可选）默认不开启，只有当 `ENABLE_CHAOS_MESH=true` 时，才会通过 Helm 在 `chaos-testing` 命名空间安装 Chaos Mesh 核心组件（仅 controller + daemonset）。
 
 ### 常见错误与排查指引
 
@@ -453,7 +459,7 @@ make aws-login
 
 ### Makefile 命令 - stop-all
 
-`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector 与 Grafana），随后执行 `make stop` 一键销毁 NAT 网关、ALB 以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
+`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress，并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，同时清理所有混沌实验对象），随后执行 `make stop` 一键销毁 NAT 网关、ALB 以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
 
 执行前请确认已登录 AWS 且后端状态配置正确，以免销毁过程因权限问题中断。
 
@@ -471,7 +477,7 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
 
 执行 `make destroy-all` 触发一键完全销毁流程。
 
-该命令首先运行 `pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector 与 Grafana），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
+该命令首先运行 `pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，并清理所有混沌实验对象），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
 
 `make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。
 
@@ -492,10 +498,12 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
 - `UNINSTALL_METRICS`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `metrics-server`。
 - `UNINSTALL_ADOT`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `ADOT Collector`（Helm release: `adot-collector`，ns: `observability`）。
 - `UNINSTALL_GRAFANA`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `Grafana`（Helm release: `grafana`，ns: `observability`）。
+- `UNINSTALL_CHAOS_MESH`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `Chaos Mesh`（Helm release: `chaos-mesh`，ns: `chaos-testing`）。
 - 直接调用脚本时可使用同义环境变量：
   - `UNINSTALL_METRICS_SERVER=true bash scripts/pre-teardown.sh`
   - `UNINSTALL_ADOT_COLLECTOR=false bash scripts/pre-teardown.sh`
   - `UNINSTALL_GRAFANA=false bash scripts/pre-teardown.sh`
+  - `UNINSTALL_CHAOS_MESH=false bash scripts/pre-teardown.sh`
 - 其他：
   - `WAIT_ALB_DELETION_TIMEOUT`（默认 180）：等待 ALB 回收的最长秒数。
   - `DRY_RUN`（仅 `post-teardown.sh`，默认 `false`）：只打印将执行的删除动作而不实际删除。

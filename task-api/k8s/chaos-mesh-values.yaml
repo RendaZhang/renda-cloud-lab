@@ -1,0 +1,40 @@
+## Chaos Mesh Helm values for minimal core components
+## Namespace: chaos-testing
+## Components: controller-manager + chaos-daemon
+
+# 控制器副本数保持 1（默认即可；如多 AZ 可按需调高）
+controllerManager:
+  replicaCount: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { cpu: 200m, memory: 256Mi }
+
+# 不使用内置 Dashboard
+dashboard:
+  create: false
+
+dnsServer:
+  # DNSChaos 相关实验暂不启用
+  create: false
+
+# Daemon（每个节点一个，用于注入/网络干扰等）
+chaosDaemon:
+  # 指定容器运行时为 containerd
+  runtime: containerd
+  # EKS (containerd) 默认的 socket 路径
+  socketPath: /run/containerd/containerd.sock
+  hostNetwork: true
+  privileged: true
+  # 把 nodeSelector / affinity 全部清空，避免 NodeAffinity 拦截
+  nodeSelector: {}
+  affinity: {}
+  # 允许所有常见污点（NoSchedule / NoExecute）
+  tolerations:
+    # 匹配所有 taint（含 NoSchedule/NoExecute/PreferNoSchedule）
+    - operator: Exists
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits:   { cpu: 200m, memory: 256Mi }
+
+# Webhook 证书自动生成（默认即可）
+dnsPolicy: ClusterFirstWithHostNet

@@ -28,6 +28,11 @@ GRAFANA_NAMESPACE="${GRAFANA_NAMESPACE:-observability}"
 GRAFANA_RELEASE="${GRAFANA_RELEASE:-grafana}"
 UNINSTALL_GRAFANA="${UNINSTALL_GRAFANA:-false}"   # true 则卸载 Grafana
 
+# Chaos Mesh 可选卸载
+CHAOS_NAMESPACE="${CHAOS_NAMESPACE:-chaos-testing}"
+CHAOS_RELEASE="${CHAOS_RELEASE:-chaos-mesh}"
+UNINSTALL_CHAOS_MESH="${UNINSTALL_CHAOS_MESH:-false}"   # true 则卸载 Chaos Mesh
+
 export AWS_PROFILE="$PROFILE"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
@@ -149,6 +154,20 @@ if [[ "$UNINSTALL_GRAFANA" == "true" ]]; then
   kubectl -n "$GRAFANA_NAMESPACE" delete deploy "$GRAFANA_RELEASE" --ignore-not-found
 else
   log "ℹ️ 未启用 UNINSTALL_GRAFANA，跳过卸载 Grafana"
+fi
+
+# ====== （可选）卸载 Chaos Mesh ======
+if [[ "$UNINSTALL_CHAOS_MESH" == "true" ]]; then
+  log "🧹 删除 Chaos Mesh 实验对象并卸载 Helm (release=${CHAOS_RELEASE}, ns=${CHAOS_NAMESPACE})"
+  if kubectl get ns "$CHAOS_NAMESPACE" >/dev/null 2>&1; then
+    kubectl api-resources --api-group=chaos-mesh.org -o name | while read -r res; do
+      [[ -n "$res" ]] && kubectl -n "$CHAOS_NAMESPACE" delete "$res" --all --ignore-not-found >/dev/null 2>&1 || true
+    done
+  fi
+  helm -n "$CHAOS_NAMESPACE" uninstall "$CHAOS_RELEASE" >/dev/null 2>&1 || true
+  kubectl delete ns "$CHAOS_NAMESPACE" --ignore-not-found >/dev/null 2>&1 || true
+else
+  log "ℹ️ 未启用 UNINSTALL_CHAOS_MESH，跳过卸载 Chaos Mesh"
 fi
 
 log "✅ pre-teardown 完成：Ingress 已删除、ALB Controller 已卸载（ALB 若仍残留将由 post-teardown 兜底清理）"

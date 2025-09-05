@@ -13,6 +13,8 @@ DRY_RUN               ?= false          # true 仅打印将执行的操作
 UNINSTALL_METRICS     ?= true           # pre-teardown 默认卸载 metrics-server
 UNINSTALL_ADOT        ?= true           # pre-teardown 默认卸载 ADOT Collector
 UNINSTALL_GRAFANA     ?= true           # pre-teardown 默认卸载 Grafana
+ENABLE_CHAOS_MESH     ?= false          # post-recreate 可选安装 Chaos Mesh
+UNINSTALL_CHAOS_MESH  ?= true           # pre-teardown 默认卸载 Chaos Mesh
 
 .PHONY: check check-auto preflight aws-login init plan start post-recreate start-all \
         scale-zero stop pre-teardown post-teardown stop-all destroy-all logs clean \
@@ -65,6 +67,7 @@ post-recreate:
 	@echo "Running post-recreate tasks..."
 	@mkdir -p scripts/logs
 	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
+		ENABLE_CHAOS_MESH=$(ENABLE_CHAOS_MESH) \
 		bash $(POST_RECREATE) | tee scripts/logs/post-recreate.log
 
 ## 🚀 一键全流程（重建集群 + 通知绑定）
@@ -92,6 +95,7 @@ pre-teardown:
 		UNINSTALL_METRICS_SERVER=$(UNINSTALL_METRICS) \
 		UNINSTALL_ADOT_COLLECTOR=$(UNINSTALL_ADOT) \
 		UNINSTALL_GRAFANA=$(UNINSTALL_GRAFANA) \
+		UNINSTALL_CHAOS_MESH=$(UNINSTALL_CHAOS_MESH) \
 		bash $(PRE_TEARDOWN) | tee scripts/logs/pre-teardown.log
 
 ## 🛠️ 清理残留日志组 + 兜底强删 ALB/TargetGroup/安全组（按标签）

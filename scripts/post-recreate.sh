@@ -31,17 +31,17 @@
 #  12. 安装 metrics-server（--kubelet-insecure-tls）
 #  13. 安装/升级 ADOT Collector 并配置向 AMP 写指标（IRSA + SigV4）
 #  14. 安装/升级 Grafana（IRSA + SigV4 插件）
-#  15. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
-#  16. 检查 task-api
+#  15. （可选，默认不开启）安装 Chaos Mesh（仅 controller + daemonset）
+#  16. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
+#  17. 检查 task-api
 # 使用：
 #   bash scripts/post-recreate.sh
 # ------------------------------------------------------------
 
 set -euo pipefail
 
-# === 可配置参数 ===
-CLOUD_PROVIDER="aws"
-# 可通过环境变量覆盖
+# === 可配置参数，可通过环境变量覆盖 ===
+CLOUD_PROVIDER="${CLOUD_PROVIDER:-aws}"
 PROFILE=${AWS_PROFILE:-phase2-sso}
 REGION=${REGION:-us-east-1}
 AWS_PROFILE=${PROFILE}
@@ -49,10 +49,10 @@ AWS_REGION=${REGION}
 ACCOUNT_ID=${ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --profile "$PROFILE" --output text)}
 echo "使用 AWS 账号: $ACCOUNT_ID"
 
-CLUSTER_NAME="dev"
-NODEGROUP_NAME="ng-mixed"
-KUBE_DEFAULT_NAMESPACE="kube-system"
-ASG_PREFIX="eks-${NODEGROUP_NAME}"
+CLUSTER_NAME="${CLUSTER_NAME:-dev}"
+NODEGROUP_NAME="${NODEGROUP_NAME:-ng-mixed}"
+KUBE_DEFAULT_NAMESPACE="${KUBE_DEFAULT_NAMESPACE:-kube-system}"
+ASG_PREFIX="${ASG_PREFIX:-eks-${NODEGROUP_NAME}}"
 
 # === 应用部署参数（可被环境变量覆盖）===
 # k8s 命名空间（需与清单中的 metadata.namespace 一致）
@@ -64,73 +64,84 @@ PDB_NAME="${PDB_NAME:-${APP}-pdb}"
 # ECR 仓库名
 ECR_REPO="${ECR_REPO:-task-api}"
 # IRSA 角色名称与 ARN（应用级 ServiceAccount 使用）
-TASK_API_ROLE_NAME="dev-task-api-irsa"
-TASK_API_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${TASK_API_ROLE_NAME}"
+TASK_API_ROLE_NAME="${TASK_API_ROLE_NAME:-dev-task-api-irsa}"
+TASK_API_ROLE_ARN="${TASK_API_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${TASK_API_ROLE_NAME}}"
 TASK_API_SERVICE_ACCOUNT_NAME="${TASK_API_SERVICE_ACCOUNT_NAME:-${APP}}"
 # 要部署的 task-api 镜像 tag（也可用 latest）。若设置 IMAGE_DIGEST 则优先生效。
 # 如更新 task-api 源码，请先构建并推送新镜像，然后调整此处 tag 或设置 IMAGE_DIGEST。
 IMAGE_TAG="${IMAGE_TAG:-0.1.0-2508272044}"
 # k8s 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml / pdb.yaml）
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+ROOT_DIR="${ROOT_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 K8S_BASE_DIR="${K8S_BASE_DIR:-${ROOT_DIR}/task-api/k8s/base}"
 # 若想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
 
 # 为 ASG 配置 Spot Interruption 通知的参数
-TOPIC_NAME="spot-interruption-topic"
-TOPIC_ARN="arn:${CLOUD_PROVIDER}:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
-STATE_FILE="${SCRIPT_DIR}/.last-asg-bound"
+TOPIC_NAME="${TOPIC_NAME:-spot-interruption-topic}"
+TOPIC_ARN="${TOPIC_ARN:-arn:${CLOUD_PROVIDER}:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}}"
+STATE_FILE="${STATE_FILE:-${SCRIPT_DIR}/.last-asg-bound}"
 # ASG 相关参数
-AUTOSCALER_CHART_NAME="cluster-autoscaler"
+AUTOSCALER_CHART_NAME="${AUTOSCALER_CHART_NAME:-cluster-autoscaler}"
 AUTOSCALER_RELEASE_NAME=${AUTOSCALER_CHART_NAME}
-AUTOSCALER_HELM_REPO_NAME="autoscaler"
-AUTOSCALER_HELM_REPO_URL="https://kubernetes.github.io/autoscaler"
+AUTOSCALER_HELM_REPO_NAME="${AUTOSCALER_HELM_REPO_NAME:-autoscaler}"
+AUTOSCALER_HELM_REPO_URL="${AUTOSCALER_HELM_REPO_URL:-https://kubernetes.github.io/autoscaler}"
 AUTOSCALER_SERVICE_ACCOUNT_NAME=${AUTOSCALER_CHART_NAME}
-AUTOSCALER_ROLE_NAME="eks-cluster-autoscaler"
-AUTOSCALER_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${AUTOSCALER_ROLE_NAME}"
-DEPLOYMENT_AUTOSCALER_NAME="${AUTOSCALER_RELEASE_NAME}-${CLOUD_PROVIDER}-${AUTOSCALER_CHART_NAME}"
-POD_AUTOSCALER_LABEL="app.kubernetes.io/name=${AUTOSCALER_RELEASE_NAME}"
+AUTOSCALER_ROLE_NAME="${AUTOSCALER_ROLE_NAME:-eks-cluster-autoscaler}"
+AUTOSCALER_ROLE_ARN="${AUTOSCALER_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${AUTOSCALER_ROLE_NAME}}"
+AUTOSCALER_DEPLOYMENT_NAME="${AUTOSCALER_DEPLOYMENT_NAME:-${AUTOSCALER_RELEASE_NAME}-${CLOUD_PROVIDER}-${AUTOSCALER_CHART_NAME}}"
+POD_AUTOSCALER_LABEL="${POD_AUTOSCALER_LABEL:-app.kubernetes.io/name=${AUTOSCALER_RELEASE_NAME}}"
 
 # AWS Load Balancer Controller settings
-ALBC_CHART_NAME="aws-load-balancer-controller"
+ALBC_CHART_NAME="${ALBC_CHART_NAME:-aws-load-balancer-controller}"
 ALBC_RELEASE_NAME=${ALBC_CHART_NAME}
 ALBC_SERVICE_ACCOUNT_NAME=${ALBC_CHART_NAME}
-ALBC_CHART_VERSION="1.8.1"
-ALBC_IMAGE_TAG="v2.8.1"
-ALBC_IMAGE_REPO="602401143452.dkr.ecr.${REGION}.amazonaws.com/amazon/aws-load-balancer-controller"
-ALBC_HELM_REPO_NAME="eks"
-ALBC_HELM_REPO_URL="https://aws.github.io/eks-charts"
-POD_ALBC_LABEL="app.kubernetes.io/name=${ALBC_RELEASE_NAME}"
+ALBC_CHART_VERSION="${ALBC_CHART_VERSION:-1.8.1}"
+ALBC_IMAGE_TAG="${ALBC_IMAGE_TAG:-v2.8.1}"
+ALBC_IMAGE_REPO="${ALBC_IMAGE_REPO:-602401143452.dkr.ecr.${REGION}.amazonaws.com/amazon/aws-load-balancer-controller}"
+ALBC_HELM_REPO_NAME="${ALBC_HELM_REPO_NAME:-eks}"
+ALBC_HELM_REPO_URL="${ALBC_HELM_REPO_URL:-https://aws.github.io/eks-charts}"
+POD_ALBC_LABEL="${POD_ALBC_LABEL:-app.kubernetes.io/name=${ALBC_RELEASE_NAME}}"
 ALBC_ROLE_NAME="${ALBC_ROLE_NAME:-aws-load-balancer-controller}"
-ALBC_ROLE_ARN="arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ALBC_ROLE_NAME}"
+ALBC_ROLE_ARN="${ALBC_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ALBC_ROLE_NAME}}"
 # ADOT Collector + AMP settings
 ADOT_NAMESPACE="${ADOT_NAMESPACE:-observability}"
 ADOT_RELEASE_NAME="${ADOT_RELEASE_NAME:-adot-collector}"
 ADOT_SERVICE_ACCOUNT_NAME="${ADOT_SERVICE_ACCOUNT_NAME:-adot-collector}"
+ADOT_DEPLOYMENT_NAME="${ADOT_DEPLOYMENT_NAME:-${ADOT_RELEASE_NAME}-opentelemetry-collector}"
 ADOT_HELM_REPO_NAME="${ADOT_HELM_REPO_NAME:-open-telemetry}"
 ADOT_HELM_REPO_URL="${ADOT_HELM_REPO_URL:-https://open-telemetry.github.io/opentelemetry-helm-charts}"
 # IRSA 角色（默认使用当前账号下的 adot-collector 角色名；可通过环境变量覆盖）
 ADOT_ROLE_NAME="${ADOT_ROLE_NAME:-adot-collector}"
 ADOT_ROLE_ARN="${ADOT_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ADOT_ROLE_NAME}}"
 # Helm values 文件路径（固定在 task-api/k8s 下，便于审阅与版本控制）
-ADOT_VALUES_FILE="${ROOT_DIR}/task-api/k8s/adot-collector-values.yaml"
+ADOT_VALUES_FILE="${ADOT_VALUES_FILE:-${ROOT_DIR}/task-api/k8s/adot-collector-values.yaml}"
 
 # Grafana settings
 GRAFANA_NAMESPACE="${GRAFANA_NAMESPACE:-observability}"
 GRAFANA_RELEASE_NAME="${GRAFANA_RELEASE_NAME:-grafana}"
 GRAFANA_HELM_REPO_NAME="${GRAFANA_HELM_REPO_NAME:-grafana}"
 GRAFANA_HELM_REPO_URL="${GRAFANA_HELM_REPO_URL:-https://grafana.github.io/helm-charts}"
-GRAFANA_VALUES_FILE="${ROOT_DIR}/task-api/k8s/grafana-values.yaml"
+GRAFANA_VALUES_FILE="${GRAFANA_VALUES_FILE:-${ROOT_DIR}/task-api/k8s/grafana-values.yaml}"
 GRAFANA_SERVICE_ACCOUNT_NAME="${GRAFANA_SERVICE_ACCOUNT_NAME:-grafana}"
 GRAFANA_ROLE_NAME="${GRAFANA_ROLE_NAME:-grafana-amp-query}"
 GRAFANA_ROLE_ARN="${GRAFANA_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${GRAFANA_ROLE_NAME}}"
 
+# Chaos Mesh settings（可选安装）
+# ENABLE_CHAOS_MESH=true 则安装 Chaos Mesh
+ENABLE_CHAOS_MESH="${ENABLE_CHAOS_MESH:-false}"
+CHAOS_NAMESPACE="${CHAOS_NAMESPACE:-chaos-testing}"
+CHAOS_RELEASE_NAME="${CHAOS_RELEASE_NAME:-chaos-mesh}"
+CHAOS_HELM_REPO_NAME="${CHAOS_HELM_REPO_NAME:-chaos-mesh}"
+CHAOS_DEPLOYMENT_NAME="${CHAOS_DEPLOYMENT_NAME:-${CHAOS_RELEASE_NAME}-controller-manager}"
+CHAOS_HELM_REPO_URL="${CHAOS_HELM_REPO_URL:-https://charts.chaos-mesh.org}"
+CHAOS_VALUES_FILE="${CHAOS_VALUES_FILE:-${ROOT_DIR}/task-api/k8s/chaos-mesh-values.yaml}"
+
 # ---- Ingress ----
-ING_FILE="${ROOT_DIR}/task-api/k8s/ingress.yaml"
+ING_FILE="${ING_FILE:-${ROOT_DIR}/task-api/k8s/ingress.yaml}"
 # ---- HPA ----
-HPA_FILE="${ROOT_DIR}/task-api/k8s/hpa.yaml"
+HPA_FILE="${HPA_FILE:-${ROOT_DIR}/task-api/k8s/hpa.yaml}"
 # ---- In-cluster Smoke Test ----
-SMOKE_FILE="${ROOT_DIR}/task-api/k8s/task-api-smoke.yaml"
+SMOKE_FILE="${SMOKE_FILE:-${ROOT_DIR}/task-api/k8s/task-api-smoke.yaml}"
 
 # === 函数定义 ===
 # 清理临时 Job/资源，避免脚本异常退出后残留
@@ -138,10 +149,7 @@ cleanup() {
   kubectl -n "$NS" delete job task-api-smoke awscli-smoke --ignore-not-found >/dev/null 2>&1 || true
 }
 trap cleanup EXIT ERR
-
-# log() {
-#   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
-# }
+# 日志与错误处理
 log() {
   printf "[%s] %s\n" "$(date '+%H:%M:%S')" "$*";
 }
@@ -182,7 +190,7 @@ wait_cluster_ready() {
 
 # 检查 Cluster Autoscaler 部署状态
 check_autoscaler_status() {
-  if ! kubectl -n $KUBE_DEFAULT_NAMESPACE get deployment $DEPLOYMENT_AUTOSCALER_NAME >/dev/null 2>&1; then
+  if ! kubectl -n $KUBE_DEFAULT_NAMESPACE get deployment $AUTOSCALER_DEPLOYMENT_NAME >/dev/null 2>&1; then
     echo "missing"
     return
   fi
@@ -441,8 +449,8 @@ check_adot_ready() {
   status=$(check_adot_status)
   [[ "$status" != "healthy" ]] && abort "ADOT Collector 状态异常: $status"
 
-  local deploy="deploy/${ADOT_RELEASE_NAME}-opentelemetry-collector"
-  kubectl -n "$ADOT_NAMESPACE" port-forward "$deploy" 8888 >/tmp/adot-pf.log 2>&1 &
+  # 端口转发到 ADOT Collector 的 Prometheus 监听端口
+  kubectl -n "$ADOT_NAMESPACE" port-forward deploy/"${ADOT_DEPLOYMENT_NAME}" 8888 >/tmp/adot-pf.log 2>&1 &
   local pf_pid=$!
 
   local metric_value=""
@@ -580,6 +588,8 @@ check_task_api() {
   log "✅ task-api 检查完成"
 }
 
+# ---- ALBC Controller ----
+
 # 安装或升级 AWS Load Balancer Controller
 install_albc_controller() {
   local status
@@ -632,6 +642,8 @@ install_albc_controller() {
   kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_ALBC_LABEL
 }
 
+# -- Cluster Autoscaler --
+
 # 安装或升级 Cluster Autoscaler
 install_autoscaler() {
   local status
@@ -679,7 +691,7 @@ install_autoscaler() {
     --set image.tag=$AUTOSCALER_VERSION
   log "✅ Helm install completed"
   log "🔍 检查 Cluster Autoscaler Pod 状态"
-  kubectl -n $KUBE_DEFAULT_NAMESPACE rollout status deployment/${DEPLOYMENT_AUTOSCALER_NAME} --timeout=180s
+  kubectl -n $KUBE_DEFAULT_NAMESPACE rollout status deployment/${AUTOSCALER_DEPLOYMENT_NAME} --timeout=180s
   kubectl -n $KUBE_DEFAULT_NAMESPACE get pod -l $POD_AUTOSCALER_LABEL
 }
 
@@ -690,6 +702,8 @@ get_latest_asg() {
     --query "AutoScalingGroups[?starts_with(AutoScalingGroupName, '$ASG_PREFIX')].AutoScalingGroupName" \
     --output text | head -n1
 }
+
+# -- SNS 通知绑定 --
 
 # 绑定 SNS 通知
 bind_sns_notification() {
@@ -718,6 +732,8 @@ ensure_sns_binding() {
     log "✅ 已绑定并记录最新 ASG: $asg_name"
   fi
 }
+
+# === 基础资源检查 ===
 
 # 检查 NAT 网关状态
 check_nat_gateway() {
@@ -799,6 +815,7 @@ perform_health_checks() {
 }
 
 # === 部署 task-api 到 EKS（幂等）===
+
 deploy_task_api() {
   # ===== 前置：AWS 身份与 kubeconfig =====
   log "🔐 使用 profile=${PROFILE} region=${REGION}"
@@ -881,6 +898,7 @@ deploy_task_api_ingress() {
 }
 
 ### ---- metrics-server (Helm) ----
+
 deploy_metrics_server() {
   log "🔍 检查 metrics-server 状态..."
   if kubectl -n "$KUBE_DEFAULT_NAMESPACE" get deployment metrics-server >/dev/null 2>&1; then
@@ -907,6 +925,7 @@ deploy_metrics_server() {
 }
 
 ### ---- HPA for task-api ----
+
 deploy_taskapi_hpa() {
   log "📦 Apply HPA for task-api ..."
   kubectl -n "$NS" apply -f "$HPA_FILE"
@@ -915,10 +934,10 @@ deploy_taskapi_hpa() {
 }
 
 ### ---- ADOT Collector + AMP (Helm) ----
+
 check_adot_status() {
   # returns: healthy|missing|unhealthy
-  local deploy_name="${ADOT_RELEASE_NAME}-opentelemetry-collector"
-  if ! kubectl -n "$ADOT_NAMESPACE" get deployment "$deploy_name" >/dev/null 2>&1; then
+  if ! kubectl -n "$ADOT_NAMESPACE" get deployment "$ADOT_DEPLOYMENT_NAME" >/dev/null 2>&1; then
     echo "missing"; return
   fi
   if kubectl -n "$ADOT_NAMESPACE" get pod -l app.kubernetes.io/instance="${ADOT_RELEASE_NAME}" --no-headers 2>/dev/null | grep -v Running >/dev/null; then
@@ -962,10 +981,8 @@ deploy_adot_collector() {
     -n "${ADOT_NAMESPACE}" --create-namespace \
     -f "${ADOT_VALUES_FILE}"
 
-  local deploy_name
-  deploy_name="${ADOT_RELEASE_NAME}-opentelemetry-collector"
-  log "⏳ 等待 ADOT Collector Deployment (${deploy_name}) 就绪"
-  if ! kubectl -n "${ADOT_NAMESPACE}" rollout status deployment/"${deploy_name}" --timeout=180s; then
+  log "⏳ 等待 ADOT Collector Deployment (${ADOT_DEPLOYMENT_NAME}) 就绪"
+  if ! kubectl -n "${ADOT_NAMESPACE}" rollout status deployment/"${ADOT_DEPLOYMENT_NAME}" --timeout=180s; then
     kubectl -n "${ADOT_NAMESPACE}" get pods -l app.kubernetes.io/instance="${ADOT_RELEASE_NAME}" || true
     abort "ADOT Collector 未在 180s 内就绪"
   fi
@@ -973,6 +990,7 @@ deploy_adot_collector() {
 }
 
 ### ---- Grafana (Helm) ----
+
 check_grafana_status() {
   # returns: healthy|missing|unhealthy
   if ! kubectl -n "$GRAFANA_NAMESPACE" get deployment "$GRAFANA_RELEASE_NAME" >/dev/null 2>&1; then
@@ -1024,6 +1042,64 @@ deploy_grafana() {
   kubectl -n "${GRAFANA_NAMESPACE}" get pods -l app.kubernetes.io/instance="${GRAFANA_RELEASE_NAME}" || true
 }
 
+### ---- Chaos Mesh（Helm, 可选）----
+
+# 返回 Chaos Mesh 安装状态：healthy|missing|unhealthy
+check_chaos_mesh_status() {
+  if ! kubectl -n "$CHAOS_NAMESPACE" get deployment "$CHAOS_DEPLOYMENT_NAME" >/dev/null 2>&1; then
+    echo "missing"; return
+  fi
+  if kubectl -n "$CHAOS_NAMESPACE" get pod -l app.kubernetes.io/instance="${CHAOS_RELEASE_NAME}" --no-headers 2>/dev/null | grep -v Running >/dev/null; then
+    echo "unhealthy"
+  else
+    echo "healthy"
+  fi
+}
+
+# 部署 Chaos Mesh（可选）
+deploy_chaos_mesh() {
+  if [[ "$ENABLE_CHAOS_MESH" != "true" ]]; then
+    log "ℹ️ 未启用 ENABLE_CHAOS_MESH，跳过部署 Chaos Mesh"
+    return 0
+  fi
+
+  log "🔍 准备部署 Chaos Mesh 到命名空间: ${CHAOS_NAMESPACE}"
+
+  if [[ ! -f "${CHAOS_VALUES_FILE}" ]]; then
+    abort "缺少 Helm values 文件: ${CHAOS_VALUES_FILE}"
+  fi
+
+  # 如已健康，直接跳过安装/升级
+  local cur_status
+  cur_status=$(check_chaos_mesh_status || true)
+  if [[ "$cur_status" == "healthy" ]]; then
+    log "✅ Chaos Mesh 已部署且健康，跳过 Helm 升级"
+    return 0
+  elif [[ "$cur_status" == "unhealthy" ]]; then
+    log "⚠️ Chaos Mesh 存在但未就绪，执行 Helm 升级以自愈"
+  else
+    log "ℹ️ Chaos Mesh 未安装，开始安装"
+  fi
+
+  if ! helm repo list | grep -q "^${CHAOS_HELM_REPO_NAME}\\b"; then
+    log "🔧 添加 ${CHAOS_HELM_REPO_NAME} Helm 仓库"
+    helm repo add ${CHAOS_HELM_REPO_NAME} ${CHAOS_HELM_REPO_URL}
+  fi
+  helm repo update >/dev/null 2>&1 || true
+
+  log "🚀 通过 Helm 安装/升级 Chaos Mesh (${CHAOS_RELEASE_NAME})"
+  helm upgrade --install "${CHAOS_RELEASE_NAME}" ${CHAOS_HELM_REPO_NAME}/chaos-mesh \
+    -n "${CHAOS_NAMESPACE}" --create-namespace \
+    -f "${CHAOS_VALUES_FILE}"
+
+  log "⏳ 等待 Chaos Mesh Controller 就绪"
+  if ! kubectl -n "${CHAOS_NAMESPACE}" rollout status deployment/"$CHAOS_DEPLOYMENT_NAME" --timeout=180s; then
+    kubectl -n "${CHAOS_NAMESPACE}" get pods -l app.kubernetes.io/instance="${CHAOS_RELEASE_NAME}" || true
+    abort "Chaos Mesh controller 未在 180s 内就绪"
+  fi
+  kubectl -n "${CHAOS_NAMESPACE}" get pods -l app.kubernetes.io/instance="${CHAOS_RELEASE_NAME}" || true
+}
+
 # === 主流程 ===
 log "📣 开始执行 post-recreate 脚本"
 
@@ -1063,5 +1139,7 @@ deploy_adot_collector
 deploy_grafana
 
 deploy_taskapi_hpa
+
+deploy_chaos_mesh
 
 check_task_api
