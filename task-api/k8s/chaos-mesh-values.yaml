@@ -4,6 +4,8 @@
 
 # 控制器副本数保持 1（默认即可；如多 AZ 可按需调高）
 controllerManager:
+  # 把 Auth 校验开关关掉：关闭后 vauth.kb.io 直接放行
+  securityMode: false
   replicaCount: 1
   resources:
     requests: { cpu: 50m, memory: 128Mi }

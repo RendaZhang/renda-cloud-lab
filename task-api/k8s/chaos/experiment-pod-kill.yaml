@@ -1,0 +1,16 @@
+# 30s 随机杀 1 个 Pod，优雅期 0
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: kill-task-api-one
+  namespace: chaos-testing
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - svc-task
+    labelSelectors:
+      app: task-api
+  gracePeriod: 0
+  duration: '30s'
