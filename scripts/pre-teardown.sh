@@ -4,7 +4,7 @@
 # 目的:
 #   1) 删除所有 ALB 类型的 Ingress, 触发 ALBC 优雅回收云侧 ALB/TG
 #   2) 卸载 AWS Load Balancer Controller (Helm)
-#   3) (可选) 卸载 metrics-server / ADOT Collector / Grafana
+#   3) (可选) 卸载 metrics-server / ADOT Collector / Grafana / Chaos Mesh
 # 设计: 幂等、安全
 # ------------------------------------------------------------
 set -euo pipefail

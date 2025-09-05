@@ -1,0 +1,21 @@
+# 注入 **双向 100ms 延迟（抖动 10ms）**，持续 **30 秒**
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: net-latency-task-api
+  namespace: chaos-testing
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - svc-task
+    labelSelectors:
+      app: task-api
+  delay:
+    latency: '100ms'
+    jitter: '10ms'
+    correlation: '0'
+  # 只对 task-api Pod 的出站流量加延迟
+  direction: to
+  duration: '30s'
