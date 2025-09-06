@@ -24,7 +24,7 @@
 
 # Renda Cloud Lab
 
-- **最后更新**: September 07, 2025, 00:39 (UTC+08:00)
+- **最后更新**: September 07, 2025, 01:00 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -45,7 +45,7 @@
 
 通过该实验室，开发者可以实践基础设施即代码、容器编排、持续交付、混沌工程等技术场景。
 
-更多需求与功能状态请参见 [项目需求清单](docs/REQUIREMENTS.md)。
+更多需求与功能状态请参见 [功能需求与规划](docs/REQUIREMENTS.md)。
 
 ---
 
@@ -148,7 +148,7 @@ cd renda-cloud-lab
 
 ## 附录
 
-- 📄 [项目需求清单](docs/REQUIREMENTS.md#项目需求清单)
+- 📄 [功能需求与规划](docs/REQUIREMENTS.md#云原生实验室功能需求与规划)
 - 📄 [运维手册](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/RUNBOOK.md#%E8%BF%90%E7%BB%B4%E6%89%8B%E5%86%8C)
 - 📄 [环境重建与销毁指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/ENV_REBUILD_TEARDOWN_GUIDE.md#%E7%8E%AF%E5%A2%83%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%8C%87%E5%8D%97)
 - 📄 [集群故障排查指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/TROUBLESHOOTING.md#%E9%9B%86%E7%BE%A4%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97)
