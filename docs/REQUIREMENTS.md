@@ -2,20 +2,33 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 目录 (Table of Contents)
 
-- [开发环境要求](#%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E8%A6%81%E6%B1%82)
-  - [pre-commit 钩子](#pre-commit-%E9%92%A9%E5%AD%90)
+- [项目需求清单](#%E9%A1%B9%E7%9B%AE%E9%9C%80%E6%B1%82%E6%B8%85%E5%8D%95)
+  - [简介](#%E7%AE%80%E4%BB%8B)
+  - [已完成](#%E5%B7%B2%E5%AE%8C%E6%88%90)
+  - [待完成](#%E5%BE%85%E5%AE%8C%E6%88%90)
+  - [未来计划](#%E6%9C%AA%E6%9D%A5%E8%AE%A1%E5%88%92)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# 开发环境要求
+# 项目需求清单
 
-- **Last Updated:** July 18, 2025, 22:20 (UTC+8)
+- **Last Updated:** September 07, 2025, 00:16 (UTC+08:00)
 - **作者:** 张人大（Renda Zhang）
 
-本文档汇总了开发本项目所需的基础工具和脚本依赖。
+---
 
-## pre-commit 钩子
+## 简介
 
-- 仓库使用 pre-commit 管理代码风格和格式。
-- 新增 `update-doctoc` 本地钩子，在每次 commit 前自动运行 `scripts/run-doctoc.sh`。
-- 脚本会执行 `doctoc README.md docs/*.md`，若本地未安装 doctoc 则会自动跳过。
+记录已完成、未完成、计划中的项目需求和功能。
+
+---
+
+## 已完成
+
+---
+
+## 待完成
+
+---
+
+## 未来计划
