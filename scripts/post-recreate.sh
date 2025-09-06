@@ -6,7 +6,7 @@
 # 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
 #
 # 必需的环境变量（需在运行前设置或由集群自动注入）：
-# 如下三个自定义变量需要在 ${ROOT_DIR}/deploy/k8s-manifests/app/configmap.yaml 中定义
+# 如下三个自定义变量需要在 ${ROOT_DIR}/deploy/k8s/app/configmap.yaml 中定义
 #   S3_BUCKET
 #   S3_PREFIX
 #   AWS_REGION
@@ -73,7 +73,7 @@ IMAGE_TAG="${IMAGE_TAG:-0.1.0-2508272044}"
 # app 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml / pdb.yaml）
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 ROOT_DIR="${ROOT_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
-APP_MANIFEST_DIR="${APP_MANIFEST_DIR:-${ROOT_DIR}/deploy/k8s-manifests/app}"
+APP_MANIFEST_DIR="${APP_MANIFEST_DIR:-${ROOT_DIR}/deploy/k8s/app}"
 # 若想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
 
 # 为 ASG 配置 Spot Interruption 通知的参数
@@ -138,11 +138,11 @@ CHAOS_HELM_REPO_URL="${CHAOS_HELM_REPO_URL:-https://charts.chaos-mesh.org}"
 CHAOS_VALUES_FILE="${CHAOS_VALUES_FILE:-${ROOT_DIR}/deploy/helm-values/chaos-mesh-values.yaml}"
 
 # ---- Ingress ----
-ING_FILE="${ING_FILE:-${ROOT_DIR}/deploy/k8s-manifests/network/ingress.yaml}"
+ING_FILE="${ING_FILE:-${ROOT_DIR}/deploy/k8s/network/ingress.yaml}"
 # ---- HPA ----
-HPA_FILE="${HPA_FILE:-${ROOT_DIR}/deploy/k8s-manifests/autoscaling/hpa.yaml}"
+HPA_FILE="${HPA_FILE:-${ROOT_DIR}/deploy/k8s/autoscaling/hpa.yaml}"
 # ---- In-cluster Smoke Test ----
-SMOKE_FILE="${SMOKE_FILE:-${ROOT_DIR}/deploy/k8s-manifests/jobs/smoke/task-api-smoke.yaml}"
+SMOKE_FILE="${SMOKE_FILE:-${ROOT_DIR}/deploy/k8s/jobs/smoke/task-api-smoke.yaml}"
 
 # === 函数定义 ===
 # 清理临时 Job/资源，避免脚本异常退出后残留
@@ -429,7 +429,7 @@ check_ingress_alb() {
 #   3) verify writes to a disallowed prefix are denied
 awscli_s3_smoke() {
   log "🧪 aws-cli IRSA S3 smoke test"
-  local manifest="${ROOT_DIR}/deploy/k8s-manifests/jobs/smoke/awscli-smoke.yaml"
+  local manifest="${ROOT_DIR}/deploy/k8s/jobs/smoke/awscli-smoke.yaml"
 
   kubectl -n "$NS" apply -f "$manifest"
 
