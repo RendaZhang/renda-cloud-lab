@@ -6,7 +6,7 @@
 # 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
 #
 # 必需的环境变量（需在运行前设置或由集群自动注入）：
-# 如下三个自定义变量需要在 ${ROOT_DIR}/deploy/base/configmap.yaml 中定义
+# 如下三个自定义变量需要在 ${ROOT_DIR}/deploy/k8s-manifests/base/configmap.yaml 中定义
 #   S3_BUCKET
 #   S3_PREFIX
 #   AWS_REGION
@@ -73,7 +73,7 @@ IMAGE_TAG="${IMAGE_TAG:-0.1.0-2508272044}"
 # deploy 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml / pdb.yaml）
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 ROOT_DIR="${ROOT_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
-DEPLOY_BASE_DIR="${DEPLOY_BASE_DIR:-${ROOT_DIR}/deploy/base}"
+DEPLOY_BASE_DIR="${DEPLOY_BASE_DIR:-${ROOT_DIR}/deploy/k8s-manifests/base}"
 # 若想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
 
 # 为 ASG 配置 Spot Interruption 通知的参数
@@ -114,14 +114,14 @@ ADOT_HELM_REPO_URL="${ADOT_HELM_REPO_URL:-https://open-telemetry.github.io/opent
 ADOT_ROLE_NAME="${ADOT_ROLE_NAME:-adot-collector}"
 ADOT_ROLE_ARN="${ADOT_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${ADOT_ROLE_NAME}}"
 # Helm values 文件路径（固定在 deploy 下，便于审阅与版本控制）
-ADOT_VALUES_FILE="${ADOT_VALUES_FILE:-${ROOT_DIR}/deploy/adot-collector-values.yaml}"
+ADOT_VALUES_FILE="${ADOT_VALUES_FILE:-${ROOT_DIR}/deploy/helm-values/adot-collector-values.yaml}"
 
 # Grafana settings
 GRAFANA_NAMESPACE="${GRAFANA_NAMESPACE:-observability}"
 GRAFANA_RELEASE_NAME="${GRAFANA_RELEASE_NAME:-grafana}"
 GRAFANA_HELM_REPO_NAME="${GRAFANA_HELM_REPO_NAME:-grafana}"
 GRAFANA_HELM_REPO_URL="${GRAFANA_HELM_REPO_URL:-https://grafana.github.io/helm-charts}"
-GRAFANA_VALUES_FILE="${GRAFANA_VALUES_FILE:-${ROOT_DIR}/deploy/grafana-values.yaml}"
+GRAFANA_VALUES_FILE="${GRAFANA_VALUES_FILE:-${ROOT_DIR}/deploy/helm-values/grafana-values.yaml}"
 GRAFANA_SERVICE_ACCOUNT_NAME="${GRAFANA_SERVICE_ACCOUNT_NAME:-grafana}"
 GRAFANA_ROLE_NAME="${GRAFANA_ROLE_NAME:-grafana-amp-query}"
 GRAFANA_ROLE_ARN="${GRAFANA_ROLE_ARN:-arn:${CLOUD_PROVIDER}:iam::${ACCOUNT_ID}:role/${GRAFANA_ROLE_NAME}}"
@@ -135,14 +135,14 @@ CHAOS_HELM_REPO_NAME="${CHAOS_HELM_REPO_NAME:-chaos-mesh}"
 CHAOS_DEPLOYMENT_NAME="${CHAOS_DEPLOYMENT_NAME:-chaos-controller-manager}"
 CHAOS_DAEMONSET_NAME="${CHAOS_DAEMONSET_NAME:-chaos-daemon}"
 CHAOS_HELM_REPO_URL="${CHAOS_HELM_REPO_URL:-https://charts.chaos-mesh.org}"
-CHAOS_VALUES_FILE="${CHAOS_VALUES_FILE:-${ROOT_DIR}/deploy/chaos-mesh-values.yaml}"
+CHAOS_VALUES_FILE="${CHAOS_VALUES_FILE:-${ROOT_DIR}/deploy/helm-values/chaos-mesh-values.yaml}"
 
 # ---- Ingress ----
-ING_FILE="${ING_FILE:-${ROOT_DIR}/deploy/ingress.yaml}"
+ING_FILE="${ING_FILE:-${ROOT_DIR}/deploy/k8s-manifests/ingress.yaml}"
 # ---- HPA ----
-HPA_FILE="${HPA_FILE:-${ROOT_DIR}/deploy/hpa.yaml}"
+HPA_FILE="${HPA_FILE:-${ROOT_DIR}/deploy/k8s-manifests/hpa.yaml}"
 # ---- In-cluster Smoke Test ----
-SMOKE_FILE="${SMOKE_FILE:-${ROOT_DIR}/deploy/task-api-smoke.yaml}"
+SMOKE_FILE="${SMOKE_FILE:-${ROOT_DIR}/deploy/k8s-manifests/task-api-smoke.yaml}"
 
 # === 函数定义 ===
 # 清理临时 Job/资源，避免脚本异常退出后残留
@@ -429,7 +429,7 @@ check_ingress_alb() {
 #   3) verify writes to a disallowed prefix are denied
 awscli_s3_smoke() {
   log "🧪 aws-cli IRSA S3 smoke test"
-  local manifest="${ROOT_DIR}/deploy/awscli-smoke.yaml"
+  local manifest="${ROOT_DIR}/deploy/k8s-manifests/awscli-smoke.yaml"
 
   kubectl -n "$NS" apply -f "$manifest"
 

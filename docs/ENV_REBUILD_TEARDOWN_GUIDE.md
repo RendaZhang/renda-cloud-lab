@@ -177,7 +177,7 @@ Shell 脚本变量 `NS` 和 Terraform 变量 `task_api_namespace` 均默认指�
     ```
 
 8. **更新部署引用**：
-   - 将新的 digest 写入 `deploy/base/deploy-svc.yaml`。
+   - 将新的 digest 写入 `deploy/k8s-manifests/base/deploy-svc.yaml`。
    - 把最新的 tag `${VERSION}` 的值同步更新到 `scripts/post-recreate.sh` 的 `IMAGE_TAG` 的默认值中。
    - 可以在执行 `post-recreate.sh` 时通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
 
@@ -406,7 +406,7 @@ Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway
 - [x] **IRSA S3 权限冒烟（aws-cli Job）**
   - 运行临时 Job 验证 STS 与 S3 前缀权限：
     ```bash
-    kubectl apply -f deploy/awscli-smoke.yaml
+    kubectl apply -f deploy/k8s-manifests/awscli-smoke.yaml
     kubectl -n svc-task wait --for=condition=complete job/awscli-smoke --timeout=180s
     kubectl -n svc-task logs job/awscli-smoke
     kubectl -n svc-task delete job awscli-smoke --ignore-not-found

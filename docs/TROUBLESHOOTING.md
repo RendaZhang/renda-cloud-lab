@@ -746,7 +746,7 @@ type: grafana-amazonprometheus-datasource
   - Grafana Pod 已通过 IRSA 绑定 `grafana-amp-query` IAM 角色。
   - 数据源 `jsonData` 中额外设置了 `sigV4AssumeRoleArn` 指向同一角色。
 - **复现方式**：
-  - 部署包含该配置的 `grafana-values.yaml`，登录 Grafana，在 **Connections → Data sources → AMP** 点击 **Save & Test**。
+  - 部署包含该配置的 `deploy/helm-values/grafana-values.yaml`，登录 Grafana，在 **Connections → Data sources → AMP** 点击 **Save & Test**。
 - **根因分析**：
   - 设置 `sigV4AssumeRoleArn` 会让 AWS SDK 再次调用 STS `AssumeRole`。
   - 由于角色信任策略仅允许 OIDC 身份，而不允许角色自身调用 `AssumeRole`，导致 403 `AccessDenied`。
@@ -755,7 +755,7 @@ type: grafana-amazonprometheus-datasource
 - **相关命令**：
   ```bash
   helm upgrade --install grafana grafana/grafana \
-    -n observability -f deploy/grafana-values.yaml
+    -n observability -f deploy/helm-values/grafana-values.yaml
   ```
   - 端口转发后在浏览器 `Save & Test` 应返回 `Data source is working`。
 - **适用版本**：
