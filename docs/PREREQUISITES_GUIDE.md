@@ -29,7 +29,7 @@
 
 - **AWS 账户及权限**：拥有可用的 AWS 账户，并已安装并配置 AWS CLI（例如通过 `aws configure` 或 AWS SSO 登录）。**本项目默认使用 AWS CLI 的 SSO Profile 名称 `phase2-sso`，默认区域为 `us-east-1`**，如与你的配置不同请相应调整后续命令。
 - **Terraform 后端**：提前创建用于 Terraform 状态存储的 S3 Bucket 及 DynamoDB 锁定表，并在 `infra/aws/backend.tf` 中相应配置名称。默认假定 S3 Bucket 名为 `phase2-tf-state-us-east-1`，DynamoDB 表名为 `tf-state-lock`（可根据需要修改）。
-- **DNS 域名**（可选）：若希望使用自定义域名访问集群服务，请在 Route 53 中预先创建相应 Hosted Zone（当前默认使用的子域为 `lab.rendazhang.com`）。将 Terraform 配置中的域名更新为你的域名，以便将 ALB 地址映射到固定域名。否则，可忽略 DNS 配置，直接使用自动分配的 ALB 域名访问服务。
+- **DNS 域名**（可选）：若希望通过自定义域名访问服务，可在 Route 53 或其他 DNS 提供商中提前创建 Hosted Zone。集群启动并由 ALB Controller 创建 ALB 后，需要手动在该 Hosted Zone 中创建一条指向 ALB DNS 的 A 记录（Alias）。若不需要自定义域名，可直接使用 ALB 自动分配的域名。
 - **本地环境**：安装 Terraform (~1.8+)、kubectl 以及 Helm 等必要的命令行工具，同时安装 Git 和 Make 等基础工具。
 - **预检脚本**：可运行 `preflight.sh` 来检查关键 Service Quota 配额和环境依赖（未来将扩展检查 AWS CLI / Terraform / Helm 等工具链的版本与状态）。执行 `bash scripts/preflight.sh` 或 `make preflight` 可开始预检。
 - **AWS SSO 登录**：在运行 Terraform 或脚本前，请执行 `make aws-login` 获取临时凭证。
@@ -69,8 +69,7 @@
 
 ## DNS 域名（可选）
 
-若希望使用自定义域名访问服务，请在 Route 53 创建 Hosted Zone，
-并在 Terraform 配置中将默认域 `lab.rendazhang.com` 改为你的域名。未设置时可直接使用 ALB 自动分配的域名。
+本项目不再由 Terraform 管理 Route 53。若需自定义域名，可在 Route 53 创建 Hosted Zone，并在 ALB Controller 生成 ALB 后，创建一条指向该 ALB DNS 的 A 记录（Alias）。如不设置自定义域名，可直接使用 ALB 自动分配的域名。
 
 ---
 

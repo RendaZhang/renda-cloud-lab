@@ -38,7 +38,7 @@
 
 重建流程旨在快速自动恢复停用期间为节省成本而释放的云资源，以便开展实验或开发工作。通过自动部署必要的基础设施，我们可以在确保功能完整的同时，将不必要的云开销降至最低。
 
-销毁流程通过 **关停收费资源**，释放如 NAT 网关、ALB 等按时计费的组件，同时保留基础设施的网络和状态（例如 VPC、子网以及 Terraform State），以加速下一次环境重建。
+销毁流程通过 **关停收费资源**，释放如 NAT 网关等按时计费的组件，同时保留基础设施的网络和状态（例如 VPC、子网以及 Terraform State），以加速下一次环境重建。由 AWS Load Balancer Controller 创建的 ALB 将在 `pre-teardown.sh` 中被回收。
 
 **提示**：
 
@@ -225,12 +225,12 @@ aws sns subscribe --topic-arn $SPOT_TOPIC_ARN \
 
 ### Makefile 命令 - start-all
 
-`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_alb`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：
+`make start-all` 命令会先执行 `make start` 一键启用基础的云资源（该命令内部会在 `infra/aws` 目录下调用 `terraform apply`，将变量 `create_nat`、`create_eks` 设置为 true），然后执行 `make post-recreate`，一键完成：
 
 - 刷新 kubeconfig 并等待集群就绪；
 - 创建/注解 AWS Load Balancer Controller 的 ServiceAccount（IRSA），应用 CRDs 并通过 Helm 安装/升级 Controller；
 - 安装/升级 Cluster Autoscaler、metrics-server、Grafana，并部署 HPA；
-- 检查 NAT/ALB/节点组/SNS 绑定；
+- 检查 NAT/节点组/SNS 绑定；
 - 确保应用级 ServiceAccount 带 IRSA 注解；
 - 部署/更新 `task-api` 及其 PodDisruptionBudget，并执行集群内冒烟；
 - 发布 Ingress 并做 ALB DNS 冒烟；
@@ -336,7 +336,7 @@ Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway
   - 已创建并分配 Elastic IP，状态为 *Available*（可通过 AWS 控制台 VPC 页面或 CLI 命令确认）。
 - [x] **ALB 负载均衡**：
   - 已创建并处于 *active* 状态，监听相应端口。
-  - 若配置了自定义域名 (`lab.rendazhang.com`)，可验证该域名已解析到新的 ALB DNS 地址。
+- 若配置了自定义域名，可验证该域名已解析到新的 ALB DNS 地址。
 - [x] **EKS 控制平面**：
   - 集群状态为 `ACTIVE`。
   - 检查集群存在且状态正常：
@@ -459,7 +459,7 @@ make aws-login
 
 ### Makefile 命令 - stop-all
 
-`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress，并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，同时清理所有混沌实验对象），随后执行 `make stop` 一键销毁 NAT 网关、ALB 以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
+`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress，并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，同时清理所有混沌实验对象），随后执行 `make stop` 一键销毁 NAT 网关以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
 
 执行前请确认已登录 AWS 且后端状态配置正确，以免销毁过程因权限问题中断。
 
@@ -477,7 +477,7 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
 
 执行 `make destroy-all` 触发一键完全销毁流程。
 
-该命令首先运行 `pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，并清理所有混沌实验对象），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、ALB、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
+该命令首先运行 `pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，并清理所有混沌实验对象），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
 
 `make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。
 

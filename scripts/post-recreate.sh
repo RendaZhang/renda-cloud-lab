@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Renda Cloud Lab · post-recreate.sh
-# 需要使用 Terraform 成功启动了基础设施（NAT + ALB + EKS + IRSA）后，
+# 需要使用 Terraform 成功启动了基础设施（NAT + EKS + IRSA）后，
 # 再使用本脚本进行部署层的自动化操作。
 # 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
 #
@@ -22,7 +22,7 @@
 #   3. 确保 task-api 的 ServiceAccount 存在并带 IRSA 注解
 #   4. 通过 Helm 安装或升级 AWS Load Balancer Controller
 #   5. 通过 Helm 安装或升级 ${AUTOSCALER_RELEASE_NAME}
-#   6. 检查 NAT 网关、ALB、EKS 控制面和节点组等状态
+#   6. 检查 NAT 网关、EKS 控制面和节点组等状态
 #   7. 获取最新的 EKS NodeGroup 生成的 ASG 名称
 #   8. 若之前未绑定，则为该 ASG 配置 SNS Spot Interruption 通知
 #   9. 自动写入绑定日志，避免重复执行

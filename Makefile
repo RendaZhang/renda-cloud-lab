@@ -44,22 +44,20 @@ init:
 	@echo "Initializing Terraform..."
 	terraform -chdir=$(TF_DIR) init -reconfigure
 
-## ▶ 显示当前计划（Terraform 管理 NAT / ALB / EKS 控制面）
+## ▶ 显示当前计划（Terraform 管理 NAT / EKS 控制面）
 plan:
 	@echo "Planning Terraform changes..."
 	terraform -chdir=$(TF_DIR) plan \
 		-var="region=$(REGION)" \
 		-var="create_nat=true" \
-		-var="create_alb=true" \
 		-var="create_eks=true"
 
-## ☀ 启动 NAT、ALB、EKS 控制面
+## ☀ 启动 NAT、EKS 控制面
 start:
-	@echo "Applying Terraform changes to start NAT, ALB, and EKS..."
+	@echo "Applying Terraform changes to start NAT and EKS..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
 		-var="region=$(REGION)" \
 		-var="create_nat=true" \
-		-var="create_alb=true" \
 		-var="create_eks=true"
 
 ## 📨 运行 Spot 通知自动绑定并刷新本地 kubeconfig 以及使用 Helm 部署
@@ -78,13 +76,12 @@ scale-zero:
 	@echo "🌙 Scaling down all EKS node groups to zero..."
 	@bash scripts/scale-nodegroup-zero.sh
 
-## 🌙 销毁 NAT、ALB 以及 EKS 控制面（采用“三开关”方式）
+## 🌙 销毁 NAT 以及 EKS 控制面（采用“三开关”方式）
 stop: scale-zero
-	@echo "Stopping all resources (NAT, ALB, EKS control plane)..."
+	@echo "Stopping all resources (NAT and EKS control plane)..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
 		-var="region=$(REGION)" \
 		-var="create_nat=false" \
-		-var="create_alb=false" \
 		-var="create_eks=false"
 
 ## 🧼 在销毁前先优雅释放：删除所有 ALB Ingress → 等待回收 ALB/TG → 卸载 ALB Controller + metrics-server

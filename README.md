@@ -84,7 +84,7 @@
 
 | 目录                     | 说明                                                               |
 | ---------------------- | ------------------------------------------------------------------- |
-| **infra/aws/**         | Terraform 模块（VPC、子网、NAT、ALB、EKS 等）和环境配置，远端状态保存在 S3/DynamoDB（默认 Region=`us-east-1`） |
+| **infra/aws/**         | Terraform 模块（VPC、子网、NAT、EKS 等）和环境配置，远端状态保存在 S3/DynamoDB（默认 Region=`us-east-1`） |
 | **infra/eksctl/**      | eksctl 配置（Legacy，可选，`create_eks=false` 时使用） |
 | **docs/**              | 生命周期与流程说明文档，例如 `docs/lifecycle.md`（一键重建、Spot 绑定、清理指令等）   |
 | **charts/**            | 应用和系统的 Helm Chart，遵循 OCI 制品规范，便于复用与扩展  |
@@ -157,11 +157,9 @@ cd renda-cloud-lab
 
 基础设施的状态（如 VPC、数据存储和 Terraform 状态）会被保留，以便第二天快速重建。
 
-**固定域名**：
+**自定义域名（可选）**：
 
-借助 Route 53 的 Alias Record，将动态生成的负载均衡器 DNS 映射到固定域名（默认使用 `lab.rendazhang.com`）。
-
-即使每天重新创建 ALB，其对外访问地址保持不变，用户和系统集成无需每日更新配置。
+Terraform 不再管理 Route 53 Hosted Zone。若需要通过自定义域名访问由 ALB Controller 创建的负载均衡器，可在 Route 53 或其他 DNS 提供商中手动创建一条 A 记录（Alias）指向 ALB 的 DNS 名称，可通过 `kubectl get ingress -A` 查询 `hostname`。重建集群后 ALB DNS 会变化，需要相应更新该记录或借助 ExternalDNS 等工具自动维护。
 
 **弹性扩缩容**：
 
@@ -203,7 +201,7 @@ cd renda-cloud-lab
 
 **每天自动销毁和重建集群环境是如何实现的？可以自定义这个调度吗？**
 
-- 本项目通过 Makefile 脚本和 Terraform 模块实现资源的按日启停：早晨执行 `make start-all` 创建 NAT 网关、ALB 以及 EKS 集群，夜晚执行 `make stop-all` 完全销毁这些资源，仅保留 VPC 等基础设施状态。
+- 本项目通过 Makefile 脚本和 Terraform 模块实现资源的按日启停：早晨执行 `make start-all` 创建 NAT 网关以及 EKS 集群，夜晚执行 `make stop-all` 完全销毁这些资源，仅保留 VPC 等基础设施状态。
 - 你可以利用 CI/CD 平台的定时任务实现全自动调度，例如使用 GitHub Actions 的 `cron` 定时触发 `make start-all/stop-all`，或通过 AWS CodePipeline 配合 EventBridge 定时事件触发。
 - 同样地，你也可以根据需要调整策略：例如，仅在工作日执行自动启停，周末保持关闭，甚至完全停用自动销毁（但需承担额外费用）。
 - 调度的灵活性完全取决于你的实验需求。
@@ -217,13 +215,13 @@ cd renda-cloud-lab
 - 你也可以改为按需启停的方式，例如只在需要时手动运行脚本创建/删除集群。
 - 总之，本项目提供的脚本和策略是可选的，用户可根据实际需求调整资源生命周期管理方式。
 
-**默认提供的域名 `lab.rendazhang.com` 有什么作用？可以更换吗？**
+**如果需要使用自定义域名，该如何配置？**
 
-- 该自定义域名通过 Route 53 Alias 记录固定解析到实验集群的 ALB，作用是在重建集群时保持对外访问地址不变。
-- 如果你 Fork 本项目或在自己的账户中部署，通常无法使用 `lab.rendazhang.com` 域名。
-- 此时你可以**更换为自己的域名**：方法是在你的 Route 53 中创建对应域名的 Hosted Zone，并在 Terraform 配置中将 `lab.rendazhang.com` 修改为你的域名（或如果不想使用自定义域名，也可删除 Terraform 中 `aws_route53_record` 资源直接使用 ALB 默认域名）。
-- 更换域名后，需要在访问应用时使用新的域名。
-- 如果不设置自定义域名，则可直接使用 AWS ALB 自动分配的域名来访问服务。
+- 本项目默认不再创建 Route 53 Hosted Zone 或 DNS 记录。
+- 如需使用自定义域名，可在 Route 53 或其他 DNS 服务中创建对应的 Hosted Zone。
+- 当 ALB Controller 为 Ingress 创建 ALB 后，通过 `kubectl get ingress` 或 AWS 控制台获取 ALB 的 DNS 名称，并在 Hosted Zone 中创建一条指向该 DNS 的 A 记录（Alias）。
+- 由于 ALB 每次重建都会生成新的 DNS 名称，需要在重建后更新该记录，或使用 ExternalDNS 等自动化方案。
+- 若不配置自定义域名，可直接使用 ALB 自动分配的域名访问服务。
 
 ---
 

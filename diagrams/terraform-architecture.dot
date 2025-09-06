@@ -2,14 +2,6 @@ digraph G {
   rankdir = "RL";
   node [shape = rect, fontname = "sans-serif"];
   "aws_budgets_budget.monthly_cost" [label="aws_budgets_budget.monthly_cost"];
-  "aws_route53_record.lab_alias" [label="aws_route53_record.lab_alias"];
-  subgraph "cluster_module.alb" {
-    label = "module.alb"
-    fontname = "sans-serif"
-    "module.alb.aws_lb.demo" [label="aws_lb.demo"];
-    "module.alb.aws_lb_listener.http" [label="aws_lb_listener.http"];
-    "module.alb.aws_lb_target_group.demo" [label="aws_lb_target_group.demo"];
-  }
   subgraph "cluster_module.eks" {
     label = "module.eks"
     fontname = "sans-serif"
@@ -42,12 +34,24 @@ digraph G {
     "module.irsa.aws_iam_role.eks_cluster_autoscaler" [label="aws_iam_role.eks_cluster_autoscaler"];
     "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach" [label="aws_iam_role_policy_attachment.cluster_autoscaler_attach"];
   }
+  subgraph "cluster_module.irsa_adot_amp" {
+    label = "module.irsa_adot_amp"
+    fontname = "sans-serif"
+    "module.irsa_adot_amp.aws_iam_role.adot_amp_remote_write" [label="aws_iam_role.adot_amp_remote_write"];
+    "module.irsa_adot_amp.aws_iam_role_policy_attachment.remote_write" [label="aws_iam_role_policy_attachment.remote_write"];
+  }
   subgraph "cluster_module.irsa_albc" {
     label = "module.irsa_albc"
     fontname = "sans-serif"
     "module.irsa_albc.aws_iam_policy.albc" [label="aws_iam_policy.albc"];
     "module.irsa_albc.aws_iam_role.aws_load_balancer_controller" [label="aws_iam_role.aws_load_balancer_controller"];
     "module.irsa_albc.aws_iam_role_policy_attachment.albc_attach" [label="aws_iam_role_policy_attachment.albc_attach"];
+  }
+  subgraph "cluster_module.irsa_grafana_amp" {
+    label = "module.irsa_grafana_amp"
+    fontname = "sans-serif"
+    "module.irsa_grafana_amp.aws_iam_role.grafana_amp_query" [label="aws_iam_role.grafana_amp_query"];
+    "module.irsa_grafana_amp.aws_iam_role_policy_attachment.query_access" [label="aws_iam_role_policy_attachment.query_access"];
   }
   subgraph "cluster_module.nat" {
     label = "module.nat"
@@ -61,7 +65,6 @@ digraph G {
     fontname = "sans-serif"
     "module.network_base.data.aws_availability_zones.available" [label="data.aws_availability_zones.available"];
     "module.network_base.data.aws_region.current" [label="data.aws_region.current"];
-    "module.network_base.data.aws_route53_zone.lab" [label="data.aws_route53_zone.lab"];
     "module.network_base.aws_internet_gateway.igw" [label="aws_internet_gateway.igw"];
     "module.network_base.aws_route_table.private" [label="aws_route_table.private"];
     "module.network_base.aws_route_table.public" [label="aws_route_table.public"];
@@ -89,19 +92,6 @@ digraph G {
     "module.task_api.aws_s3_bucket_versioning.this" [label="aws_s3_bucket_versioning.this"];
     "module.task_api.random_pet.bucket_suffix" [label="random_pet.bucket_suffix"];
   }
-  "aws_route53_record.lab_alias" -> "module.alb.aws_lb_listener.http";
-  "module.alb.aws_lb.demo" -> "module.network_base.data.aws_route53_zone.lab";
-  "module.alb.aws_lb.demo" -> "module.network_base.aws_route_table_association.private";
-  "module.alb.aws_lb.demo" -> "module.network_base.aws_route_table_association.public";
-  "module.alb.aws_lb.demo" -> "module.network_base.aws_security_group.alb";
-  "module.alb.aws_lb.demo" -> "module.network_base.aws_vpc_endpoint.s3";
-  "module.alb.aws_lb_listener.http" -> "module.alb.aws_lb.demo";
-  "module.alb.aws_lb_listener.http" -> "module.alb.aws_lb_target_group.demo";
-  "module.alb.aws_lb_target_group.demo" -> "module.network_base.data.aws_route53_zone.lab";
-  "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_route_table_association.private";
-  "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_route_table_association.public";
-  "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_security_group.alb";
-  "module.alb.aws_lb_target_group.demo" -> "module.network_base.aws_vpc_endpoint.s3";
   "module.eks.data.tls_certificate.cluster" -> "module.eks.aws_eks_cluster.this";
   "module.eks.aws_eks_cluster.this" -> "module.eks.aws_iam_role_policy_attachment.eks_cluster_policy";
   "module.eks.aws_eks_cluster.this" -> "module.eks.aws_iam_role_policy_attachment.eks_service_policy";
@@ -117,7 +107,6 @@ digraph G {
   "module.eks.aws_eks_node_group.ng" -> "module.eks.aws_security_group_rule.node_ssh";
   "module.eks.aws_eks_node_group.ng" -> "module.eks.aws_security_group_rule.node_to_cluster_api";
   "module.eks.aws_iam_openid_connect_provider.oidc" -> "module.eks.data.tls_certificate.cluster";
-  "module.eks.aws_iam_role.eks_cluster_role" -> "module.network_base.data.aws_route53_zone.lab";
   "module.eks.aws_iam_role.eks_cluster_role" -> "module.network_base.aws_route_table_association.private";
   "module.eks.aws_iam_role.eks_cluster_role" -> "module.network_base.aws_route_table_association.public";
   "module.eks.aws_iam_role.eks_cluster_role" -> "module.network_base.aws_security_group.alb";
@@ -138,7 +127,6 @@ digraph G {
   "module.eks.aws_security_group_rule.node_self_all" -> "module.eks.aws_security_group.node";
   "module.eks.aws_security_group_rule.node_ssh" -> "module.eks.aws_security_group.node";
   "module.eks.aws_security_group_rule.node_to_cluster_api" -> "module.eks.aws_security_group.node";
-  "module.eks.random_id.role_suffix" -> "module.network_base.data.aws_route53_zone.lab";
   "module.eks.random_id.role_suffix" -> "module.network_base.aws_route_table_association.private";
   "module.eks.random_id.role_suffix" -> "module.network_base.aws_route_table_association.public";
   "module.eks.random_id.role_suffix" -> "module.network_base.aws_security_group.alb";
@@ -149,13 +137,18 @@ digraph G {
   "module.irsa.aws_iam_role.eks_cluster_autoscaler" -> "module.eks.aws_iam_openid_connect_provider.oidc";
   "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach" -> "module.irsa.aws_iam_policy.cluster_autoscaler";
   "module.irsa.aws_iam_role_policy_attachment.cluster_autoscaler_attach" -> "module.irsa.aws_iam_role.eks_cluster_autoscaler";
+  "module.irsa_adot_amp.aws_iam_role.adot_amp_remote_write" -> "module.eks.aws_eks_node_group.ng";
+  "module.irsa_adot_amp.aws_iam_role.adot_amp_remote_write" -> "module.eks.aws_iam_openid_connect_provider.oidc";
+  "module.irsa_adot_amp.aws_iam_role_policy_attachment.remote_write" -> "module.irsa_adot_amp.aws_iam_role.adot_amp_remote_write";
   "module.irsa_albc.aws_iam_policy.albc" -> "module.eks.aws_eks_node_group.ng";
   "module.irsa_albc.aws_iam_policy.albc" -> "module.eks.aws_iam_openid_connect_provider.oidc";
   "module.irsa_albc.aws_iam_role.aws_load_balancer_controller" -> "module.eks.aws_eks_node_group.ng";
   "module.irsa_albc.aws_iam_role.aws_load_balancer_controller" -> "module.eks.aws_iam_openid_connect_provider.oidc";
   "module.irsa_albc.aws_iam_role_policy_attachment.albc_attach" -> "module.irsa_albc.aws_iam_policy.albc";
   "module.irsa_albc.aws_iam_role_policy_attachment.albc_attach" -> "module.irsa_albc.aws_iam_role.aws_load_balancer_controller";
-  "module.nat.aws_eip.nat" -> "module.network_base.data.aws_route53_zone.lab";
+  "module.irsa_grafana_amp.aws_iam_role.grafana_amp_query" -> "module.eks.aws_eks_node_group.ng";
+  "module.irsa_grafana_amp.aws_iam_role.grafana_amp_query" -> "module.eks.aws_iam_openid_connect_provider.oidc";
+  "module.irsa_grafana_amp.aws_iam_role_policy_attachment.query_access" -> "module.irsa_grafana_amp.aws_iam_role.grafana_amp_query";
   "module.nat.aws_eip.nat" -> "module.network_base.aws_route_table_association.private";
   "module.nat.aws_eip.nat" -> "module.network_base.aws_route_table_association.public";
   "module.nat.aws_eip.nat" -> "module.network_base.aws_security_group.alb";
@@ -169,7 +162,6 @@ digraph G {
   "module.network_base.aws_route_table_association.private" -> "module.network_base.aws_subnet.private";
   "module.network_base.aws_route_table_association.public" -> "module.network_base.aws_route_table.public";
   "module.network_base.aws_route_table_association.public" -> "module.network_base.aws_subnet.public";
-  "module.network_base.aws_security_group.alb" -> "module.network_base.aws_vpc.this";
   "module.network_base.aws_subnet.private" -> "module.network_base.data.aws_availability_zones.available";
   "module.network_base.aws_subnet.private" -> "module.network_base.aws_vpc.this";
   "module.network_base.aws_subnet.public" -> "module.network_base.data.aws_availability_zones.available";

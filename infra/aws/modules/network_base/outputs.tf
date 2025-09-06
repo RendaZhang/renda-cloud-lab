@@ -23,13 +23,3 @@ output "s3_gateway_endpoint_id" {
   description = "S3 网关端点 ID"
   value       = aws_vpc_endpoint.s3.id
 }
-
-output "alb_sg_id" {
-  description = "ALB 使用的安全组 ID"
-  value       = aws_security_group.alb.id
-}
-
-output "hosted_zone_id" {
-  description = "Route53 Hosted Zone ID"
-  value       = data.aws_route53_zone.lab.zone_id
-}

@@ -75,7 +75,7 @@ renda-cloud-lab/
 - Terraform backend:
   - S3 Bucket: `phase2-tf-state-us-east-1`
   - DynamoDB Lock Table: `tf-state-lock`
-- Default domain name (for ALB): `lab.rendazhang.com`
+- No default domain is managed by Terraform. Configure DNS records manually if custom domains are required for ALB Controller managed load balancers.
 - Rebuild lifecycle and autoscaling behavior controlled via `make stop-all`, `make start-all`, and supporting scripts.
 - Login helper command: `make aws-login`
 - Import existing clusters via `scripts/tf-import.sh`

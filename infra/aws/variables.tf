@@ -121,12 +121,6 @@ variable "create_nat" {
   default     = true
 }
 
-variable "create_alb" {
-  description = "Whether to create Application Load Balancer"
-  type        = bool
-  default     = true
-}
-
 variable "create_eks" {
   description = "Whether to create EKS cluster"
   type        = bool

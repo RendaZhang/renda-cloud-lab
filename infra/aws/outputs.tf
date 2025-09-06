@@ -1,9 +1,4 @@
 // 输出常用资源信息，便于后续模块或调试使用
-output "alb_dns" {
-  description = "ALB 的访问域名"
-  value       = module.alb.alb_dns
-}
-
 output "vpc_id" {
   description = "network_base 模块创建的 VPC ID"
   value       = module.network_base.vpc_id

@@ -1,6 +1,6 @@
 // ---------------------------
 // 主模块：组合各子模块形成完整的实验环境
-// 包含网络基础设施、NAT 网关、应用负载均衡、EKS 集群以及 IRSA 角色等
+// 包含网络基础设施、NAT 网关、EKS 集群以及 IRSA 角色等
 // ---------------------------
 
 module "network_base" {
@@ -16,14 +16,6 @@ module "nat" {
   depends_on      = [module.network_base]                       # 依赖网络基础模块
 }
 
-module "alb" {
-  source            = "./modules/alb"                       # ALB 模块
-  create            = var.create_alb                        # 是否创建 ALB
-  public_subnet_ids = module.network_base.public_subnet_ids # ALB 使用的公有子网
-  alb_sg_id         = module.network_base.alb_sg_id         # ALB 专用安全组
-  vpc_id            = module.network_base.vpc_id            # 所属 VPC
-  depends_on        = [module.network_base]                 # 依赖网络基础模块
-}
 
 module "eks" {
   source                  = "./modules/eks"                        # EKS 集群模块
@@ -104,17 +96,4 @@ module "task_api" {
   oidc_provider_url = module.eks.oidc_provider_url_without_https # OIDC Provider URL（无 https）
   vpc_id            = module.network_base.vpc_id                 # 桶策略限制访问的 VPC
   depends_on        = [module.eks]                               # 依赖 EKS 模块
-}
-
-resource "aws_route53_record" "lab_alias" {
-  count   = var.create_alb ? 1 : 0             # 仅在创建 ALB 时创建记录
-  zone_id = module.network_base.hosted_zone_id # DNS Hosted Zone ID
-  name    = ""                                 # TODO: 设置所需的子域名
-  type    = "A"                                # A 记录
-  alias {
-    name                   = module.alb.alb_dns     # 指向 ALB 的 DNS
-    zone_id                = module.alb.alb_zone_id # ALB 所属的 Hosted Zone
-    evaluate_target_health = false                  # 不检查目标健康状况
-  }
-  depends_on = [module.alb] # 等待 ALB 创建完成
 }

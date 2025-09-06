@@ -1,5 +1,5 @@
 // ---------------------------
-// 网络基础模块：创建 VPC、子网、路由表及 ALB 安全组等资源
+// 网络基础模块：创建 VPC、子网、路由表等资源
 // ---------------------------
 
 data "aws_availability_zones" "available" {} # 查询可用区
@@ -90,26 +90,4 @@ resource "aws_vpc_endpoint" "s3" {
     ManagedBy   = "Terraform"
     Description = "Gateway endpoint for S3"
   }
-}
-
-# 安全组专供 ALB
-resource "aws_security_group" "alb" {
-  name   = "alb-demo-sg"
-  vpc_id = aws_vpc.this.id
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-data "aws_route53_zone" "lab" {
-  name = "lab.rendazhang.com" # TODO: 根据实际域名修改
 }
