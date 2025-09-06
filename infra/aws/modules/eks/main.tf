@@ -196,6 +196,11 @@ resource "aws_eks_node_group" "ng" {
     aws_iam_role_policy_attachment.eks_cni_policy[0],
     aws_iam_role_policy_attachment.ecr_read_policy[0],
   ]
+
+  lifecycle {
+    # 忽略 desired_size，交给 cluster-autoscaler 管理节点数量
+    ignore_changes = [scaling_config[0].desired_size]
+  }
 }
 
 # 添加随机后缀防止名称冲突
