@@ -71,7 +71,7 @@ Shell 脚本变量 `NS` 和 Terraform 变量 `task_api_namespace` 均默认指�
 
 #### chaos-testing
 
-混沌工程组件 `Chaos Mesh` 在开启时会部署到 `chaos-testing` 命名空间，仅包含 controller 与 daemonset；示例实验清单位于 `deploy/k8s-manifests/chaos-experiments/`。
+混沌工程组件 `Chaos Mesh` 在开启时会部署到 `chaos-testing` 命名空间，仅包含 controller 与 daemonset；示例实验清单位于 `deploy/k8s-manifests/experiments/chaos/`。
 
 ### 构建并推送 task-api 镜像
 
@@ -178,7 +178,7 @@ Shell 脚本变量 `NS` 和 Terraform 变量 `task_api_namespace` 均默认指�
     ```
 
 8. **更新部署引用**：
-   - 将新的 digest 写入 `deploy/k8s-manifests/base/deploy-svc.yaml`。
+   - 将新的 digest 写入 `deploy/k8s-manifests/app/deploy-svc.yaml`。
    - 把最新的 tag `${VERSION}` 的值同步更新到 `scripts/post-recreate.sh` 的 `IMAGE_TAG` 的默认值中。
    - 可以在执行 `post-recreate.sh` 时通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
 
@@ -407,7 +407,7 @@ Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway
 - [x] **IRSA S3 权限冒烟（aws-cli Job）**
   - 运行临时 Job 验证 STS 与 S3 前缀权限：
     ```bash
-    kubectl apply -f deploy/k8s-manifests/awscli-smoke.yaml
+    kubectl apply -f deploy/k8s-manifests/jobs/smoke/awscli-smoke.yaml
     kubectl -n svc-task wait --for=condition=complete job/awscli-smoke --timeout=180s
     kubectl -n svc-task logs job/awscli-smoke
     kubectl -n svc-task delete job awscli-smoke --ignore-not-found
@@ -445,14 +445,14 @@ Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway
 ## 混沌实验（Chaos Experiment）
 
 1. **确保 Chaos Mesh 已安装**：重建流程中需设置 `ENABLE_CHAOS_MESH=true`，以便在 `chaos-testing` 命名空间部署核心组件。
-2. **选择实验清单**：仓库提供的实验 YAML 位于 `deploy/k8s-manifests/chaos-experiments/`，示例包括：
+2. **选择实验清单**：仓库提供的实验 YAML 位于 `deploy/k8s-manifests/experiments/chaos/`，示例包括：
    - `experiment-net-latency.yaml`：向 `task-api` 注入 200ms 网络延迟；
    - `experiment-pod-kill.yaml`：随机终止 `task-api` 的一个 Pod。
 3. **应用实验**：
    ```bash
-   kubectl apply -f deploy/k8s-manifests/chaos-experiments/experiment-net-latency.yaml
+   kubectl apply -f deploy/k8s-manifests/experiments/chaos/experiment-net-latency.yaml
    # 或
-   kubectl apply -f deploy/k8s-manifests/chaos-experiments/experiment-pod-kill.yaml
+   kubectl apply -f deploy/k8s-manifests/experiments/chaos/experiment-pod-kill.yaml
    ```
 4. **观察效果**：
    ```bash
@@ -462,9 +462,9 @@ Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway
    前者查看 Chaos 对象状态，后者实时观察 `task-api` Pod 变化。
 5. **清理实验**：实验完成后删除对应 YAML，恢复正常状态：
    ```bash
-   kubectl delete -f deploy/k8s-manifests/chaos-experiments/experiment-net-latency.yaml
+   kubectl delete -f deploy/k8s-manifests/experiments/chaos/experiment-net-latency.yaml
    # 或
-   kubectl delete -f deploy/k8s-manifests/chaos-experiments/experiment-pod-kill.yaml
+   kubectl delete -f deploy/k8s-manifests/experiments/chaos/experiment-pod-kill.yaml
    ```
 
 ---

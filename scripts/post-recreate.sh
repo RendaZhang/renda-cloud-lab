@@ -6,7 +6,7 @@
 # 确保将集群资源的创建与 Kubernetes 服务的部署进行解耦。
 #
 # 必需的环境变量（需在运行前设置或由集群自动注入）：
-# 如下三个自定义变量需要在 ${ROOT_DIR}/deploy/k8s-manifests/base/configmap.yaml 中定义
+# 如下三个自定义变量需要在 ${ROOT_DIR}/deploy/k8s-manifests/app/configmap.yaml 中定义
 #   S3_BUCKET
 #   S3_PREFIX
 #   AWS_REGION
@@ -70,10 +70,10 @@ TASK_API_SERVICE_ACCOUNT_NAME="${TASK_API_SERVICE_ACCOUNT_NAME:-${APP}}"
 # 要部署的 task-api 镜像 tag（也可用 latest）。若设置 IMAGE_DIGEST 则优先生效。
 # 如更新 task-api 源码，请先构建并推送新镜像，然后调整此处 tag 或设置 IMAGE_DIGEST。
 IMAGE_TAG="${IMAGE_TAG:-0.1.0-2508272044}"
-# deploy 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml / pdb.yaml）
+# app 清单所在目录（ns-sa.yaml / configmap.yaml / deploy-svc.yaml / pdb.yaml）
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 ROOT_DIR="${ROOT_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
-DEPLOY_BASE_DIR="${DEPLOY_BASE_DIR:-${ROOT_DIR}/deploy/k8s-manifests/base}"
+APP_MANIFEST_DIR="${APP_MANIFEST_DIR:-${ROOT_DIR}/deploy/k8s-manifests/app}"
 # 若想固定某个 digest，可在运行前 export IMAGE_DIGEST=sha256:...
 
 # 为 ASG 配置 Spot Interruption 通知的参数
@@ -138,11 +138,11 @@ CHAOS_HELM_REPO_URL="${CHAOS_HELM_REPO_URL:-https://charts.chaos-mesh.org}"
 CHAOS_VALUES_FILE="${CHAOS_VALUES_FILE:-${ROOT_DIR}/deploy/helm-values/chaos-mesh-values.yaml}"
 
 # ---- Ingress ----
-ING_FILE="${ING_FILE:-${ROOT_DIR}/deploy/k8s-manifests/ingress.yaml}"
+ING_FILE="${ING_FILE:-${ROOT_DIR}/deploy/k8s-manifests/network/ingress.yaml}"
 # ---- HPA ----
-HPA_FILE="${HPA_FILE:-${ROOT_DIR}/deploy/k8s-manifests/hpa.yaml}"
+HPA_FILE="${HPA_FILE:-${ROOT_DIR}/deploy/k8s-manifests/autoscaling/hpa.yaml}"
 # ---- In-cluster Smoke Test ----
-SMOKE_FILE="${SMOKE_FILE:-${ROOT_DIR}/deploy/k8s-manifests/task-api-smoke.yaml}"
+SMOKE_FILE="${SMOKE_FILE:-${ROOT_DIR}/deploy/k8s-manifests/jobs/smoke/task-api-smoke.yaml}"
 
 # === 函数定义 ===
 # 清理临时 Job/资源，避免脚本异常退出后残留
@@ -429,7 +429,7 @@ check_ingress_alb() {
 #   3) verify writes to a disallowed prefix are denied
 awscli_s3_smoke() {
   log "🧪 aws-cli IRSA S3 smoke test"
-  local manifest="${ROOT_DIR}/deploy/k8s-manifests/awscli-smoke.yaml"
+  local manifest="${ROOT_DIR}/deploy/k8s-manifests/jobs/smoke/awscli-smoke.yaml"
 
   kubectl -n "$NS" apply -f "$manifest"
 
@@ -827,19 +827,19 @@ deploy_task_api() {
   aws eks update-kubeconfig --name "${CLUSTER_NAME}" --region "${REGION}" --profile "${PROFILE}" >/dev/null
 
   # ===== 应用 Kubernetes 清单 =====
-  if [[ ! -d "${DEPLOY_BASE_DIR}" ]]; then
-    abort "未找到 deploy 清单目录：${DEPLOY_BASE_DIR}"
+  if [[ ! -d "${APP_MANIFEST_DIR}" ]]; then
+    abort "未找到 app 清单目录：${APP_MANIFEST_DIR}"
   fi
   log "🗂️  apply 清单：ns-sa.yaml"
-  kubectl -n "${NS}" apply -f "${DEPLOY_BASE_DIR}/ns-sa.yaml"
+  kubectl -n "${NS}" apply -f "${APP_MANIFEST_DIR}/ns-sa.yaml"
   ensure_task_api_service_account  # 确保应用级 SA 带 IRSA 注解
   log "🗂️  apply 清单：configmap.yaml"
-  kubectl -n "${NS}" apply -f "${DEPLOY_BASE_DIR}/configmap.yaml"
+  kubectl -n "${NS}" apply -f "${APP_MANIFEST_DIR}/configmap.yaml"
   log "🗂️  apply 清单：deploy-svc.yaml"
-  kubectl -n "${NS}" apply -f "${DEPLOY_BASE_DIR}/deploy-svc.yaml"
+  kubectl -n "${NS}" apply -f "${APP_MANIFEST_DIR}/deploy-svc.yaml"
   log "🗂️  apply 清单：pdb.yaml"
   # PodDisruptionBudget 确保在节点维护或滚动升级等自愿中断场景下，至少保留 1 个可用 Pod
-  kubectl -n "${NS}" apply -f "${DEPLOY_BASE_DIR}/pdb.yaml"
+  kubectl -n "${NS}" apply -f "${APP_MANIFEST_DIR}/pdb.yaml"
 
   # ===== 解析镜像（优先使用固定 digest）=====
   if [[ -n "${IMAGE_DIGEST:-}" ]]; then
