@@ -2,7 +2,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 目录 (Table of Contents)
 
-- [EKS 云原生集群生命周期流程文档](#eks-%E4%BA%91%E5%8E%9F%E7%94%9F%E9%9B%86%E7%BE%A4%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E6%B5%81%E7%A8%8B%E6%96%87%E6%A1%A3)
+- [运维手册](#%E8%BF%90%E7%BB%B4%E6%89%8B%E5%86%8C)
   - [准备工作](#%E5%87%86%E5%A4%87%E5%B7%A5%E4%BD%9C)
     - [本地依赖要求](#%E6%9C%AC%E5%9C%B0%E4%BE%9D%E8%B5%96%E8%A6%81%E6%B1%82)
     - [AWS SSO 登录](#aws-sso-%E7%99%BB%E5%BD%95)
@@ -17,9 +17,9 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# EKS 云原生集群生命周期流程文档
+# 运维手册
 
-- **最后更新**: August 17, 2025, 16:19 (UTC+08:00)
+- **最后更新**: September 06, 2025, 22:38 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 本文档记录从初始化到销毁的全生命周期操作流程，适用于开发、测试和生产演练场景。

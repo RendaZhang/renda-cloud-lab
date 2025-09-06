@@ -2,7 +2,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 目录 (Table of Contents)
 
-- [Terraform 重建与销毁流程操作文档](#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
+- [环境重建与销毁指南](#%E7%8E%AF%E5%A2%83%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%8C%87%E5%8D%97)
   - [简介](#%E7%AE%80%E4%BB%8B)
     - [命名空间说明](#%E5%91%BD%E5%90%8D%E7%A9%BA%E9%97%B4%E8%AF%B4%E6%98%8E)
       - [kube-system](#kube-system)
@@ -25,9 +25,9 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Terraform 重建与销毁流程操作文档
+# 环境重建与销毁指南
 
-- **最后更新**: August 28, 2025, 19:22 (UTC+08:00)
+- **最后更新**: September 06, 2025, 22:38 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 ---

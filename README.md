@@ -29,7 +29,7 @@
 
 # Renda Cloud Lab
 
-- **最后更新**: August 28, 2025, 19:00 (UTC+08:00)
+- **最后更新**: September 06, 2025, 22:38 (UTC+08:00)
 - **作者**: 张人大（Renda Zhang）
 
 > *专注于云计算技术研究与开发的开源实验室，提供高效、灵活的云服务解决方案，支持多场景应用。*
@@ -143,11 +143,11 @@ git clone https://github.com/RendaZhang/renda-cloud-lab.git
 cd renda-cloud-lab
 ```
 
-后续操作参考文档内容：📄 [云原生集群生命周期流程](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/EKS_CLUSTER_LIFECYCLE_GUIDE.md)
+后续操作参考文档内容：📄 [运维手册](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/RUNBOOK.md)
 
 ### 集群启停管理
 
-具体请参考文档内容：📄 [重建与销毁流程](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
+具体请参考文档内容：📄 [环境重建与销毁指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/ENV_REBUILD_TEARDOWN_GUIDE.md#%E7%8E%AF%E5%A2%83%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%8C%87%E5%8D%97)
 
 **日间启用，夜间销毁**：
 
@@ -229,8 +229,8 @@ Terraform 不再管理 Route 53 Hosted Zone。若需要通过自定义域名访�
 
 ### 文档
 
-- 📄 [EKS 云原生集群生命周期流程](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/EKS_CLUSTER_LIFECYCLE_GUIDE.md#eks-%E4%BA%91%E5%8E%9F%E7%94%9F%E9%9B%86%E7%BE%A4%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E6%B5%81%E7%A8%8B%E6%96%87%E6%A1%A3)
-- 📄 [每日 Terraform 重建与销毁流程操作文档](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#terraform-%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3)
+- 📄 [运维手册](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/RUNBOOK.md#%E8%BF%90%E7%BB%B4%E6%89%8B%E5%86%8C)
+- 📄 [环境重建与销毁指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/ENV_REBUILD_TEARDOWN_GUIDE.md#%E7%8E%AF%E5%A2%83%E9%87%8D%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81%E6%8C%87%E5%8D%97)
 - 📄 [集群故障排查指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/TROUBLESHOOTING.md#%E9%9B%86%E7%BE%A4%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97)
 - 📄 [AGENTS 智能体操作指南](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/AGENTS.md#guidance-for-ai-agents)
 - 📄 [eksctl 遗留指引](https://github.com/RendaZhang/renda-cloud-lab/blob/master/docs/LEGACY_EKSCTL.md#eksctl-%E6%8C%87%E5%BC%95)
@@ -264,7 +264,7 @@ Terraform 不再管理 Route 53 Hosted Zone。若需要通过自定义域名访�
 
 若修改了 `task-api` 源码：
 
-1. 在 `task-api` 目录构建并推送新镜像到 ECR（具体操作步骤参见 [DAILY_REBUILD_TEARDOWN_GUIDE.md](docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#构建并推送-task-api-镜像)）。
+1. 在 `task-api` 目录构建并推送新镜像到 ECR（具体操作步骤参见 [ENV_REBUILD_TEARDOWN_GUIDE.md](docs/ENV_REBUILD_TEARDOWN_GUIDE.md#构建并推送-task-api-镜像)）。
 2. 将新的 digest 写入 `deploy/base/deploy-svc.yaml`，或在执行 `post-recreate.sh` 前通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
 
 ---
