@@ -755,7 +755,7 @@ type: grafana-amazonprometheus-datasource
 - **相关命令**：
   ```bash
   helm upgrade --install grafana grafana/grafana \
-    -n observability -f task-api/k8s/grafana-values.yaml
+    -n observability -f k8s/grafana-values.yaml
   ```
   - 端口转发后在浏览器 `Save & Test` 应返回 `Data source is working`。
 - **适用版本**：
