@@ -39,7 +39,7 @@
 
 重建流程旨在快速自动恢复停用期间为节省成本而释放的云资源，以便开展实验或开发工作。通过自动部署必要的基础设施，我们可以在确保功能完整的同时，将不必要的云开销降至最低。
 
-销毁流程通过 **关停收费资源**，释放如 NAT 网关等按时计费的组件，同时保留基础设施的网络和状态（例如 VPC、子网以及 Terraform State），以加速下一次环境重建。由 AWS Load Balancer Controller 创建的 ALB 将在 `pre-teardown.sh` 中被回收。
+销毁流程通过 **关停收费资源**，释放如 NAT 网关等按时计费的组件，同时保留基础设施的网络和状态（例如 VPC、子网以及 Terraform State），以加速下一次环境重建。
 
 **提示**：
 
@@ -179,8 +179,8 @@ Shell 脚本变量 `NS` 和 Terraform 变量 `task_api_namespace` 均默认指�
 
 8. **更新部署引用**：
    - 将新的 digest 写入 `deploy/k8s/app/deploy-svc.yaml`。
-   - 把最新的 tag `${VERSION}` 的值同步更新到 `scripts/post-recreate.sh` 的 `IMAGE_TAG` 的默认值中。
-   - 可以在执行 `post-recreate.sh` 时通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
+  - 把最新的 tag `${VERSION}` 的值同步更新到 `scripts/lifecycle/post-recreate.sh` 的 `IMAGE_TAG` 的默认值中。
+  - 可以在执行 `scripts/lifecycle/post-recreate.sh` 时通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
 
 ---
 
@@ -487,7 +487,7 @@ make aws-login
 
 ### Makefile 命令 - stop-all
 
-`make stop-all` 会依次执行：首先运行 `pre-teardown.sh` 删除所有 ALB 类型 Ingress，并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，同时清理所有混沌实验对象），随后执行 `make stop` 一键销毁 NAT 网关以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
+`make stop-all` 会依次执行：首先运行 `scripts/lifecycle/pre-teardown.sh` 删除所有 ALB 类型 Ingress，并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，同时清理所有混沌实验对象），随后执行 `make stop` 一键销毁 NAT 网关以及 EKS 控制面和节点组（保留基础网络框架以便下次重建），最后调用 `scripts/lifecycle/post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 及相关安全组，并再次验证 NAT 网关、EKS 集群与 ASG SNS 通知等资源是否完全删除。
 
 执行前请确认已登录 AWS 且后端状态配置正确，以免销毁过程因权限问题中断。
 
@@ -505,7 +505,7 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
 
 执行 `make destroy-all` 触发一键完全销毁流程。
 
-该命令首先运行 `pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，并清理所有混沌实验对象），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
+该命令首先运行 `scripts/lifecycle/pre-teardown.sh` 删除 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller（可选卸载 metrics-server、ADOT Collector、Grafana 与 Chaos Mesh，并清理所有混沌实验对象），随后调用 `make stop` 删除 EKS 控制面，接着执行 `terraform destroy` 一次性删除包括 NAT 网关、VPC、子网、安全组、IAM 角色等在内的所有资源，最后由 `scripts/lifecycle/post-teardown.sh` 清理 CloudWatch 日志组、ALB/TargetGroup 与安全组并再次验证所有资源均已删除。
 
 `make destroy-all` 会确保首先关闭任何仍在运行的组件，然后清理 Terraform 状态中记录的所有资源。
 
@@ -523,18 +523,18 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
 
 ### 可选参数与开关（teardown 阶段）
 
-- `UNINSTALL_METRICS`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `metrics-server`。
-- `UNINSTALL_ADOT`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `ADOT Collector`（Helm release: `adot-collector`，ns: `observability`）。
-- `UNINSTALL_GRAFANA`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `Grafana`（Helm release: `grafana`，ns: `observability`）。
-- `UNINSTALL_CHAOS_MESH`（Makefile 变量，默认 `true`）：控制 `pre-teardown.sh` 是否卸载 `Chaos Mesh`（Helm release: `chaos-mesh`，ns: `chaos-testing`）。
+- `UNINSTALL_METRICS`（Makefile 变量，默认 `true`）：控制 `scripts/lifecycle/pre-teardown.sh` 是否卸载 `metrics-server`。
+- `UNINSTALL_ADOT`（Makefile 变量，默认 `true`）：控制 `scripts/lifecycle/pre-teardown.sh` 是否卸载 `ADOT Collector`（Helm release: `adot-collector`，ns: `observability`）。
+- `UNINSTALL_GRAFANA`（Makefile 变量，默认 `true`）：控制 `scripts/lifecycle/pre-teardown.sh` 是否卸载 `Grafana`（Helm release: `grafana`，ns: `observability`）。
+- `UNINSTALL_CHAOS_MESH`（Makefile 变量，默认 `true`）：控制 `scripts/lifecycle/pre-teardown.sh` 是否卸载 `Chaos Mesh`（Helm release: `chaos-mesh`，ns: `chaos-testing`）。
 - 直接调用脚本时可使用同义环境变量：
-  - `UNINSTALL_METRICS_SERVER=true bash scripts/pre-teardown.sh`
-  - `UNINSTALL_ADOT_COLLECTOR=false bash scripts/pre-teardown.sh`
-  - `UNINSTALL_GRAFANA=false bash scripts/pre-teardown.sh`
-  - `UNINSTALL_CHAOS_MESH=false bash scripts/pre-teardown.sh`
+  - `UNINSTALL_METRICS_SERVER=true bash scripts/lifecycle/pre-teardown.sh`
+  - `UNINSTALL_ADOT_COLLECTOR=false bash scripts/lifecycle/pre-teardown.sh`
+  - `UNINSTALL_GRAFANA=false bash scripts/lifecycle/pre-teardown.sh`
+  - `UNINSTALL_CHAOS_MESH=false bash scripts/lifecycle/pre-teardown.sh`
 - 其他：
   - `WAIT_ALB_DELETION_TIMEOUT`（默认 180）：等待 ALB 回收的最长秒数。
-  - `DRY_RUN`（仅 `post-teardown.sh`，默认 `false`）：只打印将执行的删除动作而不实际删除。
+- `DRY_RUN`（仅 `scripts/lifecycle/post-teardown.sh`，默认 `false`）：只打印将执行的删除动作而不实际删除。
 
 ### 常见错误与排查指引
 
@@ -581,20 +581,20 @@ aws eks list-clusters --region us-east-1 --profile phase2-sso
     aws ec2 describe-nat-gateways --region us-east-1 --profile phase2-sso
     ```
 - [x] **ALB 与 TargetGroup 已删除**：
-  - `pre-teardown.sh` 会先删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller，以触发云侧 ALB/TG 优雅回收；
+  - `scripts/lifecycle/pre-teardown.sh` 会先删除所有 ALB 类型 Ingress 并卸载 AWS Load Balancer Controller，以触发云侧 ALB/TG 优雅回收；
   - 运行以下命令检查，预期不再包含实验负载均衡：
     ```bash
     aws elbv2 describe-load-balancers --region us-east-1 --profile phase2-sso
     ```
-  - `post-teardown.sh` 会兜底清理无负载均衡器关联的孤立 TargetGroup。
+  - `scripts/lifecycle/post-teardown.sh` 会兜底清理无负载均衡器关联的孤立 TargetGroup。
 - [x] **ALB Controller 安全组已删除**：
-  - `pre-teardown.sh` 卸载 ALB Controller 后，脚本会删除带有集群标签的安全组，可额外在 EC2 控制台或命令行确认。
+  - `scripts/lifecycle/pre-teardown.sh` 卸载 ALB Controller 后，脚本会删除带有集群标签的安全组，可额外在 EC2 控制台或命令行确认。
 - [x] **EKS 集群状态**：
   ```bash
   aws eks list-clusters --region us-east-1 --profile phase2-sso
   ```
   - 预期集群名称不出现，表明 EKS 已被成功删除。
 - [x] **Spot 通知解绑**：
-  - 执行 `post-teardown.sh` 脚本会自动检查 ASG 是否仍绑定通知，
+  - 执行 `scripts/lifecycle/post-teardown.sh` 脚本会自动检查 ASG 是否仍绑定通知，
   - 也可在 SNS 控制台确认。
 - [x] **CloudWatch -> Log Group 已经删除。**

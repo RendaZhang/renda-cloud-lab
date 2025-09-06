@@ -113,7 +113,7 @@ if [[ ${#ING_LIST[@]} -gt 0 ]]; then
       break
     fi
     if (( SECONDS >= WAIT_ALB_DELETION_TIMEOUT )); then
-      log "⚠️ 超时未完全回收（后续由 post-teardown.sh 兜底强删），继续下一步"
+      log "⚠️ 超时未完全回收（后续由 lifecycle/post-teardown.sh 兜底强删），继续下一步"
       break
     fi
     sleep 10

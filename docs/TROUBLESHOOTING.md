@@ -560,7 +560,7 @@
 - **根因分析**：
   - kubeconfig 未更新导致 Terraform 无法与新的 EKS API 服务器完成 TLS 握手。
 - **修复方法**：
-  - 在 `post-recreate.sh` 中先刷新 kubeconfig 并通过脚本创建/注解该 ServiceAccount。
+  - 在 `scripts/lifecycle/post-recreate.sh` 中先刷新 kubeconfig 并通过脚本创建/注解该 ServiceAccount。
   - 或在 Terraform 前手动运行 `aws eks update-kubeconfig`。
 - **相关命令**：
   ```bash
@@ -704,7 +704,7 @@
   - Kubernetes provider 连接 EKS API 失败（凭证过期/上下文错误）。
 - **修复方法**：
   1. 先执行 `aws eks update-kubeconfig --name dev --region us-east-1`；
-  2. 将 SA 管理改由 **`post-recreate.sh` 脚本**（你已实施），避免 provider 与集群状态耦合；
+  2. 将 SA 管理改由 **`scripts/lifecycle/post-recreate.sh` 脚本**（你已实施），避免 provider 与集群状态耦合；
   3. Terraform 专注于 IAM/IRSA 等云侧资源。
 - **相关命令**：
   ```bash

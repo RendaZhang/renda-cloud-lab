@@ -36,7 +36,7 @@
 
 ### 部署与自动化
 
-- 提供脚本实现环境的每日重建与销毁，如 `post-recreate.sh`、`pre-teardown.sh`、`post-teardown.sh` 与 `scale-nodegroup-zero.sh`。
+- 提供脚本实现环境的每日重建与销毁，如 `scripts/lifecycle/post-recreate.sh`、`scripts/lifecycle/pre-teardown.sh`、`scripts/lifecycle/post-teardown.sh` 与 `scripts/lifecycle/scale-nodegroup-zero.sh`。
 - 通过 Helm 安装 `cluster-autoscaler`、`aws-load-balancer-controller`、`metrics-server` 等关键组件。
 
 ### 可观测性与 SRE

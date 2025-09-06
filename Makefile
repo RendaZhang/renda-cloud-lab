@@ -6,9 +6,11 @@ CLUSTER     = dev
 
 # --- 新增：脚本路径与开关 ---
 SCRIPTS_DIR           ?= scripts
-PRE_TEARDOWN          ?= $(SCRIPTS_DIR)/pre-teardown.sh
-POST_TEARDOWN         ?= $(SCRIPTS_DIR)/post-teardown.sh
-POST_RECREATE         ?= $(SCRIPTS_DIR)/post-recreate.sh
+LIFECYCLE_DIR         ?= $(SCRIPTS_DIR)/lifecycle
+PRE_TEARDOWN          ?= $(LIFECYCLE_DIR)/pre-teardown.sh
+POST_TEARDOWN         ?= $(LIFECYCLE_DIR)/post-teardown.sh
+POST_RECREATE         ?= $(LIFECYCLE_DIR)/post-recreate.sh
+SCALE_NODEGROUP_ZERO  ?= $(LIFECYCLE_DIR)/scale-nodegroup-zero.sh
 DRY_RUN               ?= false          # true 仅打印将执行的操作
 UNINSTALL_METRICS     ?= true           # pre-teardown 默认卸载 metrics-server
 UNINSTALL_ADOT        ?= true           # pre-teardown 默认卸载 ADOT Collector
@@ -75,7 +77,7 @@ start-all: start post-recreate
 ## 🌙 缩容所有 EKS 节点组至 0
 scale-zero:
 	@echo "🌙 Scaling down all EKS node groups to zero..."
-	@bash scripts/scale-nodegroup-zero.sh
+	@bash $(SCALE_NODEGROUP_ZERO)
 
 ## 🌙 销毁 NAT 网关和 EKS 控制面（先缩容节点组）
 stop: scale-zero
@@ -118,7 +120,7 @@ destroy-all: pre-teardown stop
 	@mkdir -p scripts/logs
 	@REGION=$(REGION) PROFILE=$(AWS_PROFILE) CLUSTER_NAME=$(CLUSTER) \
 		DRY_RUN=$(DRY_RUN) \
-		bash scripts/post-teardown.sh | tee scripts/logs/post-teardown.log
+		bash $(POST_TEARDOWN) | tee scripts/logs/post-teardown.log
 
 ## 📜 查看日志
 logs:

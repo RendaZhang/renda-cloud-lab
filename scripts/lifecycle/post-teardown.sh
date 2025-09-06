@@ -8,8 +8,8 @@
 #   - 验证 NAT 网关、EKS 集群和 ASG SNS 通知是否已移除
 #   - 通过 `DRY_RUN=true` 预演脚本执行过程
 # Usage:
-#   bash scripts/post-teardown.sh
-#   DRY_RUN=true bash scripts/post-teardown.sh   # 预演，不执行删除
+#   bash scripts/lifecycle/post-teardown.sh
+#   DRY_RUN=true bash scripts/lifecycle/post-teardown.sh   # 预演，不执行删除
 # ------------------------------------------------------------
 set -euo pipefail
 

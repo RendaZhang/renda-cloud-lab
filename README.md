@@ -58,7 +58,7 @@
 - **可观测性 & SRE** — 集成 metrics-server、ADOT Collector（remote_write 至 AMP）与 Grafana，支持可选安装 Chaos Mesh 实践混沌工程。
 - **成本 & 安全护栏** — 利用 Spot 实例与 IRSA 控制成本与权限，并提供 S3 前缀生命周期清理等基础护栏。
 - **自动扩缩容 (Cluster Autoscaler)** — 通过脚本式 `Helm` 安装 `cluster-autoscaler`，实现节点数量根据负载弹性伸缩
-- **负载均衡控制器 (AWS Load Balancer Controller)** — Terraform 仅预置 IRSA，ServiceAccount 由 `post-recreate.sh` 刷新 kubeconfig 并等待集群就绪后创建并注解，Helm 安装后即可管理 ALB Ingress
+- **负载均衡控制器 (AWS Load Balancer Controller)** — Terraform 仅预置 IRSA，ServiceAccount 由 `scripts/lifecycle/post-recreate.sh` 刷新 kubeconfig 并等待集群就绪后创建并注解，Helm 安装后即可管理 ALB Ingress
 
 上述模块相互协作，构成了一个完整的云原生实验环境。
 
@@ -72,6 +72,7 @@
 │  └─ eksctl/            # eksctl YAML (legacy - optional)
 ├─ docs/                 # 设计与流程文档（如 lifecycle.md）
 ├─ scripts/              # 基础设施启停与自动化脚本（如一键部署、节点伸缩、清理等）
+│  ├─ lifecycle/         # 环境重建与销毁相关脚本
 │  └─ logs/              # 执行日志输出目录（已在 .gitignore 中排除）
 ├─ diagrams/             # 架构图表（Terraform graph 可视化图）
 └─ README.md

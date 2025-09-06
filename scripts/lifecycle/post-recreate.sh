@@ -35,7 +35,7 @@
 #  16. 部署 HPA（CPU 60%，min=2/max=10，含 behavior）
 #  17. 检查 task-api
 # 使用：
-#   bash scripts/post-recreate.sh
+#   bash scripts/lifecycle/post-recreate.sh
 # ------------------------------------------------------------
 
 set -euo pipefail
