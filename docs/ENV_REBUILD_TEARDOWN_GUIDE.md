@@ -15,6 +15,7 @@
     - [Makefile 命令 - start-all](#makefile-%E5%91%BD%E4%BB%A4---start-all)
     - [常见错误与排查指引](#%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF%E4%B8%8E%E6%8E%92%E6%9F%A5%E6%8C%87%E5%BC%95)
     - [重建验收清单](#%E9%87%8D%E5%BB%BA%E9%AA%8C%E6%94%B6%E6%B8%85%E5%8D%95)
+  - [混沌实验（Chaos Experiment）](#%E6%B7%B7%E6%B2%8C%E5%AE%9E%E9%AA%8Cchaos-experiment)
   - [销毁流程](#%E9%94%80%E6%AF%81%E6%B5%81%E7%A8%8B)
     - [AWS SSO 登录](#aws-sso-%E7%99%BB%E5%BD%95)
     - [Makefile 命令 - stop-all](#makefile-%E5%91%BD%E4%BB%A4---stop-all)
@@ -70,7 +71,7 @@ Shell 脚本变量 `NS` 和 Terraform 变量 `task_api_namespace` 均默认指�
 
 #### chaos-testing
 
-混沌工程组件 `Chaos Mesh` 在开启时会部署到 `chaos-testing` 命名空间，仅包含 controller 与 daemonset。
+混沌工程组件 `Chaos Mesh` 在开启时会部署到 `chaos-testing` 命名空间，仅包含 controller 与 daemonset；示例实验清单位于 `deploy/k8s-manifests/chaos-experiments/`。
 
 ### 构建并推送 task-api 镜像
 
@@ -438,6 +439,33 @@ Terraform 在创建 NAT 网关时可能报错 `Error: Error creating NAT Gateway
     curl -s http://127.0.0.1:3000/api/health
     ```
     应返回 `{"status":"ok"}`，验证完成后结束转发。
+
+---
+
+## 混沌实验（Chaos Experiment）
+
+1. **确保 Chaos Mesh 已安装**：重建流程中需设置 `ENABLE_CHAOS_MESH=true`，以便在 `chaos-testing` 命名空间部署核心组件。
+2. **选择实验清单**：仓库提供的实验 YAML 位于 `deploy/k8s-manifests/chaos-experiments/`，示例包括：
+   - `experiment-net-latency.yaml`：向 `task-api` 注入 200ms 网络延迟；
+   - `experiment-pod-kill.yaml`：随机终止 `task-api` 的一个 Pod。
+3. **应用实验**：
+   ```bash
+   kubectl apply -f deploy/k8s-manifests/chaos-experiments/experiment-net-latency.yaml
+   # 或
+   kubectl apply -f deploy/k8s-manifests/chaos-experiments/experiment-pod-kill.yaml
+   ```
+4. **观察效果**：
+   ```bash
+   kubectl -n chaos-testing get networkchaos,podchaos
+   kubectl -n svc-task get pods -w
+   ```
+   前者查看 Chaos 对象状态，后者实时观察 `task-api` Pod 变化。
+5. **清理实验**：实验完成后删除对应 YAML，恢复正常状态：
+   ```bash
+   kubectl delete -f deploy/k8s-manifests/chaos-experiments/experiment-net-latency.yaml
+   # 或
+   kubectl delete -f deploy/k8s-manifests/chaos-experiments/experiment-pod-kill.yaml
+   ```
 
 ---
 
