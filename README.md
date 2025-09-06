@@ -265,7 +265,7 @@ Terraform 不再管理 Route 53 Hosted Zone。若需要通过自定义域名访�
 若修改了 `task-api` 源码：
 
 1. 在 `task-api` 目录构建并推送新镜像到 ECR（具体操作步骤参见 [DAILY_REBUILD_TEARDOWN_GUIDE.md](docs/DAILY_REBUILD_TEARDOWN_GUIDE.md#构建并推送-task-api-镜像)）。
-2. 将新的 digest 写入 `k8s/base/deploy-svc.yaml`，或在执行 `post-recreate.sh` 前通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
+2. 将新的 digest 写入 `deploy/base/deploy-svc.yaml`，或在执行 `post-recreate.sh` 前通过 `IMAGE_TAG`/`IMAGE_DIGEST` 传入。
 
 ---
 
