@@ -52,7 +52,7 @@ plan:
 		-var="create_nat=true" \
 		-var="create_eks=true"
 
-## ☀ 启动 NAT、EKS 控制面
+## ☀ 通过 Terraform 启动 NAT 网关与 EKS 控制面
 start:
 	@echo "Applying Terraform changes to start NAT and EKS..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
@@ -60,7 +60,8 @@ start:
 		-var="create_nat=true" \
 		-var="create_eks=true"
 
-## 📨 运行 Spot 通知自动绑定并刷新本地 kubeconfig 以及使用 Helm 部署
+## 📨 部署后续：刷新 kubeconfig、安装 ALB Controller/Autoscaler/metrics-server/ADOT/Grafana、
+##     （可选）Chaos Mesh，并绑定 Spot 中断通知
 post-recreate:
 	@echo "Running post-recreate tasks..."
 	@mkdir -p scripts/logs
@@ -68,7 +69,7 @@ post-recreate:
 		ENABLE_CHAOS_MESH=$(ENABLE_CHAOS_MESH) \
 		bash $(POST_RECREATE) | tee scripts/logs/post-recreate.log
 
-## 🚀 一键全流程（重建集群 + 通知绑定）
+## 🚀 一键执行 Terraform 部署并运行 post-recreate 脚本
 start-all: start post-recreate
 
 ## 🌙 缩容所有 EKS 节点组至 0
@@ -76,7 +77,7 @@ scale-zero:
 	@echo "🌙 Scaling down all EKS node groups to zero..."
 	@bash scripts/scale-nodegroup-zero.sh
 
-## 🌙 销毁 NAT 以及 EKS 控制面（采用“三开关”方式）
+## 🌙 销毁 NAT 网关和 EKS 控制面（先缩容节点组）
 stop: scale-zero
 	@echo "Stopping all resources (NAT and EKS control plane)..."
 	terraform -chdir=$(TF_DIR) apply -auto-approve -input=false \
@@ -84,7 +85,8 @@ stop: scale-zero
 		-var="create_nat=false" \
 		-var="create_eks=false"
 
-## 🧼 在销毁前先优雅释放：删除所有 ALB Ingress → 等待回收 ALB/TG → 卸载 ALB Controller + metrics-server
+## 🧼 在销毁前优雅释放：删除 ALB Ingress、等待回收 ALB/TG，卸载 ALB Controller，
+##     并可选卸载 metrics-server/ADOT/Grafana/Chaos Mesh
 pre-teardown:
 	@echo "🧹 [pre-teardown] 删除 Ingress & 卸载 ALB Controller (+ metrics-server)"
 	@mkdir -p scripts/logs
@@ -95,7 +97,8 @@ pre-teardown:
 		UNINSTALL_CHAOS_MESH=$(UNINSTALL_CHAOS_MESH) \
 		bash $(PRE_TEARDOWN) | tee scripts/logs/pre-teardown.log
 
-## 🛠️ 清理残留日志组 + 兜底强删 ALB/TargetGroup/安全组（按标签）
+## 🛠️ 清理残留 CloudWatch 日志组，强删与集群相关的 ALB/TargetGroup/安全组，
+##     并验证 NAT/EKS/ASG 通知已移除（支持 DRY_RUN）
 post-teardown:
 	@echo "Running post-teardown tasks..."
 	@mkdir -p scripts/logs
@@ -103,10 +106,10 @@ post-teardown:
 		DRY_RUN=$(DRY_RUN) \
 		bash $(POST_TEARDOWN) | tee scripts/logs/post-teardown.log
 
-## 🧹 销毁集群后清理残留（优雅 → 销毁 → 兜底）
+## 🧹 销毁集群后清理残留（pre-teardown → stop → post-teardown）
 stop-all: pre-teardown stop post-teardown
 
-## 💣 一键彻底销毁所有资源
+## 💣 一键彻底销毁所有资源（包含 pre-/post-teardown）
 destroy-all: pre-teardown stop
 	@echo "🔥 Destroying all Terraform-managed resources..."
 	terraform -chdir=$(TF_DIR) destroy -auto-approve -input=false \
@@ -131,7 +134,7 @@ logs:
 		fi; \
 		done
 
-# 🧹 清理临时状态文件
+# 🧹 清理临时文件、日志与 Terraform 缓存
 clean:
 	@echo "🧹 Cleaning caches and logs..."
 	@rm -f scripts/.last-asg-bound
